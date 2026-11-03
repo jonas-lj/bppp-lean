@@ -214,6 +214,164 @@ theorem fold_toInst (X R : E) (gamma : F) (lb' : LazyBases F E) (hp : lb'.Pos)
 
 end Round
 
+/-! ## All rounds -/
+
+open BpppTranscript
+
+theorem run_liftM_ok {σ ε α : Type} (a : α) (t : σ) :
+    (liftM (Except.ok a : Except ε α) : StateT σ (Except ε) α).run t = .ok (a, t) := rfl
+
+@[simp] theorem ok_bind {ε α β : Type} (a : α) (f : α → Except ε β) :
+    (Except.ok a >>= f) = f a := rfl
+
+/-- The transcript entries of the final opening. -/
+def finalEntries (proof : NormLinearProof F E) : List (Entry F E) :=
+  .scalar "l_final" proof.l_final :: proof.n_final.map (.scalar "n_final")
+
+theorem proof_shape_step {a b : ℕ} (h : ¬ is_base_case a b) :
+    proof_shape a b = ((proof_shape ((a + 1) / 2) ((b + 1) / 2)).1 + 1,
+      (proof_shape ((a + 1) / 2) ((b + 1) / 2)).2) := by
+  rw [proof_shape, dif_neg h]
+
+/-- `prove_rec` and the round loop of `norm_linear::verify` agree, and the final opening satisfies
+the relation on the commitment folded by the rounds, over the bases the verifier's weights give. -/
+theorem prove_rec_spec (gens : Generators E) :
+    ∀ (N : ℕ) (lb : LazyBases F E) (c : List F) (rho : F) (l n : List F) (C : E)
+      (t : BpppTranscript F E) (W_h W_g : Weights F) (gammas : List F),
+    l.length + n.length = N → lb.Pos → 0 < W_h.w.length → 0 < W_g.w.length →
+    lb.cur_h = contract' W_h.w gens.h_vec → lb.cur_g = contract' W_g.w gens.g_vec →
+    lb.g0 = gens.g → c.length = l.length → lb.cur_h.length = l.length →
+    lb.cur_g.length = n.length → 0 < l.length → rho ≠ 0 →
+    Rel gens.g (toInst C lb c rho l n) (toWit l n) →
+    ∃ (proof : NormLinearProof F E) (t' : BpppTranscript F E) (cf : List F) (rhof muf : F)
+      (gs : List F) (Wh' Wg' : Weights F),
+      (prove_rec lb c rho l n).run t = .ok (proof, t'.extend (finalEntries proof)) ∧
+      proof.rounds.length = (proof_shape l.length n.length).1 ∧
+      proof.n_final.length = (proof_shape l.length n.length).2 ∧
+      (proof.rounds.foldlM verify_round (c, rho, rho * rho, gammas, W_h, W_g)).run t =
+        .ok ((cf, rhof, muf, gammas ++ gs, Wh', Wg'), t') ∧
+      gs.length = proof.rounds.length ∧ cf.length = 1 ∧ 0 < Wh'.w.length ∧ 0 < Wg'.w.length ∧
+      (contract' Wh'.w gens.h_vec).length = 1 ∧
+      (contract' Wg'.w gens.g_vec).length = proof.n_final.length ∧
+      C + ((List.zip proof.rounds gs).map fun ((X, R), γ) => γ • X + (γ ^ 2 - 1) • R).sum =
+        (cf.headD 0 * proof.l_final + weighted_norm proof.n_final muf) • gens.g +
+          proof.l_final • (contract' Wh'.w gens.h_vec).getD 0 0 +
+          ∑ k ∈ range proof.n_final.length,
+            proof.n_final.getD k 0 • (contract' Wg'.w gens.g_vec).getD k 0 := by
+  intro N
+  induction N using Nat.strong_induction_on with
+  | _ N ih =>
+  intro lb c rho l n C t W_h W_g gammas hN hp hWh hWg hcur_h hcur_g hg0 hc hh hg hl hrho hrel
+  rw [prove_rec]
+  by_cases hb : is_base_case l.length n.length
+  · -- The opening is sent in the clear.
+    have hl1 : l.length = 1 := by
+      simp only [is_base_case, Bool.and_eq_true, decide_eq_true_eq] at hb; omega
+    obtain ⟨l0, rfl⟩ : ∃ l0, l = [l0] := by
+      match l, hl1 with
+      | [l0], _ => exact ⟨l0, rfl⟩
+    refine ⟨⟨[], l0, n⟩, t, c, rho, rho * rho, [], W_h, W_g, ?_, ?_, ?_, ?_, rfl, ?_, hWh, hWg,
+      ?_, ?_, ?_⟩
+    · simp only [dif_pos hb, StateT.run_bind, run_append_scalars, ok_bind, StateT.run_pure]
+      simp [finalEntries, extend, pure, Except.pure]
+    · rw [proof_shape, dif_pos hb]; rfl
+    · rw [proof_shape, dif_pos hb]
+    · rw [List.append_nil]; rfl
+    · rw [hc]; rfl
+    · rw [← hcur_h, hh]; rfl
+    · rw [← hcur_g, hg]
+    · simp only [Spec.NormLinear.Rel, toInst, toWit] at hrel
+      rw [List.zip_nil_left, List.map_nil, List.sum_nil, add_zero, hrel, ← hcur_h, ← hcur_g]
+      simp only [List.length_singleton, ip, wip, Spec.NormLinear.msm, range_one,
+        sum_singleton, List.getD_cons_zero, weighted_norm_eq]
+      congr 3
+      have hc0 : c.getD 0 0 = c.headD 0 := by cases c <;> rfl
+      rw [hc0]
+      exact congrArg _ (sum_congr rfl fun k _ => by ring)
+  · -- One round.
+    have hlen := halves_length l
+    have hnlen := halves_length n
+    have hclen := halves_length c
+    have hrinv : inverse rho = .ok rho⁻¹ := by simp [inverse, hrho]
+    obtain ⟨lb1, hX, hp1, hh1, hg1, hg01⟩ := LazyBases.msm_eq lb hp
+      (2 * rho⁻¹ * weighted_inner_product (halves n).1 (halves n).2 (rho * rho * (rho * rho)) +
+        inner_product (halves c).1 (halves l).2 + inner_product (halves c).2 (halves l).1)
+      (from_halves (halves l).2 (halves l).1)
+      (from_halves (vec_scalar_mul rho (halves n).2) (vec_scalar_mul rho⁻¹ (halves n).1))
+      (by rw [length_from_halves, hh]; omega)
+      (by rw [length_from_halves, length_vec_scalar_mul, length_vec_scalar_mul, hg]; omega)
+    obtain ⟨lb2, hR, hp2, hh2, hg2, hg02⟩ := LazyBases.msm_eq lb1 hp1
+      (weighted_norm (halves n).2 (rho * rho * (rho * rho)) + inner_product (halves c).2 (halves l).2)
+      (from_odd_half (halves l).2) (from_odd_half (halves n).2)
+      (by rw [from_odd_half_eq, length_from_halves, hh1, hh]; simp; omega)
+      (by rw [from_odd_half_eq, length_from_halves, hg1, hg]; simp; omega)
+    rw [hh1, hg1, hg01] at hR
+    rw [x_point_eq C lb c rho l n hc hh hg, hg0] at hX
+    rw [r_point_eq C lb c rho l n hc hh hg, hg0] at hR
+    set x := toInst C lb c rho l n
+    set w := toWit l n
+    set X := Spec.NormLinear.msgX gens.g x w
+    set R := Spec.NormLinear.msgR gens.g x w
+    set gamma := t.oracle (t.log ++ [.point "X" X, .point "R" R, .challenge "gamma"])
+    have hfold := fold_toInst C lb c rho l n X R gamma lb2 hp2 hc hh hg (hh2.trans hh1)
+      (hg2.trans hg1)
+    have hrel' := Spec.NormLinear.fold_rel gens.g x w hrho (by simp only [x, toInst]; ring) gamma
+      hrel
+    rw [← hfold.1, ← hfold.2] at hrel'
+    simp only [is_base_case, FOLD_THRESHOLD, Bool.and_eq_true, decide_eq_true_eq, not_and,
+      not_lt] at hb
+    obtain ⟨proof', t', cf, rhof, muf, gs, Wh', Wg', hrun, hr1, hn1, hv, hgs, hcf, hWh', hWg', hch,
+      hcg, hfin⟩ := ih _ (by
+        simp only [length_vec_add, length_vec_scalar_mul, length_halves_fst,
+          length_halves_snd, half] at *
+        omega)
+      (lb2.fold rho gamma) (vec_add (halves c).1 (vec_scalar_mul gamma (halves c).2)) (rho * rho)
+      (vec_add (halves l).1 (vec_scalar_mul gamma (halves l).2))
+      (vec_add (vec_scalar_mul rho⁻¹ (halves n).1) (vec_scalar_mul gamma (halves n).2))
+      (C + gamma • X + (gamma ^ 2 - 1) • R)
+      (t.extend [.point "X" X, .point "R" R, .challenge "gamma"])
+      (W_h.tensor_pair one gamma) (W_g.tensor_pair rho gamma) (gammas ++ [gamma]) rfl
+      (LazyBases.pos_fold hp2 _ _) (by rw [length_tensor_pair]; omega)
+      (by rw [length_tensor_pair]; omega)
+      (by rw [LazyBases.cur_h_fold _ hp2, hh2, hh1, hcur_h, contract'_tensor_pair hWh])
+      (by rw [LazyBases.cur_g_fold _ hp2, hg2, hg1, hcur_g, contract'_tensor_pair hWg])
+      (by rw [LazyBases.g0_fold, hg02, hg01, hg0])
+      (by simp [length_vec_add, length_vec_scalar_mul, hlen, hclen, hc])
+      (by rw [LazyBases.cur_h_fold _ hp2, length_foldPts, hh2, hh1, hh]
+          simp [length_vec_add, length_vec_scalar_mul, hlen])
+      (by rw [LazyBases.cur_g_fold _ hp2, length_foldPts, hg2, hg1, hg]
+          simp [length_vec_add, length_vec_scalar_mul, hnlen])
+      (by simp [length_vec_add, length_vec_scalar_mul, hlen]; omega)
+      (mul_ne_zero hrho hrho) hrel'
+    refine ⟨{ proof' with rounds := (X, R) :: proof'.rounds }, t', cf, rhof, muf, gamma :: gs, Wh',
+      Wg', ?_, ?_, hn1.trans ?_, ?_, by simp [hgs], hcf, hWh', hWg', hch, hcg, ?_⟩
+    · simp only [dif_neg (by simp [is_base_case, FOLD_THRESHOLD]; omega : ¬ is_base_case l.length n.length),
+        StateT.run_bind]
+      rw [hrinv, run_liftM_ok, ok_bind]
+      simp only
+      rw [hX, run_liftM_ok, ok_bind]
+      simp only
+      rw [hR, run_liftM_ok, ok_bind]
+      simp only [run_append_point, ok_bind, run_challenge_scalar, extend_extend, extend_log,
+        extend_oracle, List.append_assoc, List.cons_append, List.nil_append]
+      rw [hrun]
+      rfl
+    · have hb' : ¬ is_base_case l.length n.length := by simp [is_base_case, FOLD_THRESHOLD]; omega
+      rw [List.length_cons, hr1, proof_shape_step hb']
+      simp [length_vec_add, length_vec_scalar_mul, hlen, hnlen]
+    · have hb' : ¬ is_base_case l.length n.length := by simp [is_base_case, FOLD_THRESHOLD]; omega
+      rw [proof_shape_step hb']
+      simp [length_vec_add, length_vec_scalar_mul, hlen, hnlen]
+    · rw [List.foldlM_cons, StateT.run_bind]
+      simp only [verify_round, StateT.run_bind, run_append_point, ok_bind, run_challenge_scalar,
+        extend_extend, extend_log, extend_oracle, List.append_assoc, List.cons_append,
+        List.nil_append, StateT.run_pure]
+      rw [pure_bind]
+      refine hv.trans ?_
+      simp
+    · simp only [List.zip_cons_cons, List.map_cons, List.sum_cons, ← add_assoc]
+      exact hfin
+
 end NormLinear
 
 end Bppp
