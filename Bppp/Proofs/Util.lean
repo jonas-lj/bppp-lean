@@ -46,6 +46,10 @@ theorem foldl_zip_add (g : α → β → M) (a : List α) (b : List β) (da : α
         Nat.add_min_add_right, sum_range_succ', List.getD_cons_succ, List.getD_cons_zero]
       rw [add_assoc, add_comm (g x y)]
 
+theorem getElem_eq_getD' {α : Type*} (l : List α) {k : ℕ} (h : k < l.length) (d : α) :
+    l[k] = l.getD k d := by
+  rw [List.getD_eq_getElem?_getD, List.getElem?_eq_getElem h, Option.getD_some]
+
 theorem getD_eq_zero_of_le {R : Type*} [Zero R] {v : List R} {k : ℕ} (h : v.length ≤ k) :
     v.getD k 0 = 0 := by
   simp [List.getD_eq_getElem?_getD, List.getElem?_eq_none h]
