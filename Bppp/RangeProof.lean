@@ -24,7 +24,8 @@ open BpppTranscript
 def transcript (oracle : List (Entry F E) → F) (dst : List ℕ) (n_bits m : ℕ) :
     BpppTranscript F E :=
   let t := BpppTranscript.new oracle "fastcrypto-bppp-range-proof-01"
-  { t with log := t.log ++ [.message "dst" dst, .message "n_bits" [n_bits], .message "m" [m]] }
+  { t with log := t.log ++ [.message "dst" dst, .message "n_bits" (u64_le_bytes n_bits),
+    .message "m" (u64_le_bytes m)] }
 
 /-- `RangeProof::prove_batch`, with the draws `rng`. -/
 def prove_batch (oracle : List (Entry F E) → F) (generators : Range → ℕ → Result (Generators E))
@@ -52,6 +53,18 @@ def verify_batch (self : RangeProof F E) (oracle : List (Entry F E) → F)
       (transcript oracle dst n_bits m) with
   | .ok () => pure ()
   | .error _ => throw .InvalidProof
+
+/-- `RangeProof::prove`. -/
+def prove (oracle : List (Entry F E) → F) (generators : Range → ℕ → Result (Generators E))
+    (G H : E) (value : ℕ) (blinding : F) (range : Range) (dst : List ℕ)
+    (rng : Circuit.Randomness F) : Result (RangeProof F E) :=
+  prove_batch oracle generators G H [value] [blinding] range dst rng
+
+/-- `RangeProof::verify`. -/
+def verify (self : RangeProof F E) (oracle : List (Entry F E) → F)
+    (generators : Range → ℕ → Result (Generators E)) (commitment : PedersenCommitment E)
+    (range : Range) (dst : List ℕ) : Result Unit :=
+  self.verify_batch oracle generators [commitment] range dst
 
 end RangeProof
 

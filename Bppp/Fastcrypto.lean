@@ -22,7 +22,7 @@ abbrev Result (α : Type) := Except Error α
 
 variable {F E : Type} [Field F] [DecidableEq F] [AddCommGroup E] [Module F E]
 
-/-- The value `head!` and `getD` read on an empty `Vec`, where Rust panics. -/
+/-- The value `head!` reads on an empty `Vec`, where Rust panics. -/
 instance : Inhabited F := ⟨0⟩
 
 /-- `Scalar::inverse`. -/

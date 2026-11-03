@@ -30,9 +30,9 @@ variable {F E}
 
 namespace BpppTranscript
 
-/-- `BpppTranscript::new`. -/
+/-- `BpppTranscript::new`: Merlin's `Transcript::new` absorbs `label` under `dom-sep`. -/
 def new (oracle : List (Entry F E) → F) (label : String) : BpppTranscript F E :=
-  ⟨oracle, [.message "init" (label.toList.map Char.toNat)]⟩
+  ⟨oracle, [.message "dom-sep" (label.toList.map Char.toNat)]⟩
 
 /-- Absorb `e`. -/
 def absorb (e : Entry F E) : TranscriptM F E Unit :=
@@ -61,9 +61,12 @@ def append_scalar (label : String) (s : F) : TranscriptM F E Unit := absorb (.sc
 def append_scalars (label : String) (scalars : List F) : TranscriptM F E Unit :=
   scalars.forM fun s => append_scalar label s
 
+/-- `u64::to_le_bytes`. -/
+def u64_le_bytes (value : ℕ) : List ℕ := (List.range 8).map fun i => value / 256 ^ i % 256
+
 /-- `BpppTranscript::append_u64`. -/
 def append_u64 (label : String) (value : ℕ) : TranscriptM F E Unit :=
-  absorb (.message label [value])
+  absorb (.message label (u64_le_bytes value))
 
 /-- `BpppTranscript::challenge_scalar`. -/
 def challenge_scalar (label : String) : TranscriptM F E F := do

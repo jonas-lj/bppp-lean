@@ -37,7 +37,9 @@ namespace Generators
 
 variable (self : Generators E)
 
-/-- `Generators::msm`: `sigma*G + <l, h_vec> + <n, g_vec> + <dynamic_scalars, dynamic_points>`. -/
+/-- `Generators::msm`: `sigma*G + <l, h_vec> + <n, g_vec> + <dynamic_scalars, dynamic_points>`
+when `l` and `n` have the lengths of `h_vec` and `g_vec`. As in Rust, only their total length is
+checked. -/
 def msm (sigma : F) (l n : List F) (dynamic_scalars : List F) (dynamic_points : List E) :
     Result E :=
   mixed_multi_scalar_mul (self.g :: self.h_vec ++ self.g_vec) (sigma :: l ++ n) dynamic_scalars
