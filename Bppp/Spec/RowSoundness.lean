@@ -1,13 +1,14 @@
 import Bppp.Spec.CircuitSoundness
 
 /-!
-# The `λ`, `β` and `ρ` levels of the circuit extractor
+# The `λ`, `β`, `ρ` and `α` levels of the circuit extractor
 
 For any opening, the `T³` coefficient of `f(T)`, the value row (29), is a polynomial in `λ` whose
 coefficients are the rows (35): the degree-0 residue `E_0 + L_0`, the value links `L_i`, set
 membership `S` and the shape rows. Forking `λ` forces every row to vanish, and forking `β`
 removes the blinding bracket from the degree-0 residue, leaving (36). That is a polynomial in
-`μ`, and forking `μ = ρ²` gives the first value link and the Hadamard rows.
+`μ`, and forking `μ = ρ²` gives the first value link and the Hadamard rows. With those, set
+membership is a sum of simple poles in `α` (37), and forking `α` puts every digit in the table.
 -/
 
 open Finset LaurentPolynomial
@@ -586,6 +587,144 @@ theorem extract_rho (h2 : (2 : F) ≠ 0) (hM : 0 < P.M) (cL cR V0 : E) (μ : Fin
     simp only [a, Nat.succ_ne_zero, if_false, Nat.add_sub_cancel, if_neg (show ¬ k < P.Nd by omega),
       add_zero] at this
     exact (mul_eq_zero.1 this).resolve_left (neg_ne_zero.2 h2)
+
+/-! ## The `α` level -/
+
+/-- The residues (37) of set membership after substituting the Hadamard rows: at the pole `-p`,
+`[p = 0](N_d - Σ_j m_j) + Σ_j [p = j] m_j - |{k < N_d : n_{L,k} = p}|`. -/
+noncomputable def residue37 [DecidableEq F] (w : Opening F) (p : F) : F :=
+  (if p = 0 then (P.Nd : F) else 0) - ∑ j ∈ range 15, w.nO j *
+    ((if p = 0 then 1 else 0) - if p = ((j + 1 : ℕ) : F) then 1 else 0) -
+  ∑ k ∈ range P.Nd, if w.nL k = p then 1 else 0
+
+/-- The partial-fraction form of set membership, given the Hadamard rows. -/
+theorem rowS_partial [DecidableEq F] (w : Opening F) (hα : ∀ j : ℕ, j < 16 → ch.α + j ≠ 0)
+    (hR : ∀ k < P.Nd, w.nR k = (ch.α + w.nL k)⁻¹) (U : Finset F)
+    (hU0 : ∀ j : ℕ, j < 16 → (j : F) ∈ U) (hUL : ∀ k < P.Nd, w.nL k ∈ U) :
+    rowS P ch w = 2 * ∑ p ∈ U, residue37 P w p / (ch.α + p) := by
+  have hα0 : ch.α ≠ 0 := by simpa using hα 0 (by norm_num)
+  have hsel : ∀ q ∈ U, ∀ c : F, ∑ p ∈ U, (if p = q then c else 0) / (ch.α + p) = c / (ch.α + q) :=
+    fun q hq c => by simp only [ite_div, zero_div, sum_ite_eq', if_pos hq]
+  have hsel' : ∀ q ∈ U, ∀ c : F, ∑ p ∈ U, (if q = p then c else 0) / (ch.α + p) = c / (ch.α + q) :=
+    fun q hq c => by simp only [ite_div, zero_div, sum_ite_eq, if_pos hq]
+  have h0 : (0 : F) ∈ U := by simpa using hU0 0 (by norm_num)
+  have hexp : ∑ p ∈ U, residue37 P w p / (ch.α + p) = P.Nd / ch.α - ∑ j ∈ range 15, w.nO j *
+      (1 / ch.α - 1 / (ch.α + ((j + 1 : ℕ) : F))) - ∑ k ∈ range P.Nd, 1 / (ch.α + w.nL k) := by
+    simp only [residue37, sub_div, sum_sub_distrib, sum_div, mul_sub, mul_div_assoc]
+    have A : ∑ x ∈ U, ∑ j ∈ range 15, w.nO j * ((if x = 0 then 1 else 0) / (ch.α + x)) =
+        ∑ j ∈ range 15, w.nO j * (1 / ch.α) := by
+      rw [sum_comm]
+      exact sum_congr rfl fun j _ => by rw [← mul_sum, hsel 0 h0, add_zero]
+    have B : ∑ x ∈ U, ∑ j ∈ range 15,
+        w.nO j * ((if x = ((j + 1 : ℕ) : F) then 1 else 0) / (ch.α + x)) =
+        ∑ j ∈ range 15, w.nO j * (1 / (ch.α + ((j + 1 : ℕ) : F))) := by
+      rw [sum_comm]
+      exact sum_congr rfl fun j hj => by
+        rw [← mul_sum, hsel _ (hU0 (j + 1) (by simp at hj; omega))]
+    have C : ∑ x ∈ U, ∑ k ∈ range P.Nd, (if w.nL k = x then (1 : F) else 0) / (ch.α + x) =
+        ∑ k ∈ range P.Nd, 1 / (ch.α + w.nL k) := by
+      rw [sum_comm]
+      exact sum_congr rfl fun k hk => hsel' _ (hUL k (mem_range.1 hk)) 1
+    rw [hsel 0 h0, A, B, C, add_zero]
+  rw [hexp, rowS]
+  have h15 : ∑ k ∈ range P.nm,
+      ((if k ≤ 14 then w.nO k * (((k : F) + 1) / (ch.α * (ch.α + ((k : F) + 1)))) else 0) +
+        if k < P.Nd then w.nR k else 0) = ∑ j ∈ range 15, w.nO j *
+          (1 / ch.α - 1 / (ch.α + ((j + 1 : ℕ) : F))) +
+        ∑ k ∈ range P.Nd, 1 / (ch.α + w.nL k) := by
+    rw [sum_add_distrib, sum_range_of_le (m := 15) P.h15 fun k hk => if_neg (by omega),
+      sum_range_of_le (m := P.Nd) P.hnm fun k hk => if_neg (by omega)]
+    congr 1
+    · refine sum_congr rfl fun j hj => ?_
+      have hj := mem_range.1 hj
+      have := hα (j + 1) (by omega)
+      push_cast at this ⊢
+      rw [if_pos (by omega)]
+      field_simp
+      ring
+    · exact sum_congr rfl fun k hk => by rw [if_pos (mem_range.1 hk), hR k (mem_range.1 hk),
+        one_div]
+  rw [h15]
+  field_simp
+  ring
+
+theorem residue37_congr [DecidableEq F] {w w' : Opening F} (hO : ∀ k < P.nm, w.nO k = w'.nO k)
+    (hL : ∀ k < P.Nd, w.nL k = w'.nL k) (p : F) : residue37 P w p = residue37 P w' p := by
+  have h1 : ∑ j ∈ range 15, w.nO j *
+      ((if p = 0 then 1 else 0) - if p = ((j + 1 : ℕ) : F) then 1 else 0) =
+      ∑ j ∈ range 15, w'.nO j *
+      ((if p = 0 then 1 else 0) - if p = ((j + 1 : ℕ) : F) then 1 else 0) :=
+    sum_congr rfl fun j hj => by rw [hO j (by have := P.h15; simp at hj; omega)]
+  have h2 : ∑ k ∈ range P.Nd, (if w.nL k = p then (1 : F) else 0) =
+      ∑ k ∈ range P.Nd, if w'.nL k = p then 1 else 0 :=
+    sum_congr rfl fun k hk => by rw [hL k (mem_range.1 hk)]
+  simp only [residue37, h1, h2]
+
+/-- **The `α` level.** Take `N_d + 16` distinct `α`, none in `{-15, ..., 0}`, the other challenges
+fixed, each with openings of `C_O`, `C_L` and an `n_R` satisfying set membership and the Hadamard
+rows. If no `m = 1, ..., N_d` is zero in the field, either every digit of `C_L` is in
+`{0, ..., 15}`, or the generators satisfy a nontrivial relation. -/
+theorem extract_alpha [DecidableEq F] (h2 : (2 : F) ≠ 0)
+    (hchar : ∀ m : ℕ, 0 < m → m ≤ P.Nd → (m : F) ≠ 0)
+    (cO cL : E) (α : Fin (P.Nd + 16) → F) (hα : Function.Injective α)
+    (hpole : ∀ r, ∀ j : ℕ, j < 16 → α r + j ≠ 0) (w : Fin (P.Nd + 16) → Opening F)
+    (hO : ∀ r, cO = Spec.cO P g H G (w r)) (hL : ∀ r, cL = Spec.cL P g H G (w r))
+    (hS : ∀ r, rowS P { ch with α := α r } (w r) = 0)
+    (hH : ∀ r, ∀ k < P.Nd, (α r + (w r).nL k) * (w r).nR k = 1) :
+    (∀ k < P.Nd, ∃ d : ℕ, d < 16 ∧ (w 0).nL k = d) ∨ Relation F P g H G := by
+  by_cases hrel : Relation F P g H G
+  · exact Or.inr hrel
+  left
+  have aO := fun r => (binding P g H G ((hO r).symm.trans (hO 0))).resolve_right hrel
+  have aL := fun r => (binding P g H G ((hL r).symm.trans (hL 0))).resolve_right hrel
+  have hnL : ∀ r, ∀ k < P.Nd, (w r).nL k = (w 0).nL k := fun r k hk =>
+    (aL r).2.2 k (by have := P.hnm; simp only [Params.Nd] at hk; omega)
+  set U : Finset F := (range P.Nd).image (w 0).nL ∪ (range 16).image (fun j : ℕ => (j : F))
+  have hU0 : ∀ j : ℕ, j < 16 → (j : F) ∈ U := fun j hj =>
+    mem_union_right _ (mem_image.2 ⟨j, mem_range.2 hj, rfl⟩)
+  have hUL : ∀ k < P.Nd, (w 0).nL k ∈ U := fun k hk =>
+    mem_union_left _ (mem_image.2 ⟨k, mem_range.2 hk, rfl⟩)
+  have hcard : U.card ≤ P.Nd + 16 := (card_union_le _ _).trans
+    (add_le_add (card_image_le.trans (by simp)) (card_image_le.trans (by simp)))
+  -- At every `α`, set membership is a vanishing sum of simple poles, so every residue is zero.
+  have hres : ∀ p ∈ U, residue37 P (w 0) p = 0 := by
+    refine reciprocal_zero U _ (fun k => α (Fin.castLE hcard k))
+      (hα.comp (Fin.castLE_injective _)) ?_ fun k => ?_
+    · intro k p hp
+      rcases mem_union.1 hp with hp | hp
+      · obtain ⟨k', hk', rfl⟩ := mem_image.1 hp
+        have := hH (Fin.castLE hcard k) k' (mem_range.1 hk')
+        rw [hnL _ k' (mem_range.1 hk')] at this
+        exact left_ne_zero_of_mul_eq_one this
+      · obtain ⟨j, hj, rfl⟩ := mem_image.1 hp
+        exact hpole _ j (mem_range.1 hj)
+    · set r := Fin.castLE hcard k
+      have hR : ∀ k' < P.Nd, (w r).nR k' = (α r + (w r).nL k')⁻¹ := fun k' hk' =>
+        eq_inv_of_mul_eq_one_right (hH r k' hk')
+      have e := rowS_partial P { ch with α := α r } (w r) (hpole r) hR U hU0
+        fun k' hk' => by rw [hnL r k' hk']; exact hUL k' hk'
+      rw [hS r] at e
+      have e' := (mul_eq_zero.1 e.symm).resolve_left h2
+      refine (sum_congr rfl fun p _ => ?_).trans e'
+      rw [residue37_congr P (fun k hk => (aO r).2.2 k hk) (hnL r) p]
+  -- A digit outside the table would have a nonzero residue: minus its multiplicity.
+  intro k0 hk0
+  by_contra hne
+  push Not at hne
+  have := hres _ (hUL k0 hk0)
+  have hz1 : (if (w 0).nL k0 = 0 then (P.Nd : F) else 0) = 0 :=
+    if_neg fun h => hne 0 (by norm_num) (by simpa using h)
+  have hz2 : ∑ j ∈ range 15, (w 0).nO j * ((if (w 0).nL k0 = 0 then 1 else 0) -
+      if (w 0).nL k0 = ((j + 1 : ℕ) : F) then 1 else 0) = 0 :=
+    sum_eq_zero fun j hj => by
+      rw [if_neg fun h => hne 0 (by norm_num) (by simpa using h),
+        if_neg fun h => hne (j + 1) (by simp at hj; omega) h]
+      ring
+  simp only [residue37, hz1, hz2, zero_sub, sub_zero, neg_eq_zero] at this
+  rw [sum_boole] at this
+  refine hchar ((range P.Nd).filter fun k => (w 0).nL k = (w 0).nL k0).card
+    (card_pos.2 ⟨k0, mem_filter.2 ⟨mem_range.2 hk0, rfl⟩⟩) ?_ this
+  exact (card_filter_le _ _).trans (by simp)
 
 end Extract
 

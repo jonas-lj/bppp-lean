@@ -65,7 +65,14 @@ the same openings of `C_L`, `C_R` and `V_0`, either the first value link and the
 `(α + n_{L,k})n_{R,k} = 1` (`k < N_d`), `n_{L,k}n_{R,k} = 0` (`k ≥ N_d`) hold, or the generators
 satisfy a nontrivial linear relation.
 
-Not yet covered: the `α` level of the extractor, zero-knowledge, and the
+`Spec.extract_alpha`: the `α` level. From `N_d + 16` distinct `α`, none in `{-15, ..., 0}`, each
+with set membership and the Hadamard rows for the same openings of `C_O`, `C_L`, either every
+digit `n_{L,k}` (`k < N_d`) is in `{0, ..., 15}`, or the generators satisfy a nontrivial linear
+relation. It assumes no `m = 1, ..., N_d` is zero in the field.
+
+The levels are in `Spec/CircuitSoundness.lean` (`τ`) and `Spec/RowSoundness.lean` (the rest).
+
+Not yet covered: composing the levels into one extractor, zero-knowledge, and the
 probabilistic steps (tree extraction, Fiat–Shamir).
 
 ## Build

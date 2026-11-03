@@ -1,4 +1,4 @@
 import Bppp.Correctness
 import Bppp.Proofs.NormLinearSoundness
 import Bppp.Spec.CircuitSoundness
-import Bppp.Spec.LambdaSoundness
+import Bppp.Spec.RowSoundness
