@@ -1,11 +1,12 @@
 import Bppp.Spec.CircuitSoundness
 
 /-!
-# The `λ` level of the circuit extractor
+# The `λ` and `β` levels of the circuit extractor
 
 For any opening, the `T³` coefficient of `f(T)`, the value row (29), is a polynomial in `λ` whose
 coefficients are the rows (35): the degree-0 residue `E_0 + L_0`, the value links `L_i`, set
-membership `S` and the shape rows. Forking `λ` forces every row to vanish.
+membership `S` and the shape rows. Forking `λ` forces every row to vanish, and forking `β`
+removes the blinding bracket from the degree-0 residue, leaving (36).
 -/
 
 open Finset LaurentPolynomial
@@ -431,6 +432,67 @@ theorem extract_lam (h2 : (2 : F) ≠ 0) (hM : 0 < P.M) (hδ : ch.δ ≠ 0) (hμ
       sum_eq_zero fun k hk => by rw [hn0 i hi k (mem_range.1 hk)]; ring
     simp only [rowL, hz, mul_zero, sub_zero] at this
     exact mul_left_cancel₀ h2 (by linear_combination this)
+
+/-! ## The `β` level -/
+
+/-- The residue (36), scaled by `2`: the first value link and the Hadamard rows, weighted by
+powers of `μ`. `w` supplies `n_L`, `n_R` and `u0` is the `g`-coordinate of `V_0`. -/
+noncomputable def row36 (w : Opening F) (u0 : F) : F :=
+  2 * muAm P ch - 2 * ∑ k ∈ range P.nm, ch.μ ^ (k + 1) *
+    (w.nL k * w.nR k + if k < P.Nd then ch.α * w.nR k else 0) +
+  2 * u0 - 2 * ∑ t ∈ range P.D, 16 ^ t * w.nL t
+
+/-- With `V_0` in the `(g, H_0)`-plane, the degree-0 residue is (36) less the blinding bracket. -/
+theorem residue_eq (x : F) (w : Opening F) (u : ℕ → F) (n : ℕ → ℕ → F)
+    (hn : ∀ k < P.nm, n 0 k = 0) :
+    rowE0 P { ch with β := x } w + rowL P { ch with β := x } w u n 0 =
+      row36 P ch w (u 0) - x * (ch.δ * w.rO 4 + w.rL 3 + w.rR 2) := by
+  have hz : ∑ k ∈ range P.nm, ch.μ ^ (k + 1) * (w.nO k * n 0 k) = 0 :=
+    sum_eq_zero fun k hk => by rw [hn k (mem_range.1 hk)]; ring
+  simp only [rowE0, rowL, row36, muAm, hz, zero_mul, zero_add]
+  ring
+
+/-- **The `β` level.** Take two distinct `β`, the other challenges fixed, each with openings of
+`C_O`, `C_L`, `C_R` and of `V_0` in the `(g, H_0)`-plane whose degree-0 residue vanishes. Either
+(36) holds, or the generators satisfy a nontrivial relation. -/
+theorem extract_beta (hM : 0 < P.M) (cO cL cR V0 : E) (β : Fin 2 → F) (hβ : Function.Injective β)
+    (w : Fin 2 → Opening F) (u : Fin 2 → ℕ → F) (h n : Fin 2 → ℕ → ℕ → F)
+    (hO : ∀ b, cO = Spec.cO P g H G (w b)) (hL : ∀ b, cL = Spec.cL P g H G (w b))
+    (hR : ∀ b, cR = Spec.cR P g H G (w b)) (hV : ∀ b, V0 = commit P g H G (u b 0) (h b 0) (n b 0))
+    (hn : ∀ b, ∀ k < P.nm, n b 0 k = 0)
+    (hres : ∀ b, rowE0 P { ch with β := β b } (w b) + rowL P { ch with β := β b } (w b) (u b) (n b) 0 = 0) :
+    row36 P ch (w 0) (u 0 0) = 0 ∨ Relation F P g H G := by
+  by_cases hrel : Relation F P g H G
+  · exact Or.inr hrel
+  left
+  have aO := (binding P g H G ((hO 1).symm.trans (hO 0))).resolve_right hrel
+  have aL := (binding P g H G ((hL 1).symm.trans (hL 0))).resolve_right hrel
+  have aR := (binding P g H G ((hR 1).symm.trans (hR 0))).resolve_right hrel
+  have aV := (binding P g H G ((hV 1).symm.trans (hV 0))).resolve_right hrel
+  have hrO : (w 1).rO 4 = (w 0).rO 4 := by simpa [lin] using aO.2.1 3 (by norm_num)
+  have hrL : (w 1).rL 3 = (w 0).rL 3 := by simpa [lin] using aL.2.1 2 (by norm_num)
+  have hrR : (w 1).rR 2 = (w 0).rR 2 := by simpa [lin] using aR.2.1 1 (by norm_num)
+  have h36 : row36 P ch (w 1) (u 1 0) = row36 P ch (w 0) (u 0 0) := by
+    have : ∑ k ∈ range P.nm, ch.μ ^ (k + 1) *
+        ((w 1).nL k * (w 1).nR k + if k < P.Nd then ch.α * (w 1).nR k else 0) =
+        ∑ k ∈ range P.nm, ch.μ ^ (k + 1) *
+        ((w 0).nL k * (w 0).nR k + if k < P.Nd then ch.α * (w 0).nR k else 0) :=
+      sum_congr rfl fun k hk => by rw [aL.2.2 k (mem_range.1 hk), aR.2.2 k (mem_range.1 hk)]
+    have ht : ∑ t ∈ range P.D, 16 ^ t * (w 1).nL t = ∑ t ∈ range P.D, 16 ^ t * (w 0).nL t :=
+      sum_congr rfl fun t ht => by
+        have := P.hnm
+        have : P.D ≤ P.M * P.D := Nat.le_mul_of_pos_left _ hM
+        rw [aL.2.2 t (by simp at ht; omega)]
+    simp only [row36, this, ht, aV.1]
+  have e0 := hres 0
+  have e1 := hres 1
+  rw [residue_eq P ch _ _ _ _ (hn 0)] at e0
+  rw [residue_eq P ch _ _ _ _ (hn 1), h36, hrO, hrL, hrR] at e1
+  have hne : β 0 - β 1 ≠ 0 := sub_ne_zero.2 fun e => absurd (hβ e) (by decide)
+  have hbr : ch.δ * (w 0).rO 4 + (w 0).rL 3 + (w 0).rR 2 = 0 :=
+    (mul_eq_zero.1 (by linear_combination e1 - e0 : (β 0 - β 1) * _ = 0)).resolve_left hne
+  rw [hbr, mul_zero, sub_zero] at e0
+  exact e0
 
 end Extract
 

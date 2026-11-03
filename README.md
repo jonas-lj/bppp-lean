@@ -56,7 +56,11 @@ the `(g, H_0)`-plane, set membership and the value links of inputs `i ≥ 1` hol
 residue vanishes, or the generators satisfy a nontrivial linear relation. It assumes `2 ≠ 0`
 and a nonempty batch.
 
-Not yet covered: the `β`, `ρ`, `α` levels of the extractor, zero-knowledge, and the
+`Spec.extract_beta`: the `β` level. From two distinct `β`, with the openings of `C_O`, `C_L`,
+`C_R` and `V_0` the `λ` level returns, either (36) holds or the generators satisfy a nontrivial
+linear relation.
+
+Not yet covered: the `ρ`, `α` levels of the extractor, zero-knowledge, and the
 probabilistic steps (tree extraction, Fiat–Shamir).
 
 ## Build
