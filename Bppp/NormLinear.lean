@@ -217,6 +217,20 @@ def prove (gens : Generators E) (c : List F) (rho : F) (l n : List F) :
   domain_sep "norm_linear"
   prove_rec (.new gens) c rho l n
 
+/-- An iteration of the round loop of `norm_linear::verify`, on the state
+`(c, rho, mu, gammas, w_h, w_g)`. -/
+def verify_round (st : List F × F × F × List F × Weights F × Weights F) (round : E × E) :
+    TranscriptM F E (List F × F × F × List F × Weights F × Weights F) := do
+  let (c, rho, mu, gammas, w_h, w_g) := st
+  let (x_point, r_point) := round
+  append_point "X" x_point
+  append_point "R" r_point
+  let gamma ← challenge_scalar "gamma"
+  let c0 := (halves c).1
+  let c1 := (halves c).2
+  pure (vec_add c0 (vec_scalar_mul gamma c1), mu, mu * mu, gammas ++ [gamma],
+    w_h.tensor_pair one gamma, w_g.tensor_pair rho gamma)
+
 /-- `norm_linear::verify`. -/
 def verify (gens : Generators E) (c : List F) (ps : F) (pn : List F) (extra : List (F × E))
     (rho : F) (proof : NormLinearProof F E) : TranscriptM F E Unit := do
@@ -226,14 +240,7 @@ def verify (gens : Generators E) (c : List F) (ps : F) (pn : List F) (extra : Li
   if proof.rounds.length ≠ rounds ∨ proof.n_final.length ≠ n_len then
     throw .InvalidProof
   domain_sep "norm_linear"
-  let (c, _, mu, gammas, w_h, w_g) ← proof.rounds.foldlM
-    (fun (c, rho, mu, gammas, (w_h : Weights F), (w_g : Weights F)) (x_point, r_point) => do
-      append_point "X" x_point
-      append_point "R" r_point
-      let gamma ← challenge_scalar "gamma"
-      let (c0, c1) := halves c
-      pure (vec_add c0 (vec_scalar_mul gamma c1), mu, mu * mu, gammas ++ [gamma],
-        w_h.tensor_pair one gamma, w_g.tensor_pair rho gamma))
+  let (c, _, mu, gammas, w_h, w_g) ← proof.rounds.foldlM verify_round
     (c, rho, rho * rho, ([] : List F), Weights.new, Weights.new)
   append_scalars "l_final" [proof.l_final]
   append_scalars "n_final" proof.n_final
