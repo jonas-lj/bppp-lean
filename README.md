@@ -71,6 +71,26 @@ result for `circuit::verify`.
 Not covered: zero-knowledge, and the probabilistic steps from special soundness to knowledge
 soundness of the non-interactive proof (tree extraction, Fiat–Shamir).
 
+## Fiat–Shamir hygiene
+
+`Proofs/Hygiene.lean`: `verify_batch` derives each challenge from an unambiguous encoding of the
+statement and every prover message before it, and from nothing else.
+
+- `RangeProof.verify_batch_local`: two transcript hashes that agree on `Circuit.challengeLogs`
+  give the same result, accepting or rejecting. These are the logs at `α`, `ρ`, `λ`, `β`, `δ`, `τ`
+  and each round's `γ`. Each is the verifier's log up to that challenge, starting with the
+  statement (`dst`, `n_bits`, `m`, every `V_i`) and containing every prover message before it.
+- `RangeProof.challenge_decodes`: if two challenge logs, of any statements and proofs, absorb
+  the same labels and bytes, they are the same log of the same statement. Points are under any
+  injective encoding and are not tagged as points, as in Rust: the labels alone tell entries apart.
+  It assumes `n_bits` and `m` fit a `u64`.
+- `RangeProof.challengeLogs_nodup`: within a run, no two challenges are drawn at the same log.
+
+The generators are not absorbed: they are determined by `range` and `m` through
+`Generators::new`. Merlin's framing of `(label, message)` pairs and the canonical encoding of
+Ristretto points are assumed. Only the verifier is covered; the prover's challenges agree with
+it on honest runs by completeness.
+
 ## Build
 
 ```bash
