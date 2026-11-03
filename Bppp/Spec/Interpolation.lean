@@ -1,5 +1,6 @@
 import Mathlib.LinearAlgebra.Lagrange
 import Mathlib.Tactic
+import Bppp.Spec.Poly
 
 /-!
 # Interpolation
@@ -89,5 +90,95 @@ theorem lam_kron (k m : Fin 3) :
   fin_cases k <;> fin_cases m <;> simp [lam] <;> field_simp <;> ring
 
 end System
+
+/-! ## Lemma 1 for Laurent polynomials -/
+
+/-- **Lemma 1.** A Laurent polynomial supported on the `n + 1` powers `T^a, ..., T^{a+n}` that
+vanishes at `n + 1` distinct nonzero points is zero. -/
+theorem laurent_zero {n : ℕ} {f : LaurentPolynomial F} {a : ℤ} (hf : Supp f a (a + n))
+    (τ : Fin (n + 1) → Fˣ) (hτ : Function.Injective τ) (h : ∀ k, evalAt (τ k) f = 0) : f = 0 := by
+  classical
+  -- The coefficients, shifted to start at `T^0`, as a polynomial.
+  set P : F[X] := ∑ i ∈ range (n + 1), C (coeff (a + i) f) * X ^ i
+  have hfsum : f = ∑ i ∈ range (n + 1), mono (a + i) (coeff (a + i) f) := by
+    refine ext_coeff fun p => ?_
+    rw [map_sum]
+    simp only [coeff_mono]
+    by_cases hp : a ≤ p ∧ p ≤ a + n
+    · rw [sum_eq_single_of_mem (p - a).toNat (mem_range.2 (by omega))]
+      · rw [if_pos (by omega), show a + ((p - a).toNat : ℤ) = p by omega]
+      · intro i _ hi; rw [if_neg (by omega)]
+    · rw [sum_eq_zero fun i hi => if_neg (by simp only [mem_range] at hi; omega)]
+      by_contra h0; exact hp (hf p h0)
+  have hP : P = 0 := by
+    have hinj : Function.Injective fun k => (τ k : F) := fun i j e => hτ (Units.ext e)
+    refine eq_zero_of_degree_lt_of_eval_index_eq_zero univ (hinj.injOn) ?_ ?_
+    · rw [card_univ, Fintype.card_fin]
+      refine lt_of_le_of_lt (degree_sum_le _ _) ?_
+      refine (Finset.sup_lt_iff (WithBot.bot_lt_coe _)).2 fun i hi => ?_
+      refine lt_of_le_of_lt (degree_C_mul_X_pow_le _ _) ?_
+      simp only [mem_range] at hi
+      exact WithBot.coe_lt_coe.2 (by omega)
+    · intro k _
+      have hk := h k
+      rw [hfsum, map_sum] at hk
+      simp only [evalAt_mono] at hk
+      have : eval (τ k : F) P = ((τ k : F) ^ a)⁻¹ *
+          ∑ i ∈ range (n + 1), coeff (a + i) f * (τ k : F) ^ (a + (i : ℤ)) := by
+        simp only [P, eval_finsetSum, eval_mul, eval_C, eval_pow, eval_X, mul_sum]
+        refine sum_congr rfl fun i _ => ?_
+        rw [zpow_add₀ (τ k).ne_zero, zpow_natCast]
+        field_simp
+      rw [this, hk, mul_zero]
+  have hc : ∀ i < n + 1, coeff (a + i) f = 0 := fun i hi => by
+    have := congrArg (fun q => Polynomial.coeff q i) hP
+    simp only [P, finsetSum_coeff, coeff_C_mul_X_pow, Polynomial.coeff_zero] at this
+    rwa [sum_eq_single_of_mem i (mem_range.2 hi) (fun j _ hj => if_neg (Ne.symm hj)),
+      if_pos rfl] at this
+  rw [hfsum]
+  exact sum_eq_zero fun i hi => by rw [hc i (mem_range.1 hi), mono_zero]
+
+/-! ## Lemma 2 -/
+
+/-- **Lemma 2 (reciprocal vanishing).** If `Σ_{p ∈ U} e_p / (x + p)` vanishes at `|U|` distinct
+points `x`, none a pole, then every `e_p` is zero. -/
+theorem reciprocal_zero [DecidableEq F] (U : Finset F) (e : F → F) (x : Fin U.card → F)
+    (hx : Function.Injective x) (hpole : ∀ k, ∀ p ∈ U, x k + p ≠ 0)
+    (h : ∀ k, ∑ p ∈ U, e p / (x k + p) = 0) : ∀ p ∈ U, e p = 0 := by
+  -- Clearing the denominators gives a polynomial of degree below `|U|`.
+  set Q : F[X] := ∑ p ∈ U, C (e p) * ∏ q ∈ U.erase p, (X + C q)
+  have hQ : Q = 0 := by
+    refine eq_zero_of_degree_lt_of_eval_index_eq_zero univ (hx.injOn) ?_ ?_
+    · rw [card_univ, Fintype.card_fin]
+      refine lt_of_le_of_lt (degree_sum_le _ _) ((Finset.sup_lt_iff ?_).2 fun p hp => ?_)
+      · exact WithBot.bot_lt_coe _
+      refine lt_of_le_of_lt (degree_mul_le _ _) ?_
+      refine lt_of_le_of_lt (add_le_add (degree_C_le) (degree_prod_le _ _)) ?_
+      have hsum : ∑ q ∈ U.erase p, (X + C q : F[X]).degree ≤ ((U.erase p).card : WithBot ℕ) := by
+        refine le_trans (sum_le_sum fun q _ => (degree_X_add_C q).le) ?_
+        simp
+      refine lt_of_le_of_lt (add_le_add le_rfl hsum) ?_
+      rw [card_erase_of_mem hp, zero_add]
+      have : 0 < U.card := card_pos.2 ⟨p, hp⟩
+      exact_mod_cast (by omega : U.card - 1 < U.card)
+    · intro k _
+      have hk := h k
+      have hprod : ∏ q ∈ U, (x k + q) ≠ 0 := prod_ne_zero_iff.2 fun q hq => hpole k q hq
+      have : eval (x k) Q = (∏ q ∈ U, (x k + q)) * ∑ p ∈ U, e p / (x k + p) := by
+        simp only [Q, eval_finsetSum, eval_mul, eval_C, eval_prod, eval_add, eval_X, mul_sum]
+        refine sum_congr rfl fun p hp => ?_
+        rw [← mul_prod_erase U _ hp]
+        field_simp [hpole k p hp]
+      rw [this, hk, mul_zero]
+  intro p hp
+  -- At `-p` only the term of `p` survives.
+  have := congrArg (eval (-p)) hQ
+  simp only [Q, eval_finsetSum, eval_mul, eval_C, eval_prod, eval_add, eval_X, eval_zero] at this
+  rw [sum_eq_single_of_mem p hp] at this
+  · have hne : ∏ q ∈ U.erase p, (-p + q) ≠ 0 := prod_ne_zero_iff.2 fun q hq => by
+      have := ne_of_mem_erase hq; intro h0; apply this; linear_combination h0
+    exact (mul_eq_zero.1 this).resolve_right hne
+  · intro q hq hqp
+    rw [prod_eq_zero (mem_erase.2 ⟨Ne.symm hqp, hp⟩) (by ring), mul_zero]
 
 end Bppp.Spec
