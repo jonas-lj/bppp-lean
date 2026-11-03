@@ -34,7 +34,15 @@ It depends only on the axioms `propext`, `Classical.choice` and `Quot.sound`.
 - Not modelled: `Generators::new` (hash-to-curve), the MSM precomputation tables, serialization,
   and test-only code.
 
-Not covered: soundness and zero-knowledge.
+## Soundness (in progress)
+
+`Spec.NormLinear.extract`: special soundness of the interactive norm-linear argument. From a tree
+of accepting transcripts with four distinct challenges per round, the commitment opens to a
+witness of the relation (19), or the generators satisfy a nontrivial linear relation. The norm
+vector's length must be divisible by `2^rounds`, as it is in `norm_linear.rs`.
+
+Not yet covered: the link from accepting runs of `norm_linear::verify` to such a tree, the
+extractor of the range circuit (Table 1 of the paper), and zero-knowledge.
 
 ## Build
 
