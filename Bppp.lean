@@ -1,2 +1,2 @@
 import Bppp.Correctness
-import Bppp.Proofs.CircuitSoundness
+import Bppp.Soundness
