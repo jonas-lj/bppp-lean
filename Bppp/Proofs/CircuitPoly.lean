@@ -28,9 +28,6 @@ variable (params : CircuitParams) (hv : params.Valid) (rng : Randomness F) (valu
 /-- The challenges of `Spec`. -/
 def specCh : Spec.Challenges F := ⟨alpha, rho * rho, lambda, beta, delta⟩
 
-theorem getD_vec_eq {L : ℕ} {v : List F} (hl : v.length = L) {f : ℕ → F} (hf : ∀ k < L, v.getD k 0 = f k)
-    (k : ℕ) (hk : k < L) : v.getD k 0 = f k := hf k hk
-
 /-! ## `h_coordinates` -/
 
 theorem length_h_coordinates {r : List F} (h : r.length = H_LEN) : (h_coordinates r).length = H_LEN := by
@@ -54,7 +51,7 @@ variable (C : Constraints F) (hC : Constraints.Correct params alpha (rho * rho) 
 
 include hC in
 theorem uniform_p_n : Uniform params.nm (C.p_n delta⁻¹) := by
-  refine uniform_new (by simp [Constraints.p_n]) fun c hc => ?_
+  refine uniform_new (by simp) fun c hc => ?_
   simp only [List.mem_cons, List.not_mem_nil, or_false] at hc
   rcases hc with rfl | rfl | rfl | rfl <;>
     simp [hC.cn_v, hC.cn_r, hC.cn_l, hC.cn_o, length_vec_scalar_mul]
@@ -110,7 +107,7 @@ theorem n_spec (hlen : values.length = params.m) (hnr_len : n_r.length = params.
     getD_n_l params hv rng values blindings hlen, getD_n_o params hv rng values blindings hlen,
     hnr, Spec.n]
   rw [show (List.replicate params.nm (0 : F)).getD k 0 = 0 by
-    rw [List.getD_eq_getElem?_getD, List.getElem?_replicate]; split_ifs <;> rfl]
+    rw [List.getD_eq_getElem?_getD, List.getElem?_replicate]; split_ifs; rfl]
   simp only [specOpening, Spec.Honest.opening, specHonest, specCh]
   push_cast
   ring_nf
@@ -350,7 +347,7 @@ theorem solve_r_s_eq (rest : Laurent F) (hbeta : beta ≠ 0)
       List.getElem?_map, ← e_eq s hs, List.getD_eq_getElem?_getD]
     rw [List.getElem?_eq_getElem (by simp [CR_POWERS]; omega)]
     simp only [Option.map_some, Option.getD_some, hcoeff, div_eq_mul_inv]
-    rw [if_neg (by interval_cases s <;> simp [CR_POWERS, Spec.e]), add_zero]
+    rw [if_neg (by interval_cases s <;> simp [CR_POWERS]), add_zero]
   simp only [rSOf, Spec.Honest.rS, ← hg]
   have hb : (specCh alpha rho lambda beta delta).β = beta := rfl
   rw [hb]

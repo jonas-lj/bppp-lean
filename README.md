@@ -1,33 +1,38 @@
 # bppp-lean
 
-Lean 4 proofs about the batched Bulletproofs++ range proof of
-[ePrint 2026/2648](https://eprint.iacr.org/2026/2648) (§5), as implemented in
-`fastcrypto::bulletproofspp`. Definitions follow the paper's notation and equation numbers.
+Lean 4 proof that the batched Bulletproofs++ range proof in `fastcrypto::bulletproofspp` is
+complete: `RangeProof::verify_batch` accepts what `RangeProof::prove_batch` outputs.
 
-| File | Contents |
+## Layout
+
+| Files | Contents |
 | --- | --- |
-| `Bppp/Laurent.lean` | Monomials, coefficients and supports of Mathlib's `F[T;T⁻¹]` |
-| `Bppp/Protocol.lean` | Public data (23)–(24), openings (21)–(22), Laurent vectors (26), error polynomial (28) |
-| `Bppp/Honest.lean` | The honest witness placement and the solved blinding `r_S` |
-| `Bppp/Completeness.lean` | Completeness of the circuit: `f(T) ≡ 0`, hence (27) at every `τ` |
-| `Bppp/NormLinear.lean` | The norm-linear argument (§4.9): relation (19), messages `X`, `R`, folds |
-| `Bppp/NormLinearCompleteness.lean` | Completeness of the norm-linear argument |
-| `Bppp/Commitment.lean` | The commitments (22), `V̂` (21) and the combined commitment `C(τ)` (25) |
-| `Bppp/EndToEnd.lean` | End-to-end completeness |
+| `Bppp/Fastcrypto.lean`, `Crs.lean`, `Util.lean`, `Transcript.lean`, `Laurent.lean`, `Constraints.lean`, `NormLinear.lean`, `Circuit.lean`, `RangeProof.lean` | The Rust code, one file per module, with the same names |
+| `Bppp/Proofs/` | Lemmas about each module, and completeness of `norm_linear` and `circuit` |
+| `Bppp/Spec/` | The protocol of [ePrint 2026/2648](https://eprint.iacr.org/2026/2648) §5, used inside the proofs |
+| `Bppp/Correctness.lean` | The main theorem |
 
-## Proved
+## The theorem
 
-- `completeness`: for an honest witness with blinding in the zero pattern (22), the solved
-  `r_S` makes `f(T) ≡ 0`, given `α + j ≠ 0` for `j < 16`, and `β`, `δ`, `μ` nonzero.
-- `norm_linear_relation`: the same at every `τ ≠ 0`, `σ(τ) = ⟨c(τ), ℓ(τ)⟩ + ‖n(τ)‖²_μ`.
-- `NormLinear.fold_rel`: one honest round, with zero padding to even length, maps an opening
-  satisfying (19) to one satisfying (19) for the folded instance, given `ρ ≠ 0` and `μ = ρ²`.
-- `NormLinear.completeness`: hence the verifier's final check passes after any number of rounds.
-  The group is modelled as any `F`-module.
-- `combined_eq`, `vHat_honest`: the verifier's `C(τ)`, formed from `C_S`, `C_O`, `C_L`, `C_R`
-  and the inputs `V_i = v_i g + s_i H_0`, is the commitment to `(σ(τ), ℓ(τ), n(τ))`.
-- `end_to_end`: hence, for an honest prover, the verifier accepts for every `τ ≠ 0`, every
-  `ρ ≠ 0` with `μ = ρ²` and any challenges of the norm-linear argument.
+`RangeProof.completeness`: for values in `range` and blindings of the same length,
+`prove_batch` returns a proof that `verify_batch` accepts for the Pedersen commitments to the
+values. It assumes:
+
+- `Generators::new` returns `H_LEN` and `nm` generators, with `g = pedersen::H` and
+  `h_vec[0] = pedersen::G`;
+- the transcript hash never outputs `-j` for `j < 16`, so no inversion fails.
+
+It depends only on the axioms `propext`, `Classical.choice` and `Quot.sound`.
+
+## The model
+
+- Scalars are any field and points any module over it. `Vec` is `List`, `FastCryptoResult` is
+  `Except`, and `&mut BpppTranscript` is a state monad.
+- The Merlin transcript is a log of absorbed entries and an arbitrary function from logs to
+  challenges.
+- The prover's random draws are an input.
+- Not modelled: `Generators::new` (hash-to-curve), the MSM precomputation tables, serialization,
+  and test-only code.
 
 Not covered: soundness and zero-knowledge.
 

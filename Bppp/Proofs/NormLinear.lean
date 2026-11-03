@@ -413,7 +413,7 @@ theorem dynamic_sum (extra : List (F × E)) (rounds : List (E × E)) (gs : List 
     | cons x L ih =>
       obtain ⟨⟨X, R⟩, γ⟩ := x
       simp only [List.flatMap_cons, List.map_append, List.sum_append, List.map_cons, List.map_nil,
-        List.sum_cons, List.sum_nil, add_zero, ih, one, neg_add]
+        List.sum_cons, List.sum_nil, add_zero, one, neg_add]
       congr 1
       rw [neg_smul, show (1 - γ * γ) = -(γ ^ 2 - 1) by ring, neg_smul]
 

@@ -4,8 +4,7 @@ import Bppp.Spec.NormLinear
 # Completeness of the norm-linear argument
 
 One honest round maps an instance satisfying the relation (19) to a folded instance satisfying
-it (`fold_rel`), so after any number of rounds the verifier's final check, which is the relation
-itself on the opening sent in the clear, passes (`completeness`).
+it (`fold_rel`).
 -/
 
 open Finset
@@ -102,18 +101,5 @@ theorem fold_rel (hρ : x.ρ ≠ 0) (hμ : x.μ = x.ρ ^ 2) (γ : F) (h : Rel g 
   dsimp only
   rw [hc, hn, hH, hG, h, msgX, msgR]
   module
-
-/-! ## All rounds -/
-
-/-- **Completeness.** If the opening satisfies the relation (19), the verifier accepts after any
-number of honest rounds: the final opening, sent in the clear, satisfies the relation on the
-folded instance. -/
-theorem completeness (γs : List F) (hρ : x.ρ ≠ 0) (hμ : x.μ = x.ρ ^ 2) (h : Rel g x w) :
-    Rel g (run g γs x w).1 (run g γs x w).2 := by
-  induction γs generalizing x w with
-  | nil => exact h
-  | cons γ γs ih =>
-    exact ih _ _ (by simp only [foldInst]; rw [hμ]; exact pow_ne_zero 2 hρ) (by simp [foldInst, hμ])
-      (fold_rel g x w hρ hμ γ h)
 
 end Bppp.Spec.NormLinear

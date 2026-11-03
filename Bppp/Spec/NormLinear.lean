@@ -105,9 +105,4 @@ noncomputable def foldWit (γ : F) : Witness F where
   ℓ i := ev x.Lℓ w.ℓ i + γ * od x.Lℓ w.ℓ i
   n i := x.ρ⁻¹ * ev x.Ln w.n i + γ * od x.Ln w.n i
 
-/-- The honest prover and the verifier, folding once per challenge in `γs`. -/
-noncomputable def run : List F → Instance F E → Witness F → Instance F E × Witness F
-  | [], x, w => (x, w)
-  | γ :: γs, x, w => run γs (foldInst x (msgX g x w) (msgR g x w) γ) (foldWit x w γ)
-
 end Bppp.Spec.NormLinear

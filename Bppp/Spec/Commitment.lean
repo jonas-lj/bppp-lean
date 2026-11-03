@@ -46,4 +46,58 @@ noncomputable def combined (cS cO cL cR vHat : E) : E :=
 /-- `V̂ = 2Σ_i λ^i V_i` (21). -/
 noncomputable def vHat (V : ℕ → E) : E := (2 : F) • ∑ i ∈ range P.M, ch.lam ^ i • V i
 
+/-! ## `C(τ)` commits to the evaluated opening -/
+
+section
+
+variable (P : Params) (g : E) (H G : ℕ → E) (ch : Challenges F) (τ : Fˣ)
+
+/-- `C(τ)` is linear in the openings of the commitments it combines. -/
+theorem combined_commit (σS σO σL σR σV : F) (ℓS ℓO ℓL ℓR ℓV nS nO nL nR nV : ℕ → F) :
+    combined P g G ch τ (commit P g H G σS ℓS nS) (commit P g H G σO ℓO nO)
+      (commit P g H G σL ℓL nL) (commit P g H G σR ℓR nR) (commit P g H G σV ℓV nV) =
+    commit P g H G
+      (evalAt τ (ps P ch) + (τ : F) ^ (-1 : ℤ) * σS + ch.δ * σO + (τ : F) * σL +
+        (τ : F) ^ 2 * σR + (τ : F) ^ 3 * σV)
+      (fun s => (τ : F) ^ (-1 : ℤ) * ℓS s + ch.δ * ℓO s + (τ : F) * ℓL s + (τ : F) ^ 2 * ℓR s +
+        (τ : F) ^ 3 * ℓV s)
+      (fun k => evalAt τ (pn P ch k) + (τ : F) ^ (-1 : ℤ) * nS k + ch.δ * nO k +
+        (τ : F) * nL k + (τ : F) ^ 2 * nR k + (τ : F) ^ 3 * nV k) := by
+  simp only [combined, commit, NormLinear.msm, smul_add, smul_sum, smul_smul, add_smul,
+    sum_add_distrib]
+  module
+
+variable (w : Opening F)
+
+/-- `C(τ)` commits to the evaluated opening `(σ(τ), ℓ(τ), n(τ))` (26), for any opening. -/
+theorem combined_eq (w : Opening F) :
+    combined P g G ch τ (cS P g H G w) (cO P g H G w) (cL P g H G w) (cR P g H G w)
+      (commit P g H G w.vhat (lin w.rV w.ℓV) w.nV) =
+    commit P g H G (evalAt τ (σ P ch w)) (fun s => evalAt τ (ℓ ch w s))
+      (fun k => evalAt τ (n P ch w k)) := by
+  rw [cS, cO, cL, cR, combined_commit]
+  congr 1
+  case e_σ =>
+    simp only [σ, map_add, evalAt_mono, zpow_ofNat]; ring
+  case e_ℓ =>
+    funext s; simp only [lin, ℓ]; split_ifs <;> simp only [map_add, evalAt_mono, zpow_ofNat] <;> ring
+  case e_n =>
+    funext k; simp only [n, pn, map_add, evalAt_mono, zpow_ofNat]; ring
+
+variable (h : Honest F)
+
+/-- The honest inputs aggregate to the commitment to the input coordinates of the opening:
+`2Σ_i λ^i V_i = v̂g + r_{V,1}H_0`. -/
+theorem vHat_honest (rS : ℕ → F) :
+    vHat P ch (Honest.inputs (P := P) g H h) = commit P g H G (h.opening P ch rS).vhat
+      (lin (h.opening P ch rS).rV (h.opening P ch rS).ℓV) (h.opening P ch rS).nV := by
+  have h8 : NormLinear.msm 8 (lin (h.opening P ch rS).rV (h.opening P ch rS).ℓV) H =
+      (2 * ∑ i ∈ range P.M, ch.lam ^ i * h.s i) • H 0 := by
+    simp [NormLinear.msm, lin, Honest.opening, sum_range_succ]
+  rw [commit, h8]
+  simp only [vHat, Honest.inputs, Honest.opening, NormLinear.msm, zero_smul, sum_const_zero,
+    add_zero, smul_add, sum_add_distrib, smul_sum, smul_smul, mul_sum, sum_smul]
+
+end
+
 end Bppp.Spec

@@ -103,7 +103,7 @@ theorem sum_filter_unzip (L : List (F × E)) :
   | nil => rfl
   | cons x L ih =>
     obtain ⟨s, p⟩ := x
-    by_cases hs : s = 0 <;> simp_all [List.filter_cons]
+    by_cases hs : s = 0 <;> simp_all
 
 theorem sum_map_zip (a : List F) (b : List E) :
     ((List.zip a b).map fun (s, p) => s • p).sum = (List.zipWith (· • ·) a b).sum := by

@@ -1,6 +1,6 @@
 import Bppp.Proofs.CircuitPoly
 import Bppp.Proofs.NormLinear
-import Bppp.Spec.EndToEnd
+import Bppp.Spec.Commitment
 
 /-!
 # Completeness of `circuit.rs`
@@ -125,7 +125,7 @@ theorem ps_eq (alpha rho lambda beta delta : F) (C : Constraints F)
       evalAt τ (Spec.ps (params.toSpec hv) (specCh alpha rho lambda beta delta)) := by
   rw [weighted_norm_eq, List.length_map, List.length_range]
   simp only [Spec.ps, Spec.normμ, map_add, map_sum, map_mul, evalAt_mono, Constraints.p_s_constant,
-    hC.lambda_al, hC.mu_am, CircuitParams.nm_toSpec, zpow_zero, mul_one, zpow_ofNat]
+    hC.lambda_al, hC.mu_am, CircuitParams.nm_toSpec, zpow_ofNat]
   have h : ∀ k ∈ range params.nm, ((List.range params.nm).map fun k =>
       evalAt τ ((C.p_n delta⁻¹).toPolys k)).getD k 0 =
       evalAt τ (Spec.pn (params.toSpec hv) (specCh alpha rho lambda beta delta) k) := fun k hk => by
@@ -253,7 +253,7 @@ theorem completeness (Gp Hp : E) (gens : Generators E) (t : BpppTranscript F E)
   obtain ⟨c_s, hcs⟩ : ∃ c_s, gens.commit g_s h_s W.n_s = .ok c_s :=
     ⟨_, gens_commit_eq gens _ _ _ (by rw [hhs_len, hh]) (by rw [hns, hg])⟩
   rw [show W.l_s = rng.l_s from rfl]
-  simp only [hsolve, hcs, run_liftM_ok, ok_bind, extend_oracle, extend_log, run_append_point]
+  simp only [hsolve, hcs, run_liftM_ok, ok_bind, extend_oracle, extend_log]
   set L2 : List (Entry F E) := [Entry.point "C_R" c_r] ++ ([Entry.challenge "rho"] ++
     ([Entry.challenge "lambda"] ++ ([Entry.challenge "beta"] ++ [Entry.challenge "delta"])))
     with hL2
@@ -318,11 +318,11 @@ theorem completeness (Gp Hp : E) (gens : Generators E) (t : BpppTranscript F E)
         (by rw [hns, hg])).symm.trans hcs)
       rw [← e, commit_spec params hv gens hh hg _ _ _ hhs_len hns]
       refine spec_commit_congr _ _ _ _ _ (fun s hs => ?_) (fun k hk => ?_)
-      · simp only [w, specOpening, Spec.Honest.opening, Spec.lin, rSOf, specHonest]
+      · simp only [w, Spec.Honest.opening, Spec.lin, rSOf, specHonest]
         rcases (show s < 7 ∨ s = 7 by omega) with h7 | rfl
         · rw [if_pos h7, if_neg (by omega), Nat.add_sub_cancel]
         · rw [if_neg (by omega), hhs7]
-      · simp only [w, specOpening, Spec.Honest.opening, specHonest, W, Witness.new]
+      · simp only [w, Spec.Honest.opening, specHonest, W, Witness.new]
         exact getD_map_range _ (by simpa using hk)
     -- The inputs.
     have hvcs_len : vcs.length = params.m := by simp [vcs, length_to_scalars, hlen, hb]
@@ -410,7 +410,7 @@ theorem completeness (Gp Hp : E) (gens : Generators E) (t : BpppTranscript F E)
       (specHonest rng values blindings) (rSOf g_s h_s)]
     rw [show Spec.Honest.opening (params.toSpec hv) (specCh alpha rho lambda beta delta)
       (specHonest rng values blindings) (rSOf g_s h_s) = w from rfl, Spec.combined_eq,
-      commit_spec params hv gens hh hg _ _ _ (by simp [l_tau, hh]) (by simp [n_tau]), hσ]
+      commit_spec params hv gens hh hg _ _ _ (by simp [l_tau]) (by simp [n_tau]), hσ]
     exact spec_commit_congr _ _ _ _ _ (fun s hs => (hl_getD s (by simpa [H_LEN] using hs)).symm)
       (fun k hk => (hn_getD k hk).symm)
   obtain ⟨nl, t', hnlp, hnlv⟩ := NormLinear.completeness gens T c_tau rho l_tau n_tau ps_tau pn_tau
@@ -421,16 +421,16 @@ theorem completeness (Gp Hp : E) (gens : Generators E) (t : BpppTranscript F E)
   · have hvcs_len : vcs.length = params.m := by simp [vcs, length_to_scalars, hlen, hb]
     have hver : ¬(vcs.length ≠ params.m ∨ gens.g_vec.length ≠ params.nm) := by simp [hvcs_len, hg]
     have htinv : inverse tau = .ok tau⁻¹ := by simp [inverse, htau0]
-    simp only [verify, hver, if_false, StateT.run_bind, StateT.run_pure, pure_bind, run_domain_sep,
+    simp only [verify, hver, if_false, StateT.run_bind, pure_bind, run_domain_sep,
       ok_bind, run_append_commits, run_append_point, run_challenge_scalar, extend_extend,
-      extend_oracle, extend_log, run_liftM_ok]
+      extend_oracle, extend_log]
     rw [hL2, hL1] at htau hT
     rw [hL1] at hrho hlam hbeta hdelta
-    simp only [List.append_assoc, List.cons_append, List.singleton_append, List.nil_append,
+    simp only [List.append_assoc, List.cons_append, List.nil_append,
       extend_extend] at hα hrho hlam hbeta hdelta htau hT ⊢
     rw [hα, hrho, hlam, hbeta, hdelta, hdinv]
     simp only [run_liftM_ok, ok_bind, extend_extend, extend_oracle, extend_log,
-      List.append_assoc, List.cons_append, List.singleton_append, List.nil_append]
+      List.append_assoc, List.cons_append, List.nil_append]
     rw [htau, htinv, hCnew]
     simp only [run_liftM_ok, ok_bind, hev hpnu, hev hcu]
     rw [← hT]

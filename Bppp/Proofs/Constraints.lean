@@ -121,16 +121,16 @@ theorem loop_spec (hv : params.Valid) (shape : List F) (K : ℕ) :
       have hdiv : K / params.d ≤ params.m := by
         have := hv.n_d; rw [Nat.div_le_iff_le_mul_add_pred hd]; nlinarith
       simp only [hK, if_true, hbase, hlam _ hdiv, hlam _ le_rfl]
-      refine ⟨by simp [pow_succ], ?_, ?_, by simp [pow_succ, mul_inv, mul_comm], ?_,
-        by simp [pow_succ], by simp [pow_succ, mul_inv, mul_comm], fun _ _ => ?_⟩
-      · simp [Spec.cnL, hK, challenges, BASE, div_eq_mul_inv, pow_succ, mul_inv, mul_comm]
-      · simp [Spec.cnR, hK, challenges, div_eq_mul_inv, pow_succ, mul_inv, mul_comm]
+      refine ⟨by simp [pow_succ], ?_, ?_, by simp [pow_succ, mul_comm], ?_,
+        by simp [pow_succ], by simp [pow_succ, mul_comm], fun _ _ => ?_⟩
+      · simp [Spec.cnL, hK, challenges, div_eq_mul_inv, pow_succ, mul_comm]
+      · simp [Spec.cnR, hK, challenges, div_eq_mul_inv, pow_succ, mul_comm]
       · rw [h5, show min (K + 1) params.n_d = min K params.n_d + 1 by omega, sum_range_succ,
           show min K params.n_d = K by omega, pow_succ]
       · simp [BASE, pow_succ]
     · simp only [hK, if_false]
-      refine ⟨by simp [pow_succ], ?_, ?_, by simp [pow_succ, mul_inv, mul_comm], ?_,
-        by simp [pow_succ], by simp [pow_succ, mul_inv, mul_comm], fun _ h => absurd h (by omega)⟩
+      refine ⟨by simp [pow_succ], ?_, ?_, by simp [pow_succ, mul_comm], ?_,
+        by simp [pow_succ], by simp [pow_succ, mul_comm], fun _ h => absurd h (by omega)⟩
       · simp [Spec.cnL, hK]
       · simp [Spec.cnR, hK]
       · rw [h5, show min (K + 1) params.n_d = min K params.n_d by omega]

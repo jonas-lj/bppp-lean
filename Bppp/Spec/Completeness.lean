@@ -253,18 +253,3 @@ theorem completeness (hα : ∀ j : ℕ, j < 16 → ch.α + j ≠ 0) (hβ : ch.�
     with rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl
   all_goals simp [hg3]
   all_goals rw [mul_div_cancel₀ _ hβ]; ring
-
-/-- The norm-linear relation (27) at every `τ ≠ 0` for the honest opening: evaluated at `τ`,
-`σ = ⟨c, ℓ⟩ + ‖n‖²_μ`. -/
-theorem norm_linear_relation (hα : ∀ j : ℕ, j < 16 → ch.α + j ≠ 0) (hβ : ch.β ≠ 0)
-    (hδ : ch.δ ≠ 0) (hμ : ch.μ ≠ 0) (hd : ∀ i < P.M, ∀ t < P.D, h.d i t < 16)
-    (hz : h.ZeroPattern) (τ : Fˣ) :
-    let ev := LaurentPolynomial.eval₂ (RingHom.id F) τ
-    let w := h.opening P ch (h.rS P ch)
-    ev (σ P ch w) = ∑ s ∈ range 8, ev (c P ch s) * ev (ℓ ch w s) +
-      ∑ k ∈ range P.nm, ch.μ ^ (k + 1) * (ev (n P ch w k) * ev (n P ch w k)) := by
-  intro ev w
-  have := congrArg ev (completeness P ch h hα hβ hδ hμ hd hz)
-  simp only [f, normμ, map_sub, map_sum, map_mul, map_zero, mono, ev, eval₂_C, T_zero,
-    RingHom.id_apply, mul_one] at this
-  linear_combination this
