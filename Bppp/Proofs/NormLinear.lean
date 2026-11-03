@@ -372,6 +372,134 @@ theorem prove_rec_spec (gens : Generators E) :
     · simp only [List.zip_cons_cons, List.map_cons, List.sum_cons, ← add_assoc]
       exact hfin
 
+theorem scale_eq_tensor (W : Weights F) (s : F) : W.scale s = W.tensor [s] := by
+  simp [Weights.scale, Weights.tensor]
+
+theorem sum_zipWith_sub (a b : List F) (G : List E) (h : a.length = b.length)
+    (hG : G.length ≤ a.length) :
+    (List.zipWith (· • ·) (List.zipWith (fun w p => w - p) a b) G).sum =
+      (List.zipWith (· • ·) a G).sum - (List.zipWith (· • ·) b G).sum := by
+  rw [sum_zipWith _ _ _ 0 0, sum_zipWith _ _ _ 0 0, sum_zipWith _ _ _ 0 0]
+  simp only [List.length_zipWith, ← h, min_self, min_eq_right hG]
+  rw [← sum_sub_distrib]
+  refine sum_congr rfl fun k hk => ?_
+  simp only [mem_range] at hk
+  rw [show (List.zipWith (fun w p => w - p) a b).getD k 0 = a.getD k 0 - b.getD k 0 by
+    simp [List.getD_eq_getElem?_getD, List.getElem?_zipWith,
+      List.getElem?_eq_getElem (by omega : k < a.length),
+      List.getElem?_eq_getElem (by omega : k < b.length)], sub_smul]
+
+theorem zipWith_map_fst_snd {α β γ : Type} (f : α → β → γ) (L : List (α × β)) :
+    List.zipWith f (L.map (·.1)) (L.map (·.2)) = L.map fun x => f x.1 x.2 := by
+  induction L with
+  | nil => rfl
+  | cons x L ih => simp [ih]
+
+theorem dynamic_sum (extra : List (F × E)) (rounds : List (E × E)) (gs : List F) :
+    ((extra.map (fun ((s, p) : F × E) => (-s, p)) ++ (List.zip rounds gs).flatMap
+        fun (((x_point, r_point), gamma) : (E × E) × F) =>
+          [(-gamma, x_point), ((one : F) - gamma * gamma, r_point)]).map
+        fun (x : F × E) => x.1 • x.2).sum =
+      -(extra.map fun ((s, p) : F × E) => s • p).sum -
+        ((List.zip rounds gs).map fun (((X, R), γ) : (E × E) × F) => γ • X + (γ ^ 2 - 1) • R).sum := by
+  rw [List.map_append, List.sum_append, sub_eq_add_neg]
+  congr 1
+  · induction extra with
+    | nil => simp
+    | cons x extra ih => simp only [List.map_cons, List.sum_cons, ih, neg_add, neg_smul]
+  · generalize List.zip rounds gs = L
+    induction L with
+    | nil => simp
+    | cons x L ih =>
+      obtain ⟨⟨X, R⟩, γ⟩ := x
+      simp only [List.flatMap_cons, List.map_append, List.sum_append, List.map_cons, List.map_nil,
+        List.sum_cons, List.sum_nil, add_zero, ih, one, neg_add]
+      congr 1
+      rw [neg_smul, show (1 - γ * γ) = -(γ ^ 2 - 1) by ring, neg_smul]
+
+/-- **Completeness of the norm-linear argument.** If the commitment, given to the verifier as
+`ps*G + <pn, G_vec> + sum extra`, opens to `(l, n)` with `sigma = <c, l> + |n|^2_{rho^2}`, the
+verifier accepts the honest proof on the same transcript. -/
+theorem completeness (gens : Generators E) (t : BpppTranscript F E) (c : List F) (rho : F)
+    (l n : List F) (ps : F) (pn : List F) (extra : List (F × E))
+    (hc : c.length = gens.h_vec.length) (hl : l.length = gens.h_vec.length)
+    (hn : n.length = gens.g_vec.length) (hpn : pn.length = gens.g_vec.length)
+    (hH : 0 < gens.h_vec.length) (hrho : rho ≠ 0)
+    (hC : ps • gens.g + (List.zipWith (· • ·) pn gens.g_vec).sum +
+        (extra.map fun (s, p) => s • p).sum =
+      (inner_product c l + weighted_norm n (rho * rho)) • gens.g +
+        (List.zipWith (· • ·) l gens.h_vec).sum + (List.zipWith (· • ·) n gens.g_vec).sum) :
+    ∃ proof t', (prove gens c rho l n).run t = .ok (proof, t') ∧
+      (verify gens c ps pn extra rho proof).run t = .ok ((), t') := by
+  set C := ps • gens.g + (List.zipWith (· • ·) pn gens.g_vec).sum +
+    (extra.map fun (s, p) => s • p).sum with hCdef
+  have hp0 : (LazyBases.new gens : LazyBases F E).Pos := by
+    simp [LazyBases.Pos, LazyBases.new, LazyBases.new_w]
+  have hcur_h : (LazyBases.new gens : LazyBases F E).cur_h = contract' Weights.new.w gens.h_vec := rfl
+  have hcur_g : (LazyBases.new gens : LazyBases F E).cur_g = contract' Weights.new.w gens.g_vec := rfl
+  have hH' : contract' (Weights.new : Weights F).w gens.h_vec = gens.h_vec := by
+    rw [LazyBases.new_w]; exact contract'_one _
+  have hG' : contract' (Weights.new : Weights F).w gens.g_vec = gens.g_vec := by
+    rw [LazyBases.new_w]; exact contract'_one _
+  have hrel : Rel gens.g (toInst C (LazyBases.new gens) c rho l n) (toWit l n) := by
+    simp only [Spec.NormLinear.Rel, toInst, toWit, hcur_h, hcur_g, hH', hG']
+    rw [hC, inner_product_ip (by rw [hc, hl, min_self]), weighted_norm,
+      weighted_inner_product_wip (min_self _), sum_zipWith _ _ _ 0 0, sum_zipWith _ _ _ 0 0, ← hl,
+      ← hn, min_self, min_self]
+    rfl
+  obtain ⟨proof, t', cf, rhof, muf, gs, Wh', Wg', hrun, hr1, hn1, hv, hgs, hcf, hWh', hWg', hch,
+    hcg, hfin⟩ := prove_rec_spec gens _ (LazyBases.new gens) c rho l n C
+      (t.extend [.message "dom-sep" ("norm_linear".toList.map Char.toNat)]) .new .new [] rfl hp0
+      (by simp [LazyBases.new_w]) (by simp [LazyBases.new_w]) hcur_h hcur_g rfl (hc.trans hl.symm)
+      (by rw [hcur_h, hH', hl]) (by rw [hcur_g, hG', hn]) (by omega) hrho hrel
+  refine ⟨proof, t'.extend (finalEntries proof), ?_, ?_⟩
+  · simp only [prove, StateT.run_bind, run_domain_sep, ok_bind]
+    exact hrun
+  · have hpc : ¬(c.length ≠ gens.h_vec.length ∨ pn.length ≠ gens.g_vec.length) := by simp [hc, hpn]
+    have hps : ¬(proof.rounds.length ≠ (proof_shape gens.h_vec.length gens.g_vec.length).1 ∨
+        proof.n_final.length ≠ (proof_shape gens.h_vec.length gens.g_vec.length).2) := by
+      simp [hr1, hn1, hl, hn]
+    have hHle : gens.h_vec.length ≤ (Wh'.scale proof.l_final).length := by
+      have := LazyBases.ceil_le hWh' (c := 1) (by rw [← length_contract' hWh' gens.h_vec, hch])
+      simp only [Weights.scale, List.length_map]; omega
+    have hGle : gens.g_vec.length ≤ (Wg'.tensor proof.n_final).length := by
+      have := LazyBases.ceil_le hWg' (c := proof.n_final.length) (by rw [← length_contract' hWg' gens.g_vec, hcg])
+      rw [length_tensor]; exact this
+    have hmsm : gens.msm (cf.headD 0 * proof.l_final + weighted_norm proof.n_final muf - ps)
+        (List.take gens.h_vec.length (Wh'.scale proof.l_final))
+        (List.zipWith (fun w pn_i => w - pn_i) (List.take gens.g_vec.length (Wg'.tensor proof.n_final))
+          pn)
+        (List.map (fun x => x.1) (List.map (fun x => (-x.1, x.2)) extra ++
+          List.flatMap (fun x => [(-x.2, x.1.1), (one - x.2 * x.2, x.1.2)]) (proof.rounds.zip gs)))
+        (List.map (fun x => x.2) (List.map (fun x => (-x.1, x.2)) extra ++
+          List.flatMap (fun x => [(-x.2, x.1.1), (one - x.2 * x.2, x.1.2)]) (proof.rounds.zip gs))) =
+        .ok 0 := by
+      have hl1 : (List.take gens.h_vec.length (Wh'.scale proof.l_final)).length = gens.h_vec.length := by
+        simp [List.length_take, hHle]
+      have hn1' : (List.zipWith (fun w pn_i => w - pn_i)
+          (List.take gens.g_vec.length (Wg'.tensor proof.n_final)) pn).length = gens.g_vec.length := by
+        simp [List.length_zipWith, List.length_take, hGle, hpn]
+      simp only [Generators.msm, mixed_multi_scalar_mul]
+      rw [if_neg (by simp [hl1, hn1'])]
+      simp only [List.cons_append, List.zipWith_cons_cons, List.zipWith_append hl1, List.sum_cons,
+        List.sum_append, zipWith_map_fst_snd]
+      have hd := dynamic_sum extra proof.rounds gs
+      simp only at hd
+      rw [hd, sum_zipWith_sub _ _ _ (by simp [List.length_take, hGle, hpn]) (by simp [hGle]),
+        scale_eq_tensor, LazyBases.msm_tensor_cur _ hWh' _ _ (by rw [hch]; simp),
+        LazyBases.msm_tensor_cur _ hWg' _ _ (by rw [hcg])]
+      congr 1
+      simp only [List.length_singleton, range_one, sum_singleton, List.getD_cons_zero]
+      simp only [hCdef] at hfin
+      linear_combination (norm := module) -hfin
+    simp only [verify, hpc, hps, if_false, StateT.run_bind, run_domain_sep, ok_bind]
+    simp only [StateT.run_pure, pure_bind]
+    rw [hv]
+    simp only [ok_bind, run_append_scalars, List.nil_append]
+    rw [hmsm, run_liftM_ok, ok_bind]
+    simp [finalEntries, extend, StateT.run_pure]
+    rfl
+
 end NormLinear
 
 end Bppp
