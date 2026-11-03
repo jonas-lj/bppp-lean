@@ -50,7 +50,13 @@ interactive argument) with `Spec.NormLinear.extract` (special soundness of that 
 distinct `τ`, either `C_S`, `C_O`, `C_L`, `C_R`, `V̂` open to an opening with `f(T) ≡ 0`, or the
 generators satisfy a nontrivial linear relation.
 
-Not yet covered: the `λ`, `β`, `ρ`, `α` levels of the extractor, zero-knowledge, and the
+`Spec.extract_lam`: the `λ` level. From `M(nm+8)+1` distinct `λ`, each with openings of `C_O`,
+`C_L`, `C_R` and `V̂ = 2Σ λ^i V_i` whose error polynomial vanishes, either every `V_i` opens in
+the `(g, H_0)`-plane, set membership and the value links of inputs `i ≥ 1` hold, and the degree-0
+residue vanishes, or the generators satisfy a nontrivial linear relation. It assumes `2 ≠ 0`
+and a nonempty batch.
+
+Not yet covered: the `β`, `ρ`, `α` levels of the extractor, zero-knowledge, and the
 probabilistic steps (tree extraction, Fiat–Shamir).
 
 ## Build
