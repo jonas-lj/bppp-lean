@@ -1,6 +1,7 @@
 import Bppp.Proofs.Witness
 import Bppp.Proofs.Laurent
 import Bppp.Spec.Commitment
+import Bppp.Spec.Completeness
 
 /-!
 # The Laurent polynomials of `circuit.rs`
@@ -311,6 +312,91 @@ theorem rest_eq (hlen : values.length = params.m) (hb : blindings.length = param
     show ¬ (7 : ℕ) < 7 from by norm_num, if_true, if_false, mono_zero, sub_zero]
   simp only [specCh]
   ring
+
+/-! ## `solve_r_s` -/
+
+/-- The blinding of `C_S` as `Spec` indexes it: `r_{S,0} = g_s` and `r_{S,j} = h_{j-1}`. -/
+def rSOf (g_s : F) (h_s : List F) : ℕ → F := fun j => if j = 0 then g_s else h_s.getD (j - 1) 0
+
+theorem e_eq (j : ℕ) (hj : j < 7) : CR_POWERS.getD j 0 = Spec.e j := by
+  interval_cases j <;> rfl
+
+include hC in
+/-- `solve_r_s` solves the blinding of `C_S` as `Spec.Honest.rS` does. -/
+theorem solve_r_s_eq (rest : Laurent F) (hbeta : beta ≠ 0)
+    (hrest : rest.toPoly = Spec.f (params.toSpec hv) (specCh alpha rho lambda beta delta)
+        (specOpening params hv rng values blindings alpha rho lambda beta delta 0) +
+      mono (-1) (Spec.clV (params.toSpec hv) (specCh alpha rho lambda beta delta) 7 * rng.l_s)) :
+    ∃ g_s h_s, solve_r_s C rest rng.l_s beta = .ok (g_s, h_s) ∧ h_s.length = H_LEN ∧
+      h_s.getD 7 0 = rng.l_s ∧ ∀ j ≤ 7, rSOf g_s h_s j =
+        (specHonest rng values blindings).rS (params.toSpec hv) (specCh alpha rho lambda beta delta) j := by
+  have hinv : inverse beta = .ok beta⁻¹ := by simp [inverse, hbeta]
+  obtain ⟨g, hg⟩ : ∃ g, g = Spec.f (params.toSpec hv) (specCh alpha rho lambda beta delta)
+      ((specHonest rng values blindings).opening (params.toSpec hv)
+        (specCh alpha rho lambda beta delta) 0) := ⟨_, rfl⟩
+  rw [show specOpening params hv rng values blindings alpha rho lambda beta delta 0 =
+    (specHonest rng values blindings).opening (params.toSpec hv)
+      (specCh alpha rho lambda beta delta) 0 from rfl, ← hg] at hrest
+  have hcoeff : ∀ p : ℤ, rest.coeff p = Bppp.coeff p g +
+      if p = -1 then Spec.clV (params.toSpec hv) (specCh alpha rho lambda beta delta) 7 * rng.l_s
+      else 0 := fun p => by
+    rw [coeff_eq, hrest, map_add, coeff_mono]
+    by_cases hp : p = -1 <;> simp [hp, eq_comm]
+  refine ⟨_, _, by simp only [solve_r_s, hinv]; rfl, by simp [CR_POWERS, H_LEN],
+    by simp [CR_POWERS], fun j hj => ?_⟩
+  have hh : ∀ s < 7, (CR_POWERS.map (fun a => rest.coeff (a - 1) * beta⁻¹) ++ [rng.l_s]).getD s 0 =
+      Bppp.coeff (Spec.e s - 1) g / beta := fun s hs => by
+    rw [NormLinear.getD_append_lt _ _ (by simp [CR_POWERS]; omega), List.getD_eq_getElem?_getD,
+      List.getElem?_map, ← e_eq s hs, List.getD_eq_getElem?_getD]
+    rw [List.getElem?_eq_getElem (by simp [CR_POWERS]; omega)]
+    simp only [Option.map_some, Option.getD_some, hcoeff, div_eq_mul_inv]
+    rw [if_neg (by interval_cases s <;> simp [CR_POWERS, Spec.e]), add_zero]
+  simp only [rSOf, Spec.Honest.rS, ← hg]
+  have hb : (specCh alpha rho lambda beta delta).β = beta := rfl
+  rw [hb]
+  rcases Nat.eq_zero_or_pos j with rfl | hj0
+  · simp only [if_true]
+    have hCR : CR_POWERS.length = 7 := rfl
+    rw [inner_product_eq, Constraints.shape_h, hC.cl_v, List.length_map, List.length_range,
+      List.length_append, List.length_map, hCR, List.length_singleton,
+      show min H_LEN (7 + 1) = 7 + 1 from rfl, sum_range_succ, hcoeff, if_pos rfl,
+      getD_map_range _ (show 7 < H_LEN by decide),
+      NormLinear.getD_append_ge _ _ (by rw [List.length_map, hCR]), List.length_map, hCR,
+      Nat.sub_self, List.getD_cons_zero]
+    rw [sum_congr rfl fun s hs => by
+      rw [getD_map_range _ (show s < H_LEN by simp only [mem_range] at hs; simp only [H_LEN]; omega),
+        hh s (mem_range.1 hs)]]
+    simp only [specCh, Constraints.challenges, Spec.clV]
+    ring
+  · rw [if_neg (by omega), if_neg (by omega), hh (j - 1) (by omega)]
+
+/-! ## The error polynomial vanishes -/
+
+/-- With `r_S` from `solve_r_s`, the error polynomial vanishes. -/
+theorem f_zero (halpha : ∀ j : ℕ, j < 16 → alpha + j ≠ 0) (hbeta : beta ≠ 0) (hdelta : delta ≠ 0)
+    (hrho : rho ≠ 0) (g_s : F) (h_s : List F)
+    (hr : ∀ j ≤ 7, rSOf g_s h_s j =
+      (specHonest rng values blindings).rS (params.toSpec hv) (specCh alpha rho lambda beta delta) j) :
+    Spec.f (params.toSpec hv) (specCh alpha rho lambda beta delta)
+      (specOpening params hv rng values blindings alpha rho lambda beta delta (rSOf g_s h_s)) = 0 := by
+  have h0 := Spec.completeness (params.toSpec hv) (specCh alpha rho lambda beta delta)
+    (specHonest rng values blindings) halpha hbeta hdelta (mul_ne_zero hrho hrho)
+    (digits_lt params rng values blindings) (zero_pattern rng values blindings)
+  rw [Spec.f_opening] at h0 ⊢
+  rw [← h0]
+  congr 2
+  · rw [hr 0 (by norm_num)]
+  · exact sum_congr rfl fun s hs => by rw [hr (s + 1) (by simp at hs; omega)]
+
+/-- The norm-linear relation (27) at `τ`, for an opening with `f(T) = 0`. -/
+theorem relation_of_f_zero (P : Spec.Params) (ch : Spec.Challenges F) (w : Spec.Opening F)
+    (hf : Spec.f P ch w = 0) (τ : Fˣ) :
+    evalAt τ (Spec.σ P ch w) = ∑ s ∈ range 8, evalAt τ (Spec.c P ch s) * evalAt τ (Spec.ℓ ch w s) +
+      ∑ k ∈ range P.nm, ch.μ ^ (k + 1) * (evalAt τ (Spec.n P ch w k) * evalAt τ (Spec.n P ch w k)) := by
+  have := congrArg (evalAt τ) hf
+  simp only [Spec.f, Spec.normμ, map_sub, map_sum, map_mul, map_zero, evalAt_mono, zpow_zero,
+    mul_one] at this
+  linear_combination this
 
 end Circuit
 
