@@ -121,10 +121,10 @@ theorem sum_zipIdx_map {α : Type} (L : List α) (d : α) (f : ℕ → F) (q : �
 theorem ps_eq (alpha rho lambda beta delta : F) (C : Constraints F)
     (hC : Constraints.Correct params alpha (rho * rho) lambda C hv) (τ : Fˣ) :
     weighted_norm ((List.range params.nm).map fun k => evalAt τ ((C.p_n delta⁻¹).toPolys k))
-        (rho * rho) + C.p_s_constant * ((τ : F) * τ * τ) =
+        (rho * rho) + 2 * (C.lambda_al + C.mu_am) * ((τ : F) * τ * τ) =
       evalAt τ (Spec.ps (params.toSpec hv) (specCh alpha rho lambda beta delta)) := by
   rw [weighted_norm_eq, List.length_map, List.length_range]
-  simp only [Spec.ps, Spec.normμ, map_add, map_sum, map_mul, evalAt_mono, Constraints.p_s_constant,
+  simp only [Spec.ps, Spec.normμ, map_add, map_sum, map_mul, evalAt_mono,
     hC.lambda_al, hC.mu_am, CircuitParams.nm_toSpec, zpow_ofNat]
   have h : ∀ k ∈ range params.nm, ((List.range params.nm).map fun k =>
       evalAt τ ((C.p_n delta⁻¹).toPolys k)).getD k 0 =
@@ -283,9 +283,9 @@ theorem completeness (Gp Hp : E) (gens : Generators E) (t : BpppTranscript F E)
   set n_tau := (List.range params.nm).map fun k =>
     evalAt τu ((coordinates_without_c_s params C W n_r delta delta⁻¹).2.2.toPolys k)
   set pn_tau := (List.range params.nm).map fun k => evalAt τu ((C.p_n delta⁻¹).toPolys k)
-  set ps_tau := weighted_norm pn_tau (rho * rho) + C.p_s_constant * (tau * tau * tau)
+  set ps_tau := weighted_norm pn_tau (rho * rho) + 2 * (C.lambda_al + C.mu_am) * (tau * tau * tau)
   set extra := [(tau⁻¹, c_s), (delta, c_o), (tau, c_l), (tau * tau, c_r)] ++
-    vcs.zipIdx.map fun (v_i, i) => (2 * (tau * tau * tau) * C.input_weights.getD i 0, v_i.point)
+    vcs.zipIdx.map fun (v_i, i) => (2 * (tau * tau * tau) * C.lambdas.getD i 0, v_i.point)
   have hident : ps_tau • gens.g + (List.zipWith (· • ·) pn_tau gens.g_vec).sum +
       (extra.map fun (s, p) => s • p).sum =
       (inner_product c_tau l_tau + weighted_norm n_tau (rho * rho)) • gens.g +
@@ -337,14 +337,14 @@ theorem completeness (Gp Hp : E) (gens : Generators E) (t : BpppTranscript F E)
         value_eq params hv rng values blindings hd i (by rw [hlen]; exact hi),
         getElem_eq_getD' _ _ 0]
       rfl
-    have hiw : ∀ i < params.m, C.input_weights.getD i 0 = lambda ^ i := fun i hi => by
-      rw [input_weights_eq params hv alpha rho lambda C hC, getD_map_range _ hi]
+    have hiw : ∀ i < params.m, C.lambdas.getD i 0 = lambda ^ i :=
+      getD_lambdas params hv alpha rho lambda C hC
     have hextra : (extra.map fun (s, p) => s • p).sum = tau⁻¹ • c_s + delta • c_o + tau • c_l +
         (tau * tau) • c_r + ∑ i ∈ range params.m, (2 * (tau * tau * tau) * lambda ^ i) •
           Spec.Honest.inputs (P := params.toSpec hv) gens.g Hf (specHonest rng values blindings) i := by
       simp only [extra, List.map_append, List.sum_append, List.map_cons, List.map_nil,
         List.sum_cons, List.sum_nil, add_zero]
-      have hz := sum_zipIdx_map vcs ⟨0⟩ (fun i => 2 * (tau * tau * tau) * C.input_weights.getD i 0)
+      have hz := sum_zipIdx_map vcs ⟨0⟩ (fun i => 2 * (tau * tau * tau) * C.lambdas.getD i 0)
         (fun v => v.point)
       simp only at hz
       rw [hz, hvcs_len]

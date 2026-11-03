@@ -28,7 +28,7 @@ structure CircuitProof where
 
 /-- `c`. -/
 def c (constraints : Constraints F) (beta : F) : Laurent (List F) :=
-  Laurent.from_terms ((0, constraints.shape_h) ::
+  Laurent.from_terms ((0, constraints.cl_v) ::
     CR_POWERS.zipIdx.map fun (a, j) => (a, (List.replicate H_LEN 0).set j beta))
 
 /-- `h_coordinates`. -/
@@ -110,14 +110,14 @@ def solve_r_s (constraints : Constraints F) (rest : Laurent F) (l_s beta : F) :
     Result (F × List F) := do
   let beta_inv ← inverse beta
   let h := CR_POWERS.map (fun a => rest.coeff (a - 1) * beta_inv) ++ [l_s]
-  pure (inner_product constraints.shape_h h - rest.coeff (-1), h)
+  pure (inner_product constraints.cl_v h - rest.coeff (-1), h)
 
 /-- `coordinates_without_c_s`. -/
 def coordinates_without_c_s (params : CircuitParams) (constraints : Constraints F)
     (witness : Witness F) (n_r : List F) (delta delta_inv : F) :
     Laurent F × Laurent (List F) × Laurent (List F) :=
   let two : F := 2
-  let weights := constraints.input_weights.map (two * ·)
+  let weights := (constraints.lambdas.take params.m).map (two * ·)
   let v_hat := inner_product weights witness.values
   let (n_v_hat, l_v_hat) := (List.zip witness.off_plane weights).foldl
     (fun (n_v_hat, l_v_hat) ((n_i, l_i), w) =>
@@ -130,7 +130,7 @@ def coordinates_without_c_s (params : CircuitParams) (constraints : Constraints 
     n_v_hat] + p_n
   let sigma := Laurent.new 0 [delta * witness.r_o.headD 0, witness.r_l.headD 0,
       witness.r_r.headD 0] + p_n.weighted_inner_product p_n constraints.norm_weights +
-    Laurent.monomial 3 (v_hat + constraints.p_s_constant)
+    Laurent.monomial 3 (v_hat + two * (constraints.lambda_al + constraints.mu_am))
   let l := Laurent.new 0 [vec_scalar_mul delta (h_coordinates witness.r_o),
     h_coordinates witness.r_l, h_coordinates witness.r_r, v_hat_h]
   (sigma, l, n)
@@ -213,12 +213,12 @@ def verify (gens : Generators E) (params : CircuitParams) (proof : CircuitProof 
   let t3 := t2 * tau
   let constraints ← Constraints.new params alpha mu lambda
   let pn_tau ← (constraints.p_n delta_inv).eval tau
-  let ps_tau := weighted_norm pn_tau mu + constraints.p_s_constant * t3
+  let ps_tau := weighted_norm pn_tau mu + 2 * (constraints.lambda_al + constraints.mu_am) * t3
   let c_tau ← (c constraints beta).eval tau
   let two_t3 := 2 * t3
   let extra := [(tau_inv, proof.c_s), (delta, proof.c_o), (tau, proof.c_l), (t2, proof.c_r)] ++
     v_commitments.zipIdx.map fun (v_i, i) =>
-      (two_t3 * constraints.input_weights.getD i 0, v_i.point)
+      (two_t3 * constraints.lambdas.getD i 0, v_i.point)
   NormLinear.verify gens c_tau ps_tau pn_tau extra rho proof.nl_proof
 
 end Circuit

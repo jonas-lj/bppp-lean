@@ -56,11 +56,11 @@ noncomputable def cTau (C : Constraints F) (beta : F) (τ : Fˣ) : List F :=
 noncomputable def pnTau (C : Constraints F) (delta : F) (τ : Fˣ) : List F :=
   (List.range params.nm).map fun k => evalAt τ ((C.p_n delta⁻¹).toPolys k)
 noncomputable def psTau (C : Constraints F) (rho delta : F) (τ : Fˣ) : F :=
-  weighted_norm (pnTau params C delta τ) (rho * rho) + C.p_s_constant * ((τ : F) * τ * τ)
+  weighted_norm (pnTau params C delta τ) (rho * rho) + 2 * (C.lambda_al + C.mu_am) * ((τ : F) * τ * τ)
 def extraOf (C : Constraints F) (delta : F) (τ : Fˣ) (vcs : List (PedersenCommitment E))
     (cS cO cL cR : E) : List (F × E) :=
   [((τ : F)⁻¹, cS), (delta, cO), ((τ : F), cL), ((τ : F) * τ, cR)] ++
-    vcs.zipIdx.map fun (v_i, i) => (2 * ((τ : F) * τ * τ) * C.input_weights.getD i 0, v_i.point)
+    vcs.zipIdx.map fun (v_i, i) => (2 * ((τ : F) * τ * τ) * C.lambdas.getD i 0, v_i.point)
 
 /-- An accepting run of `verify` checks the shape of the inputs and is an accepting run of
 `norm_linear::verify` after `τ`, on the verifier's decomposed `C(τ)`. -/
@@ -142,15 +142,15 @@ theorem combined_eq (hv : params.Valid) (hg : gens.g_vec.length = params.nm)
       (specCh alpha rho lambda beta delta) τ cS cO cL cR
       (Spec.vHat (params.toSpec hv) (specCh alpha rho lambda beta delta)
         fun i => (vcs.getD i ⟨0⟩).point) := by
-  have hiw : ∀ i < params.m, C.input_weights.getD i 0 = lambda ^ i := fun i hi => by
-    rw [input_weights_eq params hv alpha rho lambda C hC, getD_map_range _ hi]
+  have hiw : ∀ i < params.m, C.lambdas.getD i 0 = lambda ^ i :=
+    getD_lambdas params hv alpha rho lambda C hC
   have hextra : ((extraOf C delta τ vcs cS cO cL cR).map fun (s, p) => s • p).sum =
       (τ : F)⁻¹ • cS + delta • cO + (τ : F) • cL + ((τ : F) * τ) • cR +
         ∑ i ∈ range params.m, (2 * ((τ : F) * τ * τ) * lambda ^ i) • (vcs.getD i ⟨0⟩).point := by
     simp only [extraOf, List.map_append, List.sum_append, List.map_cons, List.map_nil,
       List.sum_cons, List.sum_nil, add_zero]
     have hz := sum_zipIdx_map vcs ⟨0⟩
-      (fun i => 2 * ((τ : F) * τ * τ) * C.input_weights.getD i 0) (fun v => v.point)
+      (fun i => 2 * ((τ : F) * τ * τ) * C.lambdas.getD i 0) (fun v => v.point)
     simp only at hz
     rw [hz, hvcs, sum_congr rfl fun i hi => by rw [hiw i (mem_range.1 hi)]]
     abel

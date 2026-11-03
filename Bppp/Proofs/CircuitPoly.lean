@@ -115,16 +115,19 @@ theorem n_spec (hlen : values.length = params.m) (hnr_len : n_r.length = params.
 /-! ## `ℓ(T)` and `σ(T)` -/
 
 include hC in
-theorem input_weights_eq : C.input_weights = (List.range params.m).map (lambda ^ ·) := by
-  rw [Constraints.input_weights, hC.lambdas, List.length_map, List.length_range,
-    Nat.add_sub_cancel, ← List.map_take, List.take_range, min_eq_left (by omega)]
+theorem lambdas_take : C.lambdas.take params.m = (List.range params.m).map (lambda ^ ·) := by
+  rw [hC.lambdas, ← List.map_take, List.take_range, min_eq_left (by omega)]
+
+include hC in
+theorem getD_lambdas (i : ℕ) (hi : i < params.m) : C.lambdas.getD i 0 = lambda ^ i := by
+  rw [hC.lambdas, getD_map_range _ (by omega)]
 
 include hC in
 /-- `2 Σ_i λ^i x_i`, the input aggregation of `coordinates_without_c_s`. -/
 theorem inner_product_weights (xs : List F) (hxs : xs.length = params.m) :
-    inner_product (C.input_weights.map (2 * ·)) xs =
+    inner_product ((C.lambdas.take params.m).map (2 * ·)) xs =
       2 * ∑ i ∈ range params.m, lambda ^ i * xs.getD i 0 := by
-  rw [input_weights_eq params hv alpha rho lambda C hC, inner_product_eq, List.map_map]
+  rw [lambdas_take params hv alpha rho lambda C hC, inner_product_eq, List.map_map]
   simp only [List.length_map, List.length_range, hxs, min_self, mul_sum]
   exact sum_congr rfl fun i hi => by
     rw [getD_map_range _ (mem_range.1 hi)]; simp only [Function.comp_apply]; ring
@@ -196,7 +199,7 @@ theorem sigma_base (hlen : values.length = params.m) (hrange : ∀ v ∈ values,
     List.length_cons, List.length_nil, sum_range_succ, sum_range_zero, zero_add,
     List.getD_cons_zero, List.getD_cons_succ,
     inner_product_weights params hv alpha rho lambda C hC _ (by rw [length_to_scalars, hlen])]
-  simp only [Spec.σ, Spec.ps, Spec.normμ, Constraints.p_s_constant, hC.lambda_al, hC.mu_am,
+  simp only [Spec.σ, Spec.ps, Spec.normμ, hC.lambda_al, hC.mu_am,
     specOpening, Spec.Honest.opening, specHonest, specCh, headD_eq_getD]
   have hpn : ∀ k ∈ range params.nm, mono 0 (C.norm_weights.getD k 0) *
       ((C.p_n delta⁻¹).toPolys k * (C.p_n delta⁻¹).toPolys k) =
@@ -229,19 +232,19 @@ include hC in
 /-- `c(T)` (24). -/
 theorem c_spec : Uniform H_LEN (Circuit.c C beta) ∧ ∀ s < H_LEN, (Circuit.c C beta).toPolys s =
     Spec.c (params.toSpec hv) (specCh alpha rho lambda beta delta) s := by
-  have hterms : ∀ x ∈ ((0, C.shape_h) :: CR_POWERS.zipIdx.map fun (a, j) =>
+  have hterms : ∀ x ∈ ((0, C.cl_v) :: CR_POWERS.zipIdx.map fun (a, j) =>
       (a, (List.replicate H_LEN (0 : F)).set j beta)), x.2.length = H_LEN := by
     intro x hx
     simp only [List.mem_cons, List.mem_map] at hx
     rcases hx with rfl | ⟨⟨a, j⟩, _, rfl⟩
-    · simp [Constraints.shape_h, hC.cl_v]
+    · simp [hC.cl_v]
     · simp
   obtain ⟨hu, hpol⟩ := from_terms_spec _ _ hterms
   refine ⟨hu, fun s hs => ?_⟩
   rw [Circuit.c, hpol]
   simp only [CR_POWERS, List.zipIdx, List.map_cons, List.map_nil, List.sum_cons,
     List.sum_nil, add_zero]
-  simp only [getD_set_replicate _ s beta hs, Constraints.shape_h, hC.cl_v, getD_map_range _ hs]
+  simp only [getD_set_replicate _ s beta hs, hC.cl_v, getD_map_range _ hs]
   simp only [H_LEN] at hs
   simp only [Spec.c, specCh, Spec.clV, Constraints.challenges]
   interval_cases s <;> simp [Spec.e] <;> ring
@@ -354,7 +357,7 @@ theorem solve_r_s_eq (rest : Laurent F) (hbeta : beta ≠ 0)
   rcases Nat.eq_zero_or_pos j with rfl | hj0
   · simp only [if_true]
     have hCR : CR_POWERS.length = 7 := rfl
-    rw [inner_product_eq, Constraints.shape_h, hC.cl_v, List.length_map, List.length_range,
+    rw [inner_product_eq, hC.cl_v, List.length_map, List.length_range,
       List.length_append, List.length_map, hCR, List.length_singleton,
       show min H_LEN (7 + 1) = 7 + 1 from rfl, sum_range_succ, hcoeff, if_pos rfl,
       getD_map_range _ (show 7 < H_LEN by decide),

@@ -94,18 +94,9 @@ variable (self : Constraints F)
 /-- `Constraints::norm_weights`. -/
 def norm_weights : List F := self.bar_mu
 
-/-- `Constraints::input_weights`. -/
-def input_weights : List F := self.lambdas.take (self.lambdas.length - 1)
-
-/-- `Constraints::shape_h`. -/
-def shape_h : List F := self.cl_v
-
 /-- `Constraints::p_n`. -/
 def p_n (delta_inv : F) : Laurent (List F) :=
   .new 0 [self.cn_v, self.cn_r, self.cn_l, vec_scalar_mul delta_inv self.cn_o]
-
-/-- `Constraints::p_s_constant`. -/
-def p_s_constant : F := 2 * (self.lambda_al + self.mu_am)
 
 end Constraints
 
