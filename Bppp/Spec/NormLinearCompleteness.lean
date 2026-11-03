@@ -1,4 +1,4 @@
-import Bppp.NormLinear
+import Bppp.Spec.NormLinear
 
 /-!
 # Completeness of the norm-linear argument
@@ -10,7 +10,7 @@ itself on the opening sent in the clear, passes (`completeness`).
 
 open Finset
 
-namespace Bppp.NormLinear
+namespace Bppp.Spec.NormLinear
 
 variable {F E : Type*} [Field F] [AddCommGroup E] [Module F E]
 
@@ -116,4 +116,4 @@ theorem completeness (γs : List F) (hρ : x.ρ ≠ 0) (hμ : x.μ = x.ρ ^ 2) (
     exact ih _ _ (by simp only [foldInst]; rw [hμ]; exact pow_ne_zero 2 hρ) (by simp [foldInst, hμ])
       (fold_rel g x w hρ hμ γ h)
 
-end Bppp.NormLinear
+end Bppp.Spec.NormLinear

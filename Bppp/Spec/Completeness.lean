@@ -1,4 +1,4 @@
-import Bppp.Honest
+import Bppp.Spec.Honest
 
 /-!
 # Completeness
@@ -13,7 +13,7 @@ of `f(T)` are in `T⁻², ..., T⁶` (`supp_g`) and its `T³` coefficient, the v
 
 open Finset LaurentPolynomial
 
-namespace Bppp
+namespace Bppp.Spec
 
 variable {F : Type*} [Field F] (P : Params) (ch : Challenges F) (h : Honest F)
 

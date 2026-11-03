@@ -1,6 +1,6 @@
-import Bppp.Commitment
-import Bppp.Completeness
-import Bppp.NormLinearCompleteness
+import Bppp.Spec.Commitment
+import Bppp.Spec.Completeness
+import Bppp.Spec.NormLinearCompleteness
 
 /-!
 # End-to-end completeness
@@ -13,13 +13,10 @@ the completeness of the norm-linear argument then gives acceptance (`end_to_end`
 
 open Finset LaurentPolynomial
 
-namespace Bppp
+namespace Bppp.Spec
 
 variable {F E : Type*} [Field F] [AddCommGroup E] [Module F E]
 variable (P : Params) (g : E) (H G : ℕ → E) (ch : Challenges F) (τ : Fˣ)
-
-theorem evalAt_mono (p : ℤ) (x : F) : evalAt τ (mono p x) = x * (τ : F) ^ p := by
-  simp [evalAt, mono, eval₂_C_mul_T, Units.val_zpow_eq_zpow_val]
 
 /-- `C(τ)` is linear in the openings of the commitments it combines. -/
 theorem combined_commit (σS σO σL σR σV : F) (ℓS ℓO ℓL ℓR ℓV nS nO nL nR nV : ℕ → F) :
@@ -96,4 +93,4 @@ theorem end_to_end (hα : ∀ j : ℕ, j < 16 → ch.α + j ≠ 0) (hβ : ch.β 
   rw [vHat_honest P g H G ch h, combined_eq, commit]
   congr 3
 
-end Bppp
+end Bppp.Spec

@@ -1,4 +1,4 @@
-import Bppp.Laurent
+import Bppp.Spec.Poly
 
 /-!
 # The batched range proof
@@ -14,7 +14,7 @@ blinding `r_{X,s+1}`, and `s = 7` is the `H_7`-coordinate.
 
 open Finset LaurentPolynomial
 
-namespace Bppp
+namespace Bppp.Spec
 
 variable {F : Type*} [Field F]
 
@@ -146,4 +146,4 @@ noncomputable def σ : F[T;T⁻¹] :=
 noncomputable def f : F[T;T⁻¹] :=
   σ P ch w - ∑ s ∈ range 8, c P ch s * ℓ ch w s - normμ P ch (n P ch w)
 
-end Bppp
+end Bppp.Spec

@@ -1,113 +1,251 @@
-import Mathlib.Tactic
+import Bppp.Transcript
+import Bppp.Util
 
 /-!
-# The norm-linear argument
+# `norm_linear.rs`
 
-The folding argument of §4.9 of [ePrint 2026/2648](https://eprint.iacr.org/2026/2648) (and
-[bp++ §4]), over any `F`-module `E` in place of the group. It proves knowledge of an opening of
-`C = σg + ⟨ℓ, H⟩ + ⟨n, G⟩` satisfying `σ = ⟨c, ℓ⟩ + ‖n‖²_μ` with `μ = ρ²` (19).
-
-A vector of length `L` is a function `ℕ → F` of which only the first `L` entries are used.
-Each round zero-pads the vectors to even length and splits them into their even- and odd-indexed
-halves `[v]₀`, `[v]₁`.
+Serialization is not modelled.
 -/
 
-open Finset
+namespace Bppp
 
-namespace Bppp.NormLinear
+variable {F E : Type} [Field F] [DecidableEq F] [AddCommGroup E] [Module F E] [DecidableEq E]
 
-variable {F E : Type*} [Field F] [AddCommGroup E] [Module F E]
+/-- `FOLD_THRESHOLD`. -/
+def FOLD_THRESHOLD : ℕ := 6
 
-section Vectors
-
-variable {α : Type*} [Zero α]
-
-/-- `v`, zero-padded beyond its length `L`. -/
-def pad (L : ℕ) (v : ℕ → α) : ℕ → α := fun k => if k < L then v k else 0
-
-/-- The even-indexed half `[v]₀` of `v` padded to even length. -/
-def ev (L : ℕ) (v : ℕ → α) : ℕ → α := fun i => pad L v (2 * i)
-
-/-- The odd-indexed half `[v]₁` of `v` padded to even length. -/
-def od (L : ℕ) (v : ℕ → α) : ℕ → α := fun i => pad L v (2 * i + 1)
-
-end Vectors
-
-/-- The length `⌈L/2⌉` of a half. -/
-def half (L : ℕ) : ℕ := (L + 1) / 2
-
-/-- `⟨a, b⟩`. -/
-def ip (L : ℕ) (a b : ℕ → F) : F := ∑ k ∈ range L, a k * b k
-
-/-- `⟨a, b⟩_μ = Σ_k μ^{k+1} a_k b_k`, so `‖a‖²_μ = ⟨a, a⟩_μ`. -/
-def wip (L : ℕ) (μ : F) (a b : ℕ → F) : F := ∑ k ∈ range L, μ ^ (k + 1) * (a k * b k)
-
-/-- `⟨a, G⟩ = Σ_k a_k G_k`. -/
-def msm (L : ℕ) (a : ℕ → F) (G : ℕ → E) : E := ∑ k ∈ range L, a k • G k
+/-- `FOLD_BATCH_ROUNDS`. -/
+def FOLD_BATCH_ROUNDS : ℕ := 3
 
 variable (F E) in
-/-- An instance: the commitment `C`, the public vector `c`, the generators `H` and `G` of the
-linear and norm parts, their lengths, and the weights `ρ` and `μ = ρ²`. -/
-structure Instance where
-  C : E
-  c : ℕ → F
-  H : ℕ → E
-  G : ℕ → E
-  Lℓ : ℕ
-  Ln : ℕ
-  ρ : F
-  μ : F
+/-- `NormLinearProof`. -/
+structure NormLinearProof where
+  rounds : List (E × E)
+  l_final : F
+  n_final : List F
+
+/-- `Generators::commit`. -/
+def Generators.commit (self : Generators E) (sigma : F) (l n : List F) : Result E :=
+  self.msm sigma l n [] []
+
+namespace NormLinear
+
+/-- `is_base_case`. -/
+def is_base_case (l_len n_len : ℕ) : Bool := l_len ≤ 1 && l_len + n_len < FOLD_THRESHOLD
+
+/-- `proof_shape`. -/
+def proof_shape (l_len n_len : ℕ) : ℕ × ℕ :=
+  if _h : is_base_case l_len n_len then (0, n_len)
+  else
+    let (rounds, n_len) := proof_shape ((l_len + 1) / 2) ((n_len + 1) / 2)
+    (rounds + 1, n_len)
+termination_by l_len + n_len
+decreasing_by simp [is_base_case, FOLD_THRESHOLD] at _h; omega
+
+/-- The pairs `(v_0, v_1), (v_2, v_3), ...` of `v`, unzipped (`v.into_iter().tuples().unzip()`). -/
+def unzip_pairs {α : Type} : List α → List α × List α
+  | x :: y :: rest => let (a, b) := unzip_pairs rest; (x :: a, y :: b)
+  | _ => ([], [])
+
+/-- `halves`. -/
+def halves (v : List F) : List F × List F :=
+  unzip_pairs (if v.length % 2 ≠ 0 then v ++ [0] else v)
+
+theorem unzip_pairs_length {α : Type} : ∀ v : List α,
+    (unzip_pairs v).1.length = v.length / 2 ∧ (unzip_pairs v).2.length = v.length / 2
+  | x :: y :: rest => by
+    have := unzip_pairs_length rest
+    simp only [unzip_pairs, List.length_cons]; omega
+  | [] => by simp [unzip_pairs]
+  | [_] => by simp [unzip_pairs]
+
+omit [DecidableEq F] in
+theorem halves_length (v : List F) :
+    (halves v).1.length = (v.length + 1) / 2 ∧ (halves v).2.length = (v.length + 1) / 2 := by
+  unfold halves
+  split_ifs with h
+  · have := unzip_pairs_length (v ++ [0])
+    simp only [List.length_append, List.length_singleton] at this; omega
+  · have := unzip_pairs_length v; omega
+
+/-- `from_halves`. -/
+def from_halves (even odd : List F) : List F := (List.zip even odd).flatMap fun (x, y) => [x, y]
+
+/-- `from_odd_half`. -/
+def from_odd_half (odd : List F) : List F := odd.flatMap fun y => [0, y]
+
+/-- `sparse_mul`. -/
+def sparse_mul (a b : F) : F := if a = 0 then a else a * b
+
+/-- `<[T]>::chunks`, for `n ≥ 1`. -/
+def chunks {α : Type} (n : ℕ) (l : List α) : List (List α) :=
+  if _h : n = 0 ∨ l = [] then [] else l.take n :: chunks n (l.drop n)
+termination_by l.length
+decreasing_by
+  simp only [not_or] at _h
+  have := List.length_pos_of_ne_nil _h.2
+  simp only [List.length_drop]; omega
 
 variable (F) in
-/-- The opening `(ℓ, n)`; `σ` is implied by the relation. -/
-structure Witness where
-  ℓ : ℕ → F
-  n : ℕ → F
+/-- `Weights`. -/
+structure Weights where
+  w : List F
 
-variable (g : E) (x : Instance F E) (w : Witness F)
+namespace Weights
 
-/-- The norm-linear relation (19): `C = σg + ⟨ℓ, H⟩ + ⟨n, G⟩` with `σ = ⟨c, ℓ⟩ + ‖n‖²_μ`. -/
-def Rel : Prop :=
-  x.C = (ip x.Lℓ x.c w.ℓ + wip x.Ln x.μ w.n w.n) • g + msm x.Lℓ w.ℓ x.H + msm x.Ln w.n x.G
+/-- `Weights::new`. -/
+def new : Weights F := ⟨[one]⟩
 
-/-- The prover's first message of a round,
-`X = v_x g + ⟨[ℓ]₁, [H]₀⟩ + ⟨[ℓ]₀, [H]₁⟩ + ⟨ρ[n]₁, [G]₀⟩ + ⟨ρ⁻¹[n]₀, [G]₁⟩` with
-`v_x = 2ρ⁻¹⟨[n]₀, [n]₁⟩_{μ²} + ⟨[c]₀, [ℓ]₁⟩ + ⟨[c]₁, [ℓ]₀⟩`. -/
-noncomputable def msgX : E :=
-  (2 * x.ρ⁻¹ * wip (half x.Ln) (x.μ ^ 2) (ev x.Ln w.n) (od x.Ln w.n) +
-      ip (half x.Lℓ) (ev x.Lℓ x.c) (od x.Lℓ w.ℓ) + ip (half x.Lℓ) (od x.Lℓ x.c) (ev x.Lℓ w.ℓ)) • g +
-    msm (half x.Lℓ) (od x.Lℓ w.ℓ) (ev x.Lℓ x.H) + msm (half x.Lℓ) (ev x.Lℓ w.ℓ) (od x.Lℓ x.H) +
-    msm (half x.Ln) (fun i => x.ρ * od x.Ln w.n i) (ev x.Ln x.G) +
-    msm (half x.Ln) (fun i => x.ρ⁻¹ * ev x.Ln w.n i) (od x.Ln x.G)
+/-- `Weights::tensor`. -/
+def tensor (self : Weights F) (coeffs : List F) : List F :=
+  coeffs.flatMap fun c => self.w.map fun w => sparse_mul c w
 
-/-- The prover's second message of a round,
-`R = v_r g + ⟨[ℓ]₁, [H]₁⟩ + ⟨[n]₁, [G]₁⟩` with `v_r = ‖[n]₁‖²_{μ²} + ⟨[c]₁, [ℓ]₁⟩`. -/
-noncomputable def msgR : E :=
-  (wip (half x.Ln) (x.μ ^ 2) (od x.Ln w.n) (od x.Ln w.n) +
-      ip (half x.Lℓ) (od x.Lℓ x.c) (od x.Lℓ w.ℓ)) • g +
-    msm (half x.Lℓ) (od x.Lℓ w.ℓ) (od x.Lℓ x.H) + msm (half x.Ln) (od x.Ln w.n) (od x.Ln x.G)
+/-- `Weights::tensor_pair`. -/
+def tensor_pair (self : Weights F) (f0 f1 : F) : Weights F := ⟨self.tensor [f0, f1]⟩
 
-/-- The verifier's fold, from the public instance, the messages `X`, `R` and the challenge `γ`:
-`C ← C + γX + (γ²-1)R`, `c' = [c]₀ + γ[c]₁`, `H' = [H]₀ + γ[H]₁`, `G' = ρ[G]₀ + γ[G]₁`,
-`ρ ← μ`, `μ ← μ²`. -/
-def foldInst (X R : E) (γ : F) : Instance F E where
-  C := x.C + γ • X + (γ ^ 2 - 1) • R
-  c i := ev x.Lℓ x.c i + γ * od x.Lℓ x.c i
-  H i := ev x.Lℓ x.H i + γ • od x.Lℓ x.H i
-  G i := x.ρ • ev x.Ln x.G i + γ • od x.Ln x.G i
-  Lℓ := half x.Lℓ
-  Ln := half x.Ln
-  ρ := x.μ
-  μ := x.μ ^ 2
+/-- `Weights::len`. -/
+def len (self : Weights F) : ℕ := self.w.length
 
-/-- The prover's fold: `ℓ' = [ℓ]₀ + γ[ℓ]₁`, `n' = ρ⁻¹[n]₀ + γ[n]₁`. -/
-noncomputable def foldWit (γ : F) : Witness F where
-  ℓ i := ev x.Lℓ w.ℓ i + γ * od x.Lℓ w.ℓ i
-  n i := x.ρ⁻¹ * ev x.Ln w.n i + γ * od x.Ln w.n i
+/-- `Weights::scale`. -/
+def scale (self : Weights F) (s : F) : List F := self.w.map fun w => sparse_mul s w
 
-/-- The honest prover and the verifier, folding once per challenge in `γs`. -/
-noncomputable def run : List F → Instance F E → Witness F → Instance F E × Witness F
-  | [], x, w => (x, w)
-  | γ :: γs, x, w => run γs (foldInst x (msgX g x w) (msgR g x w) γ) (foldWit x w γ)
+/-- `Weights::contract`. -/
+def contract (self : Weights F) (points : List E) : Result (List E) :=
+  (chunks self.len points).mapM fun chunk => multi_scalar_mul (self.w.take chunk.length) chunk
 
-end Bppp.NormLinear
+end Weights
+
+variable (F E) in
+/-- `BasePoints`. -/
+inductive BasePoints
+  | Crs (gens : Generators E)
+  | Folded (g : E) (h_vec g_vec : List E)
+
+variable (F E) in
+/-- `LazyBases`. -/
+structure LazyBases where
+  points : BasePoints E
+  w_h : Weights F
+  w_g : Weights F
+
+namespace LazyBases
+
+/-- `LazyBases::new`. -/
+def new (gens : Generators E) : LazyBases F E := ⟨.Crs gens, .new, .new⟩
+
+/-- `LazyBases::fold`. -/
+def fold (self : LazyBases F E) (rho gamma : F) : LazyBases F E :=
+  { self with w_h := self.w_h.tensor_pair one gamma, w_g := self.w_g.tensor_pair rho gamma }
+
+/-- `LazyBases::points`. -/
+def points' (self : LazyBases F E) : E × List E × List E :=
+  match self.points with
+  | .Crs gens => (gens.g, gens.h_vec, gens.g_vec)
+  | .Folded g h_vec g_vec => (g, h_vec, g_vec)
+
+/-- `LazyBases::len`. -/
+def len (self : LazyBases F E) : ℕ × ℕ :=
+  let (_, h_vec, g_vec) := self.points'
+  (h_vec.length, g_vec.length)
+
+/-- `LazyBases::msm`, which takes `&mut self` and so returns the updated bases. -/
+def msm (self : LazyBases F E) (v : F) (h_coeffs g_coeffs : List F) :
+    Result (E × LazyBases F E) := do
+  let self ← if self.w_h.len = 2 ^ FOLD_BATCH_ROUNDS then do
+      let (g, h_vec, g_vec) := self.points'
+      let folded := (← self.w_h.contract h_vec, ← self.w_g.contract g_vec)
+      pure { points := .Folded g folded.1 folded.2, w_h := .new, w_g := .new }
+    else pure self
+  let (h_len, g_len) := self.len
+  let h_scalars := (self.w_h.tensor h_coeffs).take h_len
+  let g_scalars := (self.w_g.tensor g_coeffs).take g_len
+  let point ← match self.points with
+    | .Crs gens => gens.msm v h_scalars g_scalars [] []
+    | .Folded g h_vec g_vec =>
+      let (sc, pts) := (((v, g) :: List.zip h_scalars h_vec ++ List.zip g_scalars g_vec).filter
+        fun (s, _) => s ≠ 0).unzip
+      multi_scalar_mul sc pts
+  pure (point, self)
+
+end LazyBases
+
+open BpppTranscript
+
+/-- `prove_rec`. -/
+def prove_rec (bases : LazyBases F E) (c : List F) (rho : F) (l n : List F) :
+    TranscriptM F E (NormLinearProof F E) := do
+  if _h : is_base_case l.length n.length then do
+    append_scalars "l_final" l
+    append_scalars "n_final" n
+    return { rounds := [], l_final := l.headD 0, n_final := n }
+  else do
+    let l0 := (halves l).1
+    let l1 := (halves l).2
+    let n0 := (halves n).1
+    let n1 := (halves n).2
+    let c0 := (halves c).1
+    let c1 := (halves c).2
+    let mu := rho * rho
+    let mu2 := mu * mu
+    let rho_inv ← inverse rho
+    let two : F := 2
+    let vx := two * rho_inv * weighted_inner_product n0 n1 mu2 + inner_product c0 l1 +
+      inner_product c1 l0
+    let vr := weighted_norm n1 mu2 + inner_product c1 l1
+    let (x_point, bases) ← bases.msm vx (from_halves l1 l0)
+      (from_halves (vec_scalar_mul rho n1) (vec_scalar_mul rho_inv n0))
+    let (r_point, bases) ← bases.msm vr (from_odd_half l1) (from_odd_half n1)
+    append_point "X" x_point
+    append_point "R" r_point
+    let gamma ← challenge_scalar "gamma"
+    let proof ← prove_rec (bases.fold rho gamma) (vec_add c0 (vec_scalar_mul gamma c1)) mu
+      (vec_add l0 (vec_scalar_mul gamma l1))
+      (vec_add (vec_scalar_mul rho_inv n0) (vec_scalar_mul gamma n1))
+    return { proof with rounds := (x_point, r_point) :: proof.rounds }
+termination_by l.length + n.length
+decreasing_by
+  simp only [is_base_case, FOLD_THRESHOLD, Bool.and_eq_true, decide_eq_true_eq, not_and,
+    not_lt] at _h
+  have hl := halves_length l
+  have hn := halves_length n
+  simp only [vec_add, vec_scalar_mul, List.length_zipWith, List.length_map]
+  omega
+
+/-- `norm_linear::prove`. -/
+def prove (gens : Generators E) (c : List F) (rho : F) (l n : List F) :
+    TranscriptM F E (NormLinearProof F E) := do
+  domain_sep "norm_linear"
+  prove_rec (.new gens) c rho l n
+
+/-- `norm_linear::verify`. -/
+def verify (gens : Generators E) (c : List F) (ps : F) (pn : List F) (extra : List (F × E))
+    (rho : F) (proof : NormLinearProof F E) : TranscriptM F E Unit := do
+  if c.length ≠ gens.h_vec.length ∨ pn.length ≠ gens.g_vec.length then
+    throw .InvalidInput
+  let (rounds, n_len) := proof_shape gens.h_vec.length gens.g_vec.length
+  if proof.rounds.length ≠ rounds ∨ proof.n_final.length ≠ n_len then
+    throw .InvalidProof
+  domain_sep "norm_linear"
+  let (c, _, mu, gammas, w_h, w_g) ← proof.rounds.foldlM
+    (fun (c, rho, mu, gammas, (w_h : Weights F), (w_g : Weights F)) (x_point, r_point) => do
+      append_point "X" x_point
+      append_point "R" r_point
+      let gamma ← challenge_scalar "gamma"
+      let (c0, c1) := halves c
+      pure (vec_add c0 (vec_scalar_mul gamma c1), mu, mu * mu, gammas ++ [gamma],
+        w_h.tensor_pair one gamma, w_g.tensor_pair rho gamma))
+    (c, rho, rho * rho, ([] : List F), Weights.new, Weights.new)
+  append_scalars "l_final" [proof.l_final]
+  append_scalars "n_final" proof.n_final
+  let sigma := c.headD 0 * proof.l_final + weighted_norm proof.n_final mu
+  let l := (w_h.scale proof.l_final).take gens.h_vec.length
+  let n := List.zipWith (fun w pn_i => w - pn_i) ((w_g.tensor proof.n_final).take gens.g_vec.length) pn
+  let dynamic := extra.map (fun (s, p) => (-s, p)) ++
+    (List.zip proof.rounds gammas).flatMap fun ((x_point, r_point), gamma) =>
+      [(-gamma, x_point), (one - gamma * gamma, r_point)]
+  let result ← gens.msm (sigma - ps) l n (dynamic.map (·.1)) (dynamic.map (·.2))
+  if result = 0 then pure () else throw .InvalidProof
+
+end NormLinear
+
+end Bppp

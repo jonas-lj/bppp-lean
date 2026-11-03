@@ -1,4 +1,4 @@
-import Bppp.Protocol
+import Bppp.Spec.Protocol
 
 /-!
 # The honest prover
@@ -9,7 +9,7 @@ The honest witness placement of §5.1, after (22), for inputs `V_i = v_i G + s_i
 
 open Finset LaurentPolynomial
 
-namespace Bppp
+namespace Bppp.Spec
 
 variable {F : Type*} [Field F]
 
@@ -72,4 +72,4 @@ noncomputable def Honest.rS : ℕ → F := fun j =>
     (∑ s ∈ range 7, clV P ch s * (coeff (e s - 1) g / ch.β)) - coeff (-1) g
   else coeff (e (j - 1) - 1) g / ch.β
 
-end Bppp
+end Bppp.Spec

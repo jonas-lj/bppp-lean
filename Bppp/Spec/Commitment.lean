@@ -1,5 +1,5 @@
-import Bppp.Honest
-import Bppp.NormLinear
+import Bppp.Spec.Honest
+import Bppp.Spec.NormLinear
 
 /-!
 # Commitments and the combined commitment
@@ -11,7 +11,7 @@ and `G_0, ..., G_{nm-1}`.
 
 open Finset LaurentPolynomial
 
-namespace Bppp
+namespace Bppp.Spec
 
 variable {F E : Type*} [Field F] [AddCommGroup E] [Module F E]
 variable (P : Params) (g : E) (H G : ℕ → E)
@@ -37,9 +37,6 @@ def Honest.inputs (h : Honest F) (i : ℕ) : E := h.value P i • g + h.s i • 
 
 variable (ch : Challenges F) (τ : Fˣ)
 
-/-- Evaluation at `T = τ`. -/
-noncomputable def evalAt : F[T;T⁻¹] →+* F := LaurentPolynomial.eval₂ (RingHom.id F) τ
-
 /-- The combined commitment (25), `C(τ) = P(τ) + τ⁻¹C_S + δC_O + τC_L + τ²C_R + τ³V̂` with
 `P(τ) = p_s(τ)g + ⟨p_n(τ), G⟩`, from public data and the messages alone. -/
 noncomputable def combined (cS cO cL cR vHat : E) : E :=
@@ -49,4 +46,4 @@ noncomputable def combined (cS cO cL cR vHat : E) : E :=
 /-- `V̂ = 2Σ_i λ^i V_i` (21). -/
 noncomputable def vHat (V : ℕ → E) : E := (2 : F) • ∑ i ∈ range P.M, ch.lam ^ i • V i
 
-end Bppp
+end Bppp.Spec

@@ -1,89 +1,99 @@
-import Mathlib.Algebra.Polynomial.Laurent
-import Mathlib.Tactic
+import Bppp.Util
 
 /-!
-# Laurent polynomials
-
-Monomials, coefficients and supports of Laurent polynomials `F[T;T⁻¹]`.
+# `laurent.rs`
 -/
-
-open LaurentPolynomial
 
 namespace Bppp
 
-variable {F : Type*} [Field F]
+variable {F : Type} [Field F] [DecidableEq F]
 
-/-- The monomial `x*T^p`. -/
-noncomputable def mono (p : ℤ) (x : F) : F[T;T⁻¹] := C x * T p
+/-- `Coefficient`. -/
+class Coefficient (F : outParam Type) (C : Type) where
+  add : C → C → C
+  scale : C → F → C
 
-/-- The coefficient of `T^p`. -/
-def coeff (p : ℤ) : F[T;T⁻¹] →+ F := Finsupp.applyAddHom p
+instance : Coefficient F F where
+  add x y := x + y
+  scale x s := x * s
 
-theorem coeff_apply (p : ℤ) (f : F[T;T⁻¹]) : coeff p f = f p := rfl
+instance : Coefficient F (List F) where
+  add := vec_add
+  scale x s := vec_scalar_mul s x
 
-@[simp] theorem coeff_mono (p q : ℤ) (x : F) : coeff q (mono p x) = if p = q then x else 0 := by
-  rw [coeff_apply, mono, ← single_eq_C_mul_T, Finsupp.single_apply]
+/-- `Laurent<C>`: `sum_i coeffs[i]*T^{low+i}`. -/
+structure Laurent (C : Type) where
+  low : ℤ
+  coeffs : List C
 
-@[simp] theorem mono_zero (p : ℤ) : mono p (0 : F) = 0 := by simp [mono]
+namespace Laurent
 
-theorem mono_mul (p q : ℤ) (x y : F) : mono p x * mono q y = mono (p + q) (x * y) := by
-  simp only [mono, map_mul, T_add]; ring
+variable {C : Type} [Inhabited C] [Coefficient F C]
 
-theorem ext_coeff {f g : F[T;T⁻¹]} (h : ∀ p, coeff p f = coeff p g) : f = g :=
-  LaurentPolynomial.ext h
+instance : Inhabited (Laurent C) := ⟨⟨0, [default]⟩⟩
 
-/-- Every nonzero coefficient of `f` is at a power in `[a, b]`. -/
-def Supp (f : F[T;T⁻¹]) (a b : ℤ) : Prop := ∀ p, coeff p f ≠ 0 → a ≤ p ∧ p ≤ b
+/-- `Laurent::new`. -/
+def new (low : ℤ) (coeffs : List C) : Laurent C := ⟨low, coeffs⟩
 
-namespace Supp
+/-- `Laurent::monomial`. -/
+def monomial (power : ℤ) (c : C) : Laurent C := new power [c]
 
-theorem zero (a b : ℤ) : Supp (0 : F[T;T⁻¹]) a b := by intro p h; simp at h
+/-- `Laurent::coeff`. -/
+def coeff (self : Laurent C) (power : ℤ) : C :=
+  if 0 ≤ power - self.low then (self.coeffs[(power - self.low).toNat]?).getD
+    (Coefficient.scale self.coeffs.head! (0 : F))
+  else Coefficient.scale self.coeffs.head! (0 : F)
 
-theorem mono {p a b : ℤ} (x : F) (h₁ : a ≤ p) (h₂ : p ≤ b) : Supp (Bppp.mono p x) a b := by
-  intro q h
-  rw [coeff_mono] at h
-  split_ifs at h with hpq
-  · omega
-  · exact absurd rfl h
+/-- `Laurent::degree`. -/
+def degree (self : Laurent C) : ℤ := self.low + self.coeffs.length - 1
 
-theorem add {f g : F[T;T⁻¹]} {a b : ℤ} (hf : Supp f a b) (hg : Supp g a b) :
-    Supp (f + g) a b := by
-  intro p h
-  rw [map_add] at h
-  by_cases hfp : coeff p f = 0
-  · exact hg p (by simpa [hfp] using h)
-  · exact hf p hfp
+/-- `Laurent::scale`. -/
+def scale (self : Laurent C) (s : F) : Laurent C := new self.low (self.coeffs.map (Coefficient.scale · s))
 
-theorem neg {f : F[T;T⁻¹]} {a b : ℤ} (hf : Supp f a b) : Supp (-f) a b := by
-  intro p h; exact hf p (by simpa using h)
+/-- `Laurent::eval`. -/
+def eval (self : Laurent C) (x : F) : Result C := do
+  let base ← if self.low < 0 then inverse x else pure x
+  let x_pow := (List.range self.low.natAbs).foldl (fun acc _ => acc * base) one
+  let (result, _) := self.coeffs.tail.foldl
+    (fun (result, x_pow) c => (Coefficient.add result (Coefficient.scale c (x_pow * x)), x_pow * x))
+    (Coefficient.scale self.coeffs.head! x_pow, x_pow)
+  pure result
 
-theorem sub {f g : F[T;T⁻¹]} {a b : ℤ} (hf : Supp f a b) (hg : Supp g a b) :
-    Supp (f - g) a b := by
-  rw [sub_eq_add_neg]; exact hf.add hg.neg
+/-- `Laurent + Laurent`. -/
+def add (self other : Laurent C) : Laurent C :=
+  let low := min self.low other.low
+  new low ((List.range (max self.degree other.degree - low + 1).toNat).map fun (i : ℕ) =>
+    Coefficient.add (self.coeff (low + i)) (other.coeff (low + i)))
 
-theorem sum {ι : Type*} (s : Finset ι) {f : ι → F[T;T⁻¹]} {a b : ℤ}
-    (h : ∀ i ∈ s, Supp (f i) a b) : Supp (∑ i ∈ s, f i) a b := by
-  classical
-  induction s using Finset.induction_on with
-  | empty => simpa using zero a b
-  | insert i s hi ih =>
-    rw [Finset.sum_insert hi]
-    exact (h i (by simp)).add (ih fun j hj => h j (by simp [hj]))
+instance : Add (Laurent C) := ⟨add⟩
 
-theorem mul {f g : F[T;T⁻¹]} {a b c d : ℤ} (hf : Supp f a b) (hg : Supp g c d) :
-    Supp (f * g) (a + c) (b + d) := by
-  classical
-  intro p h
-  have hp : p ∈ (f * g).support := Finsupp.mem_support_iff.mpr h
-  obtain ⟨x, hx, y, hy, rfl⟩ := Finset.mem_add.mp (AddMonoidAlgebra.support_mul f g hp)
-  have := hf x (Finsupp.mem_support_iff.mp hx)
-  have := hg y (Finsupp.mem_support_iff.mp hy)
-  omega
+/-- `Laurent - Laurent`. -/
+def sub (self other : Laurent C) : Laurent C := self + other.scale (-one : F)
 
-theorem widen {f : F[T;T⁻¹]} {a b a' b' : ℤ} (hf : Supp f a b) (ha : a' ≤ a) (hb : b ≤ b') :
-    Supp f a' b' := by
-  intro p h; have := hf p h; omega
+instance : Sub (Laurent C) := ⟨sub⟩
 
-end Supp
+/-- `Laurent::from_terms`. -/
+def from_terms : List (ℤ × C) → Laurent C
+  | [] => panic! "at least one term"
+  | (p, c) :: terms => terms.foldl (fun acc (p, c) => acc + monomial p c) (monomial p c)
+
+end Laurent
+
+namespace Laurent
+
+/-- `Laurent<Vec<S>>::inner_product`. -/
+def inner_product (self other : Laurent (List F)) : Laurent F :=
+  let coeffs := self.coeffs.zipIdx.foldl (fun coeffs (a, i) =>
+      other.coeffs.zipIdx.foldl (fun coeffs (b, j) =>
+        coeffs.modify (i + j) (· + Bppp.inner_product a b)) coeffs)
+    (List.replicate (self.coeffs.length + other.coeffs.length - 1) 0)
+  new (self.low + other.low) coeffs
+
+/-- `Laurent<Vec<S>>::weighted_inner_product`. -/
+def weighted_inner_product (self other : Laurent (List F)) (weights : List F) : Laurent F :=
+  let weighted := new self.low (self.coeffs.map fun a => hadamard a weights)
+  weighted.inner_product other
+
+end Laurent
 
 end Bppp
