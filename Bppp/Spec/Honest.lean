@@ -62,6 +62,9 @@ noncomputable def Honest.opening (rS : ℕ → F) : Opening F where
   rV j := if j = 1 then 2 * ∑ i ∈ range P.M, ch.lam ^ i * h.s i else 0
   ℓV := 0
   nV _ := 0
+  ℓO := 0
+  ℓL := 0
+  ℓR := 0
 
 /-- The blinding `r_S` that cancels every coefficient of `f(T)` other than `T³`: with
 `g(T) = f(T)` at `r_S = 0`, the entry `r_{S,s+1}` cancels `T^{e_s - 1}` and `r_{S,0}` cancels

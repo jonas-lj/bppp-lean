@@ -120,6 +120,11 @@ structure Opening (F : Type*) where
   rV : ℕ → F
   /-- `ℓ_V̂`, the `H_7`-coordinate of `V̂`. -/
   ℓV : F
+  /-- `ℓ_O`, `ℓ_L`, `ℓ_R`, the `H_7`-coordinates of `C_O`, `C_L`, `C_R`; zero for an honest
+  prover. -/
+  ℓO : F
+  ℓL : F
+  ℓR : F
   /-- `n_V̂`, the `𝐆`-coordinates of `V̂`. -/
   nV : ℕ → F
 
@@ -130,12 +135,12 @@ noncomputable def n (k : ℕ) : F[T;T⁻¹] :=
   mono (-1) (w.nS k) + mono 0 (ch.δ * w.nO k) + mono 1 (w.nL k) + mono 2 (w.nR k) +
     mono 3 (w.nV k) + pn P ch k
 
-/-- `ℓ(T) = (ℓ_1(T), ..., ℓ_7(T) ‖ T⁻¹ℓ_S + T³ℓ_V̂)`. -/
+/-- `ℓ(T) = (ℓ_1(T), ..., ℓ_7(T) ‖ T⁻¹ℓ_S + δℓ_O + Tℓ_L + T²ℓ_R + T³ℓ_V̂)`. -/
 noncomputable def ℓ (s : ℕ) : F[T;T⁻¹] :=
   if s < 7 then
     mono (-1) (w.rS (s + 1)) + mono 0 (ch.δ * w.rO (s + 1)) + mono 1 (w.rL (s + 1)) +
       mono 2 (w.rR (s + 1)) + mono 3 (w.rV (s + 1))
-  else mono (-1) w.ℓS + mono 3 w.ℓV
+  else mono (-1) w.ℓS + mono 0 (ch.δ * w.ℓO) + mono 1 w.ℓL + mono 2 w.ℓR + mono 3 w.ℓV
 
 /-- `σ(T) = p_s(T) + v̂T³ + r_0(T)`. -/
 noncomputable def σ : F[T;T⁻¹] :=

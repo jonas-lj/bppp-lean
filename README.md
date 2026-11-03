@@ -46,8 +46,12 @@ be divisible by `2^rounds`, as it is in `norm_linear.rs`.
 It combines `NormLinear.verify_accepts` (an accepting run is an accepting transcript of the
 interactive argument) with `Spec.NormLinear.extract` (special soundness of that argument).
 
-Not yet covered: the extractor of the range circuit (Table 1 of the paper), zero-knowledge, and
-the probabilistic steps (tree extraction, Fiat–Shamir).
+`Spec.extract_tau`: the `τ` level of the circuit extractor (§5.3). From openings of `C(τ)` at 13
+distinct `τ`, either `C_S`, `C_O`, `C_L`, `C_R`, `V̂` open to an opening with `f(T) ≡ 0`, or the
+generators satisfy a nontrivial linear relation.
+
+Not yet covered: the `λ`, `β`, `ρ`, `α` levels of the extractor, zero-knowledge, and the
+probabilistic steps (tree extraction, Fiat–Shamir).
 
 ## Build
 

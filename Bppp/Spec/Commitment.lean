@@ -25,11 +25,11 @@ def lin (r : ℕ → F) (ℓX : F) : ℕ → F := fun s => if s < 7 then r (s + 
 
 variable (w : Opening F)
 
-/-- `C_S`, `C_O`, `C_L`, `C_R` (22) for the opening `w`; only `C_S` has a nonzero `ℓ_X`. -/
+/-- `C_S`, `C_O`, `C_L`, `C_R` (22) for the opening `w`. -/
 def cS : E := commit P g H G (w.rS 0) (lin w.rS w.ℓS) w.nS
-def cO : E := commit P g H G (w.rO 0) (lin w.rO 0) w.nO
-def cL : E := commit P g H G (w.rL 0) (lin w.rL 0) w.nL
-def cR : E := commit P g H G (w.rR 0) (lin w.rR 0) w.nR
+def cO : E := commit P g H G (w.rO 0) (lin w.rO w.ℓO) w.nO
+def cL : E := commit P g H G (w.rL 0) (lin w.rL w.ℓL) w.nL
+def cR : E := commit P g H G (w.rR 0) (lin w.rR w.ℓR) w.nR
 
 variable {P} in
 /-- The inputs `V_i = v_i g + s_i H_0` of an honest prover. -/

@@ -1,4 +1,5 @@
 import Mathlib.LinearAlgebra.Lagrange
+import Mathlib.LinearAlgebra.Vandermonde
 import Mathlib.Tactic
 import Bppp.Spec.Poly
 
@@ -180,5 +181,23 @@ theorem reciprocal_zero [DecidableEq F] (U : Finset F) (e : F → F) (x : Fin U.
     exact (mul_eq_zero.1 this).resolve_right hne
   · intro q hq hqp
     rw [prod_eq_zero (mem_erase.2 ⟨Ne.symm hqp, hp⟩) (by ring), mul_zero]
+
+/-! ## Inverting a Vandermonde system -/
+
+/-- The inverse of the Vandermonde matrix of distinct nodes `t`: weights `W` that recover the
+coefficients of a polynomial of degree below `n` from its values at the nodes. -/
+theorem vandermonde_inv {n : ℕ} (t : Fin n → F) (ht : Function.Injective t) :
+    ∃ W : Fin n → Fin n → F,
+      (∀ b j : Fin n, ∑ k, W b k * t k ^ (j : ℕ) = if b = j then 1 else 0) ∧
+      (∀ k m : Fin n, ∑ b : Fin n, t k ^ (b : ℕ) * W b m = if k = m then 1 else 0) := by
+  set M := Matrix.vandermonde t
+  have hdet : IsUnit M.det := isUnit_iff_ne_zero.2 (Matrix.det_vandermonde_ne_zero_iff.2 ht)
+  refine ⟨fun b k => M⁻¹ b k, fun b j => ?_, fun k m => ?_⟩
+  · have := congrFun (congrFun (Matrix.nonsing_inv_mul M hdet) b) j
+    rw [Matrix.mul_apply, Matrix.one_apply] at this
+    simpa [M, Matrix.vandermonde_apply] using this
+  · have := congrFun (congrFun (Matrix.mul_nonsing_inv M hdet) k) m
+    rw [Matrix.mul_apply, Matrix.one_apply] at this
+    simpa [M, Matrix.vandermonde_apply] using this
 
 end Bppp.Spec
