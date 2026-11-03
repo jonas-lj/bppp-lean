@@ -355,4 +355,29 @@ theorem extract : ∀ (t : Tree F E) (d : ℕ) (x : Instance F E), t.Depth d →
       choose w hw using hw
       exact extract_round g x X R γ hγ hρ hμ hn w hw
 
+/-- The instance after folding with the messages `rounds` and the challenges `γs`. -/
+def foldPath : Instance F E → List (E × E) → List F → Instance F E
+  | x, (X, R) :: rounds, γ :: γs => foldPath (foldInst x X R γ) rounds γs
+  | x, _, _ => x
+
+/-- The transcripts of the tree: for each path, its messages, challenges and final opening. -/
+def Tree.paths : Tree F E → List (List (E × E) × List F × Witness F)
+  | .leaf w => [([], [], w)]
+  | .node X R γ child => (List.finRange 4).flatMap fun k =>
+      (child k).paths.map fun p => ((X, R) :: p.1, γ k :: p.2.1, p.2.2)
+
+/-- The challenges of each round of the tree are distinct. -/
+def Tree.Distinct : Tree F E → Prop
+  | .leaf _ => True
+  | .node _ _ γ child => Function.Injective γ ∧ ∀ k, (child k).Distinct
+
+/-- A tree accepts when its challenges are distinct and each of its transcripts accepts. -/
+theorem accepts_of_paths : ∀ (t : Tree F E) (x : Instance F E), t.Distinct →
+    (∀ p ∈ t.paths, Rel g (foldPath x p.1 p.2.1) p.2.2) → Accepts g x t
+  | .leaf w, x, _, h => h ([], [], w) (by simp [Tree.paths])
+  | .node X R γ child, x, ⟨hγ, hd⟩, h => ⟨hγ, fun k => accepts_of_paths (child k) _ (hd k)
+      fun p hp => h ((X, R) :: p.1, γ k :: p.2.1, p.2.2)
+        (by simp only [Tree.paths, List.mem_flatMap, List.mem_finRange, List.mem_map, true_and]
+            exact ⟨k, p, hp, rfl⟩)⟩
+
 end Bppp.Spec.NormLinear

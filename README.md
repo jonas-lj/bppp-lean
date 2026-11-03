@@ -36,13 +36,18 @@ It depends only on the axioms `propext`, `Classical.choice` and `Quot.sound`.
 
 ## Soundness (in progress)
 
-`Spec.NormLinear.extract`: special soundness of the interactive norm-linear argument. From a tree
-of accepting transcripts with four distinct challenges per round, the commitment opens to a
-witness of the relation (19), or the generators satisfy a nontrivial linear relation. The norm
-vector's length must be divisible by `2^rounds`, as it is in `norm_linear.rs`.
+`NormLinear.verify_extract`: special soundness of `norm_linear::verify`. Take a tree of
+transcripts with four distinct challenges per round, each of whose paths is an accepting run of
+`verify` on its own transcript, with the challenges that transcript derives. Then the commitment
+opens to a witness of the relation (19), or the generators satisfy a nontrivial linear relation.
+A fork is two transcripts whose oracles agree up to one challenge. The norm vector's length must
+be divisible by `2^rounds`, as it is in `norm_linear.rs`.
 
-Not yet covered: the link from accepting runs of `norm_linear::verify` to such a tree, the
-extractor of the range circuit (Table 1 of the paper), and zero-knowledge.
+It combines `NormLinear.verify_accepts` (an accepting run is an accepting transcript of the
+interactive argument) with `Spec.NormLinear.extract` (special soundness of that argument).
+
+Not yet covered: the extractor of the range circuit (Table 1 of the paper), zero-knowledge, and
+the probabilistic steps (tree extraction, Fiat–Shamir).
 
 ## Build
 

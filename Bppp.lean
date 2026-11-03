@@ -1,2 +1,2 @@
 import Bppp.Correctness
-import Bppp.Spec.NormLinearSoundness
+import Bppp.Proofs.NormLinearSoundness
