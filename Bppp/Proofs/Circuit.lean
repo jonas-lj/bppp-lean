@@ -189,8 +189,11 @@ theorem completeness (Gp Hp : E) (gens : Generators E) (t : BpppTranscript F E)
     (hlen : values.length = params.m) (hb : blindings.length = params.m)
     (hrange : ∀ v ∈ values, params.range.is_in_range v) (hd : ∀ v ∈ values, v < 16 ^ params.d)
     (horacle : ∀ log, ∀ j : ℕ, j < 16 → t.oracle log + j ≠ 0) :
-    ∃ proof vcs t', (prove Gp Hp gens params rng values blindings).run t = .ok ((proof, vcs), t') ∧
-      (verify gens params proof vcs).run t = .ok ((), t') := by
+    ∃ proof t', (prove Gp Hp gens params rng values blindings).run t =
+        .ok ((proof, (List.zip (to_scalars values : List F) blindings).map fun (v, s) =>
+          PedersenCommitment.new Gp Hp v s), t') ∧
+      (verify gens params proof ((List.zip (to_scalars values : List F) blindings).map fun (v, s) =>
+          PedersenCommitment.new Gp Hp v s)).run t = .ok ((), t') := by
   have hprove : ¬(values.length ≠ params.m ∨ blindings.length ≠ params.m ∨
       gens.g_vec.length ≠ params.nm ∨ values.any (fun v => !params.range.is_in_range v)) := by
     simp [hlen, hb, hg]
@@ -413,7 +416,7 @@ theorem completeness (Gp Hp : E) (gens : Generators E) (t : BpppTranscript F E)
   obtain ⟨nl, t', hnlp, hnlv⟩ := NormLinear.completeness gens T c_tau rho l_tau n_tau ps_tau pn_tau
     extra (by simp [c_tau, hh]) (by simp [l_tau, hh]) (by simp [n_tau, hg]) (by simp [pn_tau, hg])
     (by rw [hh]; decide) hrho0 hident
-  refine ⟨⟨c_l, c_o, c_r, c_s, nl⟩, vcs, t', ?_, ?_⟩
+  refine ⟨⟨c_l, c_o, c_r, c_s, nl⟩, t', ?_, ?_⟩
   · rw [hnlp]; rfl
   · have hvcs_len : vcs.length = params.m := by simp [vcs, length_to_scalars, hlen, hb]
     have hver : ¬(vcs.length ≠ params.m ∨ gens.g_vec.length ≠ params.nm) := by simp [hvcs_len, hg]
