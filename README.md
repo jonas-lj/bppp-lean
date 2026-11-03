@@ -68,8 +68,8 @@ It depends only on the axioms `propext`, `Classical.choice` and `Quot.sound`. Th
 `τ` to `norm_linear::verify` through `Circuit.verify_run`, and `Circuit.verify_extract` is the
 result for `circuit::verify`.
 
-Not covered: zero-knowledge, and the probabilistic steps from special soundness to knowledge soundness of the
-non-interactive proof (tree extraction, Fiat–Shamir).
+Not covered: zero-knowledge, and the probabilistic steps from special soundness to knowledge
+soundness of the non-interactive proof (tree extraction, Fiat–Shamir).
 
 ## Build
 
