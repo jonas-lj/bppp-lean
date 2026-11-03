@@ -60,7 +60,12 @@ and a nonempty batch.
 `C_R` and `V_0` the `λ` level returns, either (36) holds or the generators satisfy a nontrivial
 linear relation.
 
-Not yet covered: the `ρ`, `α` levels of the extractor, zero-knowledge, and the
+`Spec.extract_rho`: the `ρ` level. From `nm + 1` distinct `μ = ρ²`, each satisfying (36) with
+the same openings of `C_L`, `C_R` and `V_0`, either the first value link and the Hadamard rows
+`(α + n_{L,k})n_{R,k} = 1` (`k < N_d`), `n_{L,k}n_{R,k} = 0` (`k ≥ N_d`) hold, or the generators
+satisfy a nontrivial linear relation.
+
+Not yet covered: the `α` level of the extractor, zero-knowledge, and the
 probabilistic steps (tree extraction, Fiat–Shamir).
 
 ## Build

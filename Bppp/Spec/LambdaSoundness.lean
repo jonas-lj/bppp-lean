@@ -1,12 +1,13 @@
 import Bppp.Spec.CircuitSoundness
 
 /-!
-# The `λ` and `β` levels of the circuit extractor
+# The `λ`, `β` and `ρ` levels of the circuit extractor
 
 For any opening, the `T³` coefficient of `f(T)`, the value row (29), is a polynomial in `λ` whose
 coefficients are the rows (35): the degree-0 residue `E_0 + L_0`, the value links `L_i`, set
 membership `S` and the shape rows. Forking `λ` forces every row to vanish, and forking `β`
-removes the blinding bracket from the degree-0 residue, leaving (36).
+removes the blinding bracket from the degree-0 residue, leaving (36). That is a polynomial in
+`μ`, and forking `μ = ρ²` gives the first value link and the Hadamard rows.
 -/
 
 open Finset LaurentPolynomial
@@ -493,6 +494,98 @@ theorem extract_beta (hM : 0 < P.M) (cO cL cR V0 : E) (β : Fin 2 → F) (hβ : 
     (mul_eq_zero.1 (by linear_combination e1 - e0 : (β 0 - β 1) * _ = 0)).resolve_left hne
   rw [hbr, mul_zero, sub_zero] at e0
   exact e0
+
+/-! ## The `ρ` level -/
+
+open Polynomial in
+/-- A polynomial of degree at most `N` with `N + 1` distinct roots is zero. -/
+theorem poly_zero {N : ℕ} (a : ℕ → F) (x : Fin (N + 1) → F) (hx : Function.Injective x)
+    (h : ∀ r, ∑ d ∈ range (N + 1), a d * x r ^ d = 0) : ∀ d ≤ N, a d = 0 := by
+  set Q : F[X] := ∑ d ∈ range (N + 1), Polynomial.C (a d) * X ^ d
+  have hco : ∀ d, Q.coeff d = if d < N + 1 then a d else 0 := fun d => by
+    simp only [Q, finsetSum_coeff, coeff_C_mul, coeff_X_pow, mul_ite, mul_one, mul_zero]
+    rw [sum_ite_eq]; simp
+  have hQ : Q = 0 := by
+    refine eq_zero_of_degree_lt_of_eval_index_eq_zero univ hx.injOn ?_ fun r _ => ?_
+    · rw [card_univ, Fintype.card_fin, degree_lt_iff_coeff_zero]
+      intro d hd
+      have hd : N + 1 ≤ d := by exact_mod_cast hd
+      rw [hco, if_neg (by omega)]
+    · simpa only [Q, eval_finsetSum, eval_mul, eval_C, eval_pow, eval_X] using h r
+  intro d hd
+  have := hco d
+  rw [hQ, coeff_zero, if_pos (by omega)] at this
+  exact this.symm
+
+/-- (36) as a polynomial in `μ`: the first value link at `μ⁰` and the Hadamard row of slot `k`
+at `μ^{k+1}`. -/
+theorem row36_eq (w : Opening F) (u0 : F) :
+    row36 P ch w u0 = ∑ d ∈ range (P.nm + 1), (if d = 0 then
+      2 * (u0 - ∑ t ∈ range P.D, 16 ^ t * w.nL t) else
+      -2 * (w.nL (d - 1) * w.nR (d - 1) +
+        if d - 1 < P.Nd then ch.α * w.nR (d - 1) - 1 else 0)) * ch.μ ^ d := by
+  rw [sum_range_succ']
+  simp only [Nat.succ_ne_zero, if_false, if_true, pow_zero, mul_one, Nat.add_sub_cancel]
+  have hm : muAm P ch = ∑ k ∈ range P.nm, if k < P.Nd then ch.μ ^ (k + 1) else 0 := by
+    rw [muAm, sum_range_of_le (m := P.Nd) P.hnm fun k hk => if_neg (by omega)]
+    exact sum_congr rfl fun k hk => (if_pos (mem_range.1 hk)).symm
+  have hs : ∀ k ∈ range P.nm, -2 * (w.nL k * w.nR k +
+      (if k < P.Nd then ch.α * w.nR k - 1 else 0)) * ch.μ ^ (k + 1) =
+      2 * (if k < P.Nd then ch.μ ^ (k + 1) else 0) - 2 * (ch.μ ^ (k + 1) *
+        (w.nL k * w.nR k + if k < P.Nd then ch.α * w.nR k else 0)) := fun k _ => by
+    split_ifs <;> ring
+  rw [sum_congr rfl hs, sum_sub_distrib, ← mul_sum, ← mul_sum, ← hm, row36]
+  ring
+
+/-- **The `ρ` level.** Take `nm + 1` distinct `μ`, the other challenges fixed, each with openings
+of `C_L`, `C_R` and `V_0` satisfying (36). Either the first value link and the Hadamard rows hold,
+or the generators satisfy a nontrivial relation. -/
+theorem extract_rho (h2 : (2 : F) ≠ 0) (hM : 0 < P.M) (cL cR V0 : E) (μ : Fin (P.nm + 1) → F)
+    (hμ : Function.Injective μ) (w : Fin (P.nm + 1) → Opening F) (u0 : Fin (P.nm + 1) → F)
+    (h0 n0 : Fin (P.nm + 1) → ℕ → F)
+    (hL : ∀ r, cL = Spec.cL P g H G (w r)) (hR : ∀ r, cR = Spec.cR P g H G (w r))
+    (hV : ∀ r, V0 = commit P g H G (u0 r) (h0 r) (n0 r))
+    (h36 : ∀ r, row36 P { ch with μ := μ r } (w r) (u0 r) = 0) :
+    (u0 0 = ∑ t ∈ range P.D, 16 ^ t * (w 0).nL t ∧
+      (∀ k < P.Nd, (ch.α + (w 0).nL k) * (w 0).nR k = 1) ∧
+      ∀ k, P.Nd ≤ k → k < P.nm → (w 0).nL k * (w 0).nR k = 0) ∨ Relation F P g H G := by
+  by_cases hrel : Relation F P g H G
+  · exact Or.inr hrel
+  left
+  have aL := fun r => (binding P g H G ((hL r).symm.trans (hL 0))).resolve_right hrel
+  have aR := fun r => (binding P g H G ((hR r).symm.trans (hR 0))).resolve_right hrel
+  have aV := fun r => (binding P g H G ((hV r).symm.trans (hV 0))).resolve_right hrel
+  set a : ℕ → F := fun d => if d = 0 then
+      2 * (u0 0 - ∑ t ∈ range P.D, 16 ^ t * (w 0).nL t) else
+      -2 * ((w 0).nL (d - 1) * (w 0).nR (d - 1) +
+        if d - 1 < P.Nd then ch.α * (w 0).nR (d - 1) - 1 else 0)
+  have hz := poly_zero a μ hμ fun r => by
+    have e := h36 r
+    rw [row36_eq] at e
+    refine (sum_congr rfl fun d hd => ?_).trans e
+    have hd := mem_range.1 hd
+    simp only [a]
+    split_ifs
+    · rw [(aV r).1]
+      congr 3
+      exact sum_congr rfl fun t ht => by
+        have := P.hnm
+        have : P.D ≤ P.M * P.D := Nat.le_mul_of_pos_left _ hM
+        rw [(aL r).2.2 t (by simp at ht; omega)]
+    · rw [(aL r).2.2 _ (by omega), (aR r).2.2 _ (by omega)]
+    · rw [(aL r).2.2 _ (by omega), (aR r).2.2 _ (by omega)]
+  refine ⟨?_, fun k hk => ?_, fun k hk1 hk2 => ?_⟩
+  · have := hz 0 (by omega)
+    simp only [a, if_pos rfl] at this
+    exact sub_eq_zero.1 ((mul_eq_zero.1 this).resolve_left h2)
+  · have := hz (k + 1) (by have := P.hnm; simp only [Params.Nd] at hk; omega)
+    simp only [a, Nat.succ_ne_zero, if_false, Nat.add_sub_cancel, if_pos hk] at this
+    have := (mul_eq_zero.1 this).resolve_left (neg_ne_zero.2 h2)
+    linear_combination this
+  · have := hz (k + 1) (by omega)
+    simp only [a, Nat.succ_ne_zero, if_false, Nat.add_sub_cancel, if_neg (show ¬ k < P.Nd by omega),
+      add_zero] at this
+    exact (mul_eq_zero.1 this).resolve_left (neg_ne_zero.2 h2)
 
 end Extract
 
