@@ -72,8 +72,16 @@ relation. It assumes no `m = 1, ..., N_d` is zero in the field.
 
 The levels are in `Spec/CircuitSoundness.lean` (`τ`) and `Spec/RowSoundness.lean` (the rest).
 
-Not yet covered: composing the levels into one extractor, zero-knowledge, and the
-probabilistic steps (tree extraction, Fiat–Shamir).
+`Spec.circuit_extract` composes them (output (38)). Take a tree that forks `α`, `μ`, `β`, `λ`,
+`τ` with distinct values at every fork and challenges in the good set, with `C_O`, `C_L` and the
+inputs fixed, `C_R` depending on `α` and `C_S` on the path down to `λ`. If every leaf opens
+`C(τ)` to a norm-linear witness, every input is `V_i = v_i g + s_i H_0` with `v_i < 16^D`, or the
+generators satisfy a nontrivial linear relation. It assumes `2 ≠ 0`, that no `m = 1, ..., N_d`
+is zero in the field, and a nonempty batch.
+
+Not yet covered: linking `circuit_extract` to `circuit::verify` (as `verify_extract` does for the
+norm-linear argument), zero-knowledge, and the probabilistic steps (tree extraction,
+Fiat–Shamir).
 
 ## Build
 
