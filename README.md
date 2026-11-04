@@ -45,7 +45,7 @@ nontrivial linear relation. The challenges at every fork are distinct, `C_O` and
 same throughout, `C_R` depends only on `α`, and `C_S` only on the path down to `λ`. It assumes:
 
 - generators of the right shape, and `2^rounds` divides `nm`;
-- `α ∉ {0, -1, ..., -15}` and `ρ, δ, τ ≠ 0`;
+- `α ∉ {0, -1, ..., -15}` and `ρ, τ ≠ 0`;
 - `2 ≠ 0`, and no `m = 1, ..., N_d` is zero in the field.
 
 The proof follows §5.3 of the paper, from the innermost level outward:
@@ -71,15 +71,15 @@ casts `range_proof` for batches of `m` values as a VCVio protocol:
 
 - the statement is the commitments, and the witness the values and blindings, related by
   `commitments` and range membership;
-- the honest verifier's challenges `(α, ρ, λ, β, δ, τ, γ_1, ..., γ_r)` are one uniform draw
+- the honest verifier's challenges `(α, ρ, λ, β, τ, γ_1, ..., γ_r)` are one uniform draw
   (`Chal`), since they don't depend on the prover's messages, and `chalOracle` is the transcript
   hash that returns them in order;
 - the response is `prove_batch` under uniform masks `n_S`, `ℓ_S` and blindings of `C_O`, `C_L`,
   `C_R`.
 
-The theorem says the real transcripts are within total variation distance `22 / |F|` of
-`simTranscript`, which sees only the commitments, `range`, `dst` and the generators. The `22` is
-the number of bad challenge values (`pr_bad_le`): 16 for `α`, one each for `ρ`, `δ`, `τ`, and
+The theorem says the real transcripts are within total variation distance `21 / |F|` of
+`simTranscript`, which sees only the commitments, `range`, `dst` and the generators. The `21` is
+the number of bad challenge values (`pr_bad_le`): 16 for `α`, one each for `ρ` and `τ`, and
 three for `β` (`β = 0` and the two roots of condition (32), `β² = h_0 (h_1 + λ^{g_1})`). For good
 challenges the distributions are equal (`zero_knowledge_at`). It assumes:
 
@@ -100,7 +100,7 @@ from (25) and runs the norm-linear prover, as the real prover does (`Circuit.pro
 statement and every prover message before it, and from nothing else.
 
 - `RangeProof.verify_batch_local`: two transcript hashes that agree on `Circuit.challengeLogs`
-  give the same result, accepting or rejecting. These are the logs at `α`, `ρ`, `λ`, `β`, `δ`, `τ`
+  give the same result, accepting or rejecting. These are the logs at `α`, `ρ`, `λ`, `β`, `τ`
   and each round's `γ`. Each is the verifier's log up to that challenge, starting with the
   statement (`dst`, `n_bits`, `m`, every `V_i`) and containing every prover message before it.
 - `RangeProof.challenge_decodes`: if two challenge logs, of any statements and proofs, absorb
@@ -125,6 +125,9 @@ Checking that the mirror matches the Rust code is the part Lean cannot do.
 - The Merlin transcript is a log of labelled entries and an arbitrary function from logs to
   challenges. `Transcript::new` absorbs its label under `"dom-sep"`, and a `u64` is 8
   little-endian bytes, as in Merlin.
+- The Rust code omits the paper's challenge `δ`, which scales `C_O`: the shape rows force the
+  input coordinates it separates `C_O` from to zero, so it only needs to be nonzero. `Bppp/Spec/`
+  keeps `δ`, and the proofs instantiate it at `δ = 1`.
 - The prover's random draws are an input. For zero-knowledge they are sampled uniformly with
   VCVio's `$ᵗ`, and `protocol` (`ZeroKnowledge.lean`), which casts `range_proof` as a VCVio
   protocol, is part of the model to check.
