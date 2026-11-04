@@ -114,7 +114,7 @@ def solve_r_s (constraints : Constraints F) (rest : Laurent F) (l_s beta : F) :
 
 /-- `coordinates_without_c_s`. -/
 def coordinates_without_c_s (params : CircuitParams) (constraints : Constraints F)
-    (witness : Witness F) (n_r : List F) (delta delta_inv : F) :
+    (witness : Witness F) (n_r : List F) :
     Laurent F × Laurent (List F) × Laurent (List F) :=
   let two : F := 2
   let weights := (constraints.lambdas.take params.m).map (two * ·)
@@ -125,13 +125,12 @@ def coordinates_without_c_s (params : CircuitParams) (constraints : Constraints 
     (List.replicate params.nm 0, 0)
   let v_hat_h := ((List.replicate H_LEN 0).set 0 (inner_product weights witness.blindings)).set
     (H_LEN - 1) l_v_hat
-  let p_n := constraints.p_n delta_inv
-  let n := Laurent.new (-1) [witness.n_s, vec_scalar_mul delta witness.n_o, witness.n_l, n_r,
-    n_v_hat] + p_n
-  let sigma := Laurent.new 0 [delta * witness.r_o.headD 0, witness.r_l.headD 0,
+  let p_n := constraints.p_n
+  let n := Laurent.new (-1) [witness.n_s, witness.n_o, witness.n_l, n_r, n_v_hat] + p_n
+  let sigma := Laurent.new 0 [witness.r_o.headD 0, witness.r_l.headD 0,
       witness.r_r.headD 0] + p_n.weighted_inner_product p_n constraints.norm_weights +
     Laurent.monomial 3 (v_hat + two * (constraints.lambda_al + constraints.mu_am))
-  let l := Laurent.new 0 [vec_scalar_mul delta (h_coordinates witness.r_o),
+  let l := Laurent.new 0 [h_coordinates witness.r_o,
     h_coordinates witness.r_l, h_coordinates witness.r_r, v_hat_h]
   (sigma, l, n)
 
@@ -158,12 +157,10 @@ def prove_witness (G H : E) (gens : Generators E) (params : CircuitParams)
   let rho ← challenge_scalar "rho"
   let lambda ← challenge_scalar "lambda"
   let beta ← challenge_scalar "beta"
-  let delta ← challenge_scalar "delta"
   let mu := rho * rho
-  let delta_inv ← inverse delta
   let constraints ← Constraints.new params alpha mu lambda
   -- Step 5
-  let (sigma, l, n) := coordinates_without_c_s params constraints witness n_r delta delta_inv
+  let (sigma, l, n) := coordinates_without_c_s params constraints witness n_r
   let c := c constraints beta
   let rest := error_polynomial sigma c l n constraints.norm_weights
   let (g_s, h_s) ← solve_r_s constraints rest witness.l_s beta
@@ -203,20 +200,18 @@ def verify (gens : Generators E) (params : CircuitParams) (proof : CircuitProof 
   let rho ← challenge_scalar "rho"
   let lambda ← challenge_scalar "lambda"
   let beta ← challenge_scalar "beta"
-  let delta ← challenge_scalar "delta"
   let mu := rho * rho
-  let delta_inv ← inverse delta
   append_point "C_S" proof.c_s
   let tau ← challenge_scalar "tau"
   let tau_inv ← inverse tau
   let t2 := tau * tau
   let t3 := t2 * tau
   let constraints ← Constraints.new params alpha mu lambda
-  let pn_tau ← (constraints.p_n delta_inv).eval tau
+  let pn_tau ← constraints.p_n.eval tau
   let ps_tau := weighted_norm pn_tau mu + 2 * (constraints.lambda_al + constraints.mu_am) * t3
   let c_tau ← (c constraints beta).eval tau
   let two_t3 := 2 * t3
-  let extra := [(tau_inv, proof.c_s), (delta, proof.c_o), (tau, proof.c_l), (t2, proof.c_r)] ++
+  let extra := [(tau_inv, proof.c_s), (1, proof.c_o), (tau, proof.c_l), (t2, proof.c_r)] ++
     v_commitments.zipIdx.map fun (v_i, i) =>
       (two_t3 * constraints.lambdas.getD i 0, v_i.point)
   NormLinear.verify gens c_tau ps_tau pn_tau extra rho proof.nl_proof
