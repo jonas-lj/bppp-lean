@@ -456,7 +456,7 @@ lemma realView_eq (hH : ∀ j, H j = h j • g) (hG : ∀ k, G k = gg k • g)
 `C_O`, `C_L`, `C_R`, `C_S` and opening `(ℓ(τ), n(τ))` of `C(τ)`, under uniform masks and blindings,
 have the distribution of `simView`, which sees only the inputs `V_i = v_i g + s_i H_0`, the
 generators and the challenges. The norm-linear messages are computed from the opening. -/
-theorem zero_knowledge [Fintype F] [DecidableEq F] (hH : ∀ j, H j = h j • g)
+lemma zero_knowledge [Fintype F] [DecidableEq F] (hH : ∀ j, H j = h j • g)
     (hG : ∀ k, G k = gg k • g) (hα : ∀ j : ℕ, j < 16 → ch.α + j ≠ 0) (hμ : ch.μ ≠ 0)
     (hβ : ch.β ≠ 0) (hδ : ch.δ ≠ 0) (hh : h 0 ≠ 0)
     (hD : ch.β ^ 2 - h 0 * (h 1 + ch.lam ^ P.g 1) ≠ 0) (hd : ∀ i < P.M, ∀ t < P.D, d i t < 16) :
