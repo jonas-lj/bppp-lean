@@ -125,7 +125,9 @@ Checking that the mirror matches the Rust code is the part Lean cannot do.
 - The Merlin transcript is a log of labelled entries and an arbitrary function from logs to
   challenges. `Transcript::new` absorbs its label under `"dom-sep"`, and a `u64` is 8
   little-endian bytes, as in Merlin.
-- The prover's random draws are an input.
+- The prover's random draws are an input. For zero-knowledge they are sampled uniformly with
+  VCVio's `$ᵗ`, and `protocol` (`ZeroKnowledge.lean`), which casts `range_proof` as a VCVio
+  protocol, is part of the model to check.
 - Not modelled: `Generators::new` (hash-to-curve), the MSM precomputation tables, serialization,
   and test-only code.
 
