@@ -33,6 +33,10 @@ namespace NormLinear
 /-- `is_base_case`. -/
 def is_base_case (l_len n_len : ℕ) : Bool := l_len ≤ 1 && l_len + n_len < FOLD_THRESHOLD
 
+lemma is_base_case_iff (l_len n_len : ℕ) :
+    is_base_case l_len n_len = true ↔ l_len ≤ 1 ∧ l_len + n_len < 6 := by
+  simp only [is_base_case, Bool.and_eq_true, decide_eq_true_eq]; exact Iff.rfl
+
 /-- `proof_shape`. -/
 def proof_shape (l_len n_len : ℕ) : ℕ × ℕ :=
   if _h : is_base_case l_len n_len then (0, n_len)
@@ -40,7 +44,7 @@ def proof_shape (l_len n_len : ℕ) : ℕ × ℕ :=
     let (rounds, n_len) := proof_shape ((l_len + 1) / 2) ((n_len + 1) / 2)
     (rounds + 1, n_len)
 termination_by l_len + n_len
-decreasing_by simp [is_base_case, FOLD_THRESHOLD] at _h; omega
+decreasing_by rw [is_base_case_iff] at _h; omega
 
 /-- The pairs `(v_0, v_1), (v_2, v_3), ...` of `v`, unzipped (`v.into_iter().tuples().unzip()`). -/
 def unzip_pairs {α : Type} : List α → List α × List α
@@ -204,8 +208,7 @@ def prove_rec (bases : LazyBases F E) (c : List F) (rho : F) (l n : List F) :
     return { proof with rounds := (x_point, r_point) :: proof.rounds }
 termination_by l.length + n.length
 decreasing_by
-  simp only [is_base_case, FOLD_THRESHOLD, Bool.and_eq_true, decide_eq_true_eq, not_and,
-    not_lt] at _h
+  rw [is_base_case_iff] at _h
   have hl := halves_length l
   have hn := halves_length n
   simp only [vec_add, vec_scalar_mul, List.length_zipWith, List.length_map]

@@ -1,12 +1,14 @@
 import Bppp.Correctness
 import Bppp.Proofs.ZeroKnowledge
+import Bppp.Spec.ZeroKnowledge
 
 /-!
 # Zero-knowledge of `range_proof.rs`
 
 Against an honest verifier, `RangeProof::prove_batch` under uniform randomness has the
 distribution of a simulator that sees only the commitments, `range`, `dst`, the generators and the
-challenges.
+challenges. It is stated in VCVio's terms, as its `PerfectHVZK`: `$ᵗ X` samples `X` uniformly
+and `=ᵈ` is equality in distribution.
 -/
 
 open Finset
@@ -46,7 +48,7 @@ with `g = pedersen::H` and `h_vec[0] = pedersen::G`, all in the span of `g`, wit
 `h_vec[j] = h_j g`, `h_0 ≠ 0` and `β² ≠ h_0 (h_1 + λ^{g_1})`. Then `prove_batch`, with its masks
 and blindings uniform, has the distribution of `simBatch`, which sees only the commitments, `range`,
 `dst`, the generators and the challenges. -/
-theorem zero_knowledge [Fintype F] (o' : List String → F)
+theorem zero_knowledge [Fintype F] [SampleableType F] (o' : List String → F)
     (generators : Range → ℕ → Result (Generators E)) (G H : E) (values : List ℕ)
     (blindings : List F) (range : Range) (dst : List ℕ) (gens : Generators E)
     (params : CircuitParams) (hgens : generators range values.length = .ok gens)
@@ -64,12 +66,10 @@ theorem zero_knowledge [Fintype F] (o' : List String → F)
     (halpha : ∀ j : ℕ, j < 16 → alpha + j ≠ 0) (hrho0 : rho ≠ 0) (hbeta0 : beta ≠ 0)
     (hdelta0 : delta ≠ 0) (hh0 : h 0 ≠ 0)
     (hD : beta ^ 2 - h 0 * (h 1 + lambda ^ (params.toSpec hv).g 1) ≠ 0) :
-    (PMF.uniformOfFintype (Spec.Masks F (params.toSpec hv) × (Fin 15 → F))).map
-        (fun x => prove_batch (fun l => o' (chalLabels l)) generators G H values blindings range dst
-          (rngOf params hv x)) =
-      (PMF.uniformOfFintype (((Fin params.nm → F) × F) × (Fin 10 → F))).map
-        (simBatch o' gens params hv (commitments G H values blindings) range dst alpha rho lambda
-          beta delta τ) := by
+    (fun x => prove_batch (fun l => o' (chalLabels l)) generators G H values blindings range dst
+        (rngOf params hv x)) <$> ($ᵗ (Spec.Masks F (params.toSpec hv) × (Fin 15 → F))) =ᵈ
+      simBatch o' gens params hv (commitments G H values blindings) range dst alpha rho lambda
+        beta delta τ <$> ($ᵗ (((Fin params.nm → F) × F) × (Fin 10 → F))) := by
   have hm : values.length ≠ 0 := by simpa using hvals
   obtain ⟨params', hpn, -, hpr, hpm, -, h16⟩ := params_new range values.length hm
   obtain rfl : params = params' := by rw [hparams] at hpn; exact Except.ok.inj hpn
@@ -132,10 +132,12 @@ theorem zero_knowledge [Fintype F] (o' : List String → F)
     (fun i _ t _ => Nat.mod_lt _ (by norm_num))
   rw [show (fun x => prove_batch (fun l => o' (chalLabels l)) generators G H values blindings
       range dst (rngOf params hv x)) = (fun v => batchOf (finish gens P ch rho τ t (commitments G H values blindings) v)) ∘
-      Spec.realView P ch d sb τ gens.g Hf Gf from funext hrun, ← PMF.map_comp, hzk,
-    PMF.map_comp]
-  congr 1
-  funext y
+      Spec.realView P ch d sb τ gens.g Hf Gf from funext hrun, LawfulFunctor.comp_map]
+  refine (hzk.map _).trans ?_
+  rw [Functor.map_map]
+  have key : ∀ {α β : Type} (f g : α → β) (x : ProbComp α), f = g → f <$> x =ᵈ g <$> x := by
+    rintro _ _ f g x rfl; rfl
+  refine key _ _ _ (funext fun y => ?_)
   have hvl : (commitments (F := F) G H values blindings).length = values.length := by
     simp [hvcs, length_to_scalars, hb]
   simp only [Function.comp, simBatch, hV, hvl]

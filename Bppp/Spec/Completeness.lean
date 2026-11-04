@@ -46,6 +46,7 @@ lemma supp_pn (k : ℕ) : Supp (pn P ch k) 0 3 := by
 lemma supp_n (w : Opening F) (k : ℕ) : Supp (n P ch w k) (-1) 3 := by
   simp only [n, pn]; supp_tac
 
+set_option maxHeartbeats 400000 in
 variable {h} in
 /-- With `r_S = 0`, the error polynomial has powers `T⁻², ..., T⁶` only. -/
 lemma supp_g (hz : h.ZeroPattern) : Supp (f P ch (h.opening P ch 0)) (-2) 6 := by

@@ -20,6 +20,9 @@ lake exe cache get && lake build
 grep -rn "^theorem" Bppp/
 ```
 
+It builds with Lean 4.35, Mathlib and VCVio. The Mathlib cache covers Mathlib only, so the first
+build also compiles the VCVio modules the zero-knowledge proof imports.
+
 Most results assume that `Generators::new` returns `H_LEN` and `nm` generators, with
 `g = pedersen::H` and `h_vec[0] = pedersen::G`. This is called *generators of the right shape*
 below.
@@ -66,9 +69,12 @@ result for `circuit::verify`.
 hash depend only on which challenges came before (an honest verifier). Then `prove_batch`, with
 uniform masks `n_S`, `ℓ_S` and uniform blindings of `C_O`, `C_L`, `C_R`, has exactly the output
 distribution of `simBatch`, which sees only the commitments, `range`, `dst`, the generators and
-the challenges. It assumes:
+the challenges. It is stated with [VCVio](https://github.com/Verified-zkEVM/VCV-io), in the form of
+its `PerfectHVZK`: `f <$> ($ᵗ X) =ᵈ g <$> ($ᵗ Y)`, where `$ᵗ` samples uniformly and `=ᵈ` is
+equality in distribution. It assumes:
 
-- a finite field, values in `range`, and generators of the right shape;
+- a finite field with a uniform sampler (`SampleableType`), values in `range`, and generators of
+  the right shape;
 - every generator is a multiple of `g`, as in a prime-order group: `h_vec[j] = h_j g`;
 - `α ∉ {0, -1, ..., -15}`, `ρ, β, δ, τ ≠ 0` and `h_0 ≠ 0`;
 - `β² ≠ h_0 (h_1 + λ^{g_1})`, the condition of (32) in the paper.

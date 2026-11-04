@@ -17,12 +17,13 @@ variable {F : Type*} [Field F]
 noncomputable def mono (p : ℤ) (x : F) : F[T;T⁻¹] := C x * T p
 
 /-- The coefficient of `T^p`. -/
-def coeff (p : ℤ) : F[T;T⁻¹] →+ F := Finsupp.applyAddHom p
+noncomputable def coeff (p : ℤ) : F[T;T⁻¹] →+ F :=
+  (Finsupp.applyAddHom p).comp AddMonoidAlgebra.coeffAddEquiv.toAddMonoidHom
 
-lemma coeff_apply (p : ℤ) (f : F[T;T⁻¹]) : coeff p f = f p := rfl
+lemma coeff_apply (p : ℤ) (f : F[T;T⁻¹]) : coeff p f = f.coeff p := rfl
 
 @[simp] lemma coeff_mono (p q : ℤ) (x : F) : coeff q (mono p x) = if p = q then x else 0 := by
-  rw [coeff_apply, mono, ← single_eq_C_mul_T, Finsupp.single_apply]
+  rw [coeff_apply, mono, ← single_eq_C_mul_T, AddMonoidAlgebra.coeff_single, Finsupp.single_apply]
 
 @[simp] lemma mono_zero (p : ℤ) : mono p (0 : F) = 0 := by simp [mono]
 
@@ -80,8 +81,8 @@ lemma mul {f g : F[T;T⁻¹]} {a b c d : ℤ} (hf : Supp f a b) (hg : Supp g c d
     Supp (f * g) (a + c) (b + d) := by
   classical
   intro p h
-  have hp : p ∈ (f * g).support := Finsupp.mem_support_iff.mpr h
-  obtain ⟨x, hx, y, hy, rfl⟩ := Finset.mem_add.mp (AddMonoidAlgebra.support_mul f g hp)
+  have hp : p ∈ (f * g).coeff.support := Finsupp.mem_support_iff.mpr h
+  obtain ⟨x, hx, y, hy, rfl⟩ := Finset.mem_add.mp (AddMonoidAlgebra.support_coeff_mul_subset f g hp)
   have := hf x (Finsupp.mem_support_iff.mp hx)
   have := hg y (Finsupp.mem_support_iff.mp hy)
   omega
