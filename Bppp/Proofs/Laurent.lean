@@ -33,7 +33,7 @@ def Uniform (L : ℕ) (P : Laurent (List F)) : Prop := P.coeffs ≠ [] ∧ ∀ c
 
 /-! ## Coefficients -/
 
-theorem coeff_sum_mono (low : ℤ) (n : ℕ) (f : ℕ → F) (p : ℤ) :
+lemma coeff_sum_mono (low : ℤ) (n : ℕ) (f : ℕ → F) (p : ℤ) :
     Bppp.coeff p (∑ i ∈ range n, mono (low + i) (f i)) =
       if 0 ≤ p - low ∧ (p - low).toNat < n then f (p - low).toNat else 0 := by
   rw [map_sum]
@@ -45,13 +45,13 @@ theorem coeff_sum_mono (low : ℤ) (n : ℕ) (f : ℕ → F) (p : ℤ) :
   · refine sum_eq_zero fun i hi => if_neg ?_
     intro he; apply h; simp only [mem_range] at hi; omega
 
-theorem coeff_toPoly (P : Laurent F) (p : ℤ) :
+lemma coeff_toPoly (P : Laurent F) (p : ℤ) :
     Bppp.coeff p P.toPoly = if 0 ≤ p - P.low then P.coeffs.getD (p - P.low).toNat 0 else 0 := by
   rw [toPoly, coeff_sum_mono]
   split_ifs with h1 h2 <;> first | rfl | omega |
     exact (getD_eq_zero_of_le (by omega)).symm
 
-theorem coeff_toPolys (P : Laurent (List F)) (k : ℕ) (p : ℤ) :
+lemma coeff_toPolys (P : Laurent (List F)) (k : ℕ) (p : ℤ) :
     Bppp.coeff p (P.toPolys k) =
       if 0 ≤ p - P.low then (P.coeffs.getD (p - P.low).toNat []).getD k 0 else 0 := by
   rw [toPolys, coeff_sum_mono]
@@ -59,12 +59,12 @@ theorem coeff_toPolys (P : Laurent (List F)) (k : ℕ) (p : ℤ) :
     rw [List.getD_eq_getElem?_getD (l := P.coeffs), List.getElem?_eq_none (by omega)]; rfl
 
 /-- `Laurent::coeff` reads the coefficient of the denoted polynomial. -/
-theorem coeff_eq (P : Laurent F) (p : ℤ) : P.coeff p = Bppp.coeff p P.toPoly := by
+lemma coeff_eq (P : Laurent F) (p : ℤ) : P.coeff p = Bppp.coeff p P.toPoly := by
   rw [coeff_toPoly, Laurent.coeff]
   have h0 : (Coefficient.scale P.coeffs.head! (0 : F) : F) = 0 := mul_zero _
   split_ifs <;> simp [h0, List.getD_eq_getElem?_getD]
 
-theorem getD_coeff (P : Laurent (List F)) (p : ℤ) (k : ℕ) :
+lemma getD_coeff (P : Laurent (List F)) (p : ℤ) (k : ℕ) :
     (P.coeff p).getD k 0 = Bppp.coeff p (P.toPolys k) := by
   rw [coeff_toPolys, Laurent.coeff]
   have h0 : ∀ j, (Coefficient.scale P.coeffs.head! (0 : F) : List F).getD j 0 = 0 := fun j => by
@@ -77,7 +77,7 @@ theorem getD_coeff (P : Laurent (List F)) (p : ℤ) (k : ℕ) :
     | some c => simp
   · exact h0 k
 
-theorem length_coeff {L : ℕ} {P : Laurent (List F)} (hP : Uniform L P) (p : ℤ) :
+lemma length_coeff {L : ℕ} {P : Laurent (List F)} (hP : Uniform L P) (p : ℤ) :
     (P.coeff p).length = L := by
   have h0 : (Coefficient.scale P.coeffs.head! (0 : F) : List F).length = L := by
     show (vec_scalar_mul 0 _).length = L
@@ -92,51 +92,51 @@ theorem length_coeff {L : ℕ} {P : Laurent (List F)} (hP : Uniform L P) (p : �
   · exact h0
 
 /-- Two denotations agree when their coefficients do. -/
-theorem toPoly_ext {f g : F[T;T⁻¹]} (h : ∀ p, Bppp.coeff p f = Bppp.coeff p g) : f = g :=
+lemma toPoly_ext {f g : F[T;T⁻¹]} (h : ∀ p, Bppp.coeff p f = Bppp.coeff p g) : f = g :=
   ext_coeff h
 
 /-! ## `new`, `monomial`, `+`, `-` -/
 
-theorem toPolys_new (low : ℤ) (cs : List (List F)) (k : ℕ) :
+lemma toPolys_new (low : ℤ) (cs : List (List F)) (k : ℕ) :
     (new low cs).toPolys k = ∑ i ∈ range cs.length, mono (low + i) ((cs.getD i []).getD k 0) := rfl
 
-theorem toPolys_monomial (p : ℤ) (c : List F) (k : ℕ) :
+lemma toPolys_monomial (p : ℤ) (c : List F) (k : ℕ) :
     (monomial p c).toPolys k = mono p (c.getD k 0) := by
   simp [toPolys, monomial, new]
 
-theorem toPoly_new (low : ℤ) (cs : List F) :
+lemma toPoly_new (low : ℤ) (cs : List F) :
     (new low cs).toPoly = ∑ i ∈ range cs.length, mono (low + i) (cs.getD i 0) := rfl
 
-theorem toPoly_monomial (p : ℤ) (c : F) : (monomial p c).toPoly = mono p c := by
+lemma toPoly_monomial (p : ℤ) (c : F) : (monomial p c).toPoly = mono p c := by
   simp [toPoly, monomial, new]
 
-theorem uniform_new {L : ℕ} {low : ℤ} {cs : List (List F)} (hne : cs ≠ [])
+lemma uniform_new {L : ℕ} {low : ℤ} {cs : List (List F)} (hne : cs ≠ [])
     (h : ∀ c ∈ cs, c.length = L) : Uniform L (new low cs) := ⟨hne, h⟩
 
-theorem uniform_monomial {L : ℕ} (p : ℤ) {c : List F} (h : c.length = L) :
+lemma uniform_monomial {L : ℕ} (p : ℤ) {c : List F} (h : c.length = L) :
     Uniform L (monomial p c) := ⟨by simp [monomial, new], by simp [monomial, new, h]⟩
 
-theorem coeff_toPolys_of_out {P : Laurent (List F)} {k : ℕ} {p : ℤ}
+lemma coeff_toPolys_of_out {P : Laurent (List F)} {k : ℕ} {p : ℤ}
     (h : p < P.low ∨ P.low + P.coeffs.length ≤ p) : Bppp.coeff p (P.toPolys k) = 0 := by
   rw [coeff_toPolys]
   split_ifs with h0
   · rw [List.getD_eq_getElem?_getD (l := P.coeffs), List.getElem?_eq_none (by omega)]; rfl
   · rfl
 
-theorem coeff_toPoly_of_out {P : Laurent F} {p : ℤ}
+lemma coeff_toPoly_of_out {P : Laurent F} {p : ℤ}
     (h : p < P.low ∨ P.low + P.coeffs.length ≤ p) : Bppp.coeff p P.toPoly = 0 := by
   rw [coeff_toPoly]
   split_ifs with h0
   · exact getD_eq_zero_of_le (by omega)
   · rfl
 
-theorem add_low (P Q : Laurent (List F)) : (P + Q).low = min P.low Q.low := rfl
+lemma add_low (P Q : Laurent (List F)) : (P + Q).low = min P.low Q.low := rfl
 
-theorem add_coeffs (P Q : Laurent (List F)) : (P + Q).coeffs =
+lemma add_coeffs (P Q : Laurent (List F)) : (P + Q).coeffs =
     (List.range (max P.degree Q.degree - min P.low Q.low + 1).toNat).map fun (i : ℕ) =>
       vec_add (P.coeff (min P.low Q.low + i)) (Q.coeff (min P.low Q.low + i)) := rfl
 
-theorem uniform_add {L : ℕ} {P Q : Laurent (List F)} (hP : Uniform L P) (hQ : Uniform L Q) :
+lemma uniform_add {L : ℕ} {P Q : Laurent (List F)} (hP : Uniform L P) (hQ : Uniform L Q) :
     Uniform L (P + Q) := by
   refine ⟨?_, ?_⟩
   · rw [add_coeffs]
@@ -148,7 +148,7 @@ theorem uniform_add {L : ℕ} {P Q : Laurent (List F)} (hP : Uniform L P) (hQ : 
     obtain ⟨i, _, rfl⟩ := hc
     rw [length_vec_add, length_coeff hP, length_coeff hQ, min_self]
 
-theorem toPolys_add {L : ℕ} {P Q : Laurent (List F)} (hP : Uniform L P) (hQ : Uniform L Q)
+lemma toPolys_add {L : ℕ} {P Q : Laurent (List F)} (hP : Uniform L P) (hQ : Uniform L Q)
     (k : ℕ) : (P + Q).toPolys k = P.toPolys k + Q.toPolys k := by
   apply ext_coeff
   intro p
@@ -167,7 +167,7 @@ theorem toPolys_add {L : ℕ} {P Q : Laurent (List F)} (hP : Uniform L P) (hQ : 
       rw [coeff_toPolys_of_out (by omega), coeff_toPolys_of_out (by omega)]; simp
   · rw [coeff_toPolys_of_out (by omega), coeff_toPolys_of_out (by omega), add_zero]
 
-theorem toPoly_add (P Q : Laurent F) : (P + Q).toPoly = P.toPoly + Q.toPoly := by
+lemma toPoly_add (P Q : Laurent F) : (P + Q).toPoly = P.toPoly + Q.toPoly := by
   apply ext_coeff
   intro p
   rw [map_add, coeff_toPoly]
@@ -186,7 +186,7 @@ theorem toPoly_add (P Q : Laurent F) : (P + Q).toPoly = P.toPoly + Q.toPoly := b
       rw [coeff_toPoly_of_out (by omega), coeff_toPoly_of_out (by omega), add_zero]
   · rw [coeff_toPoly_of_out (by omega), coeff_toPoly_of_out (by omega), add_zero]
 
-theorem toPoly_scale (P : Laurent F) (s : F) : (P.scale s).toPoly = mono 0 s * P.toPoly := by
+lemma toPoly_scale (P : Laurent F) (s : F) : (P.scale s).toPoly = mono 0 s * P.toPoly := by
   simp only [toPoly, scale, new, List.length_map, mul_sum, mono_mul, zero_add]
   refine sum_congr rfl fun i hi => ?_
   rw [List.getD_eq_getElem?_getD, List.getElem?_map, List.getD_eq_getElem?_getD,
@@ -194,7 +194,7 @@ theorem toPoly_scale (P : Laurent F) (s : F) : (P.scale s).toPoly = mono 0 s * P
   simp only [Option.map_some, Option.getD_some]
   congr 1; exact mul_comm _ _
 
-theorem toPoly_sub (P Q : Laurent F) : (P - Q).toPoly = P.toPoly - Q.toPoly := by
+lemma toPoly_sub (P Q : Laurent F) : (P - Q).toPoly = P.toPoly - Q.toPoly := by
   show (P + Q.scale (-one)).toPoly = _
   rw [toPoly_add, toPoly_scale, sub_eq_add_neg, one, ← neg_one_mul (Q.toPoly)]
   congr 1
@@ -202,7 +202,7 @@ theorem toPoly_sub (P Q : Laurent F) : (P - Q).toPoly = P.toPoly - Q.toPoly := b
 
 /-! ## `from_terms` -/
 
-theorem from_terms_spec {L : ℕ} (t : ℤ × List F) (ts : List (ℤ × List F))
+lemma from_terms_spec {L : ℕ} (t : ℤ × List F) (ts : List (ℤ × List F))
     (h : ∀ x ∈ t :: ts, x.2.length = L) :
     Uniform L (from_terms (t :: ts)) ∧ ∀ k, (from_terms (t :: ts)).toPolys k =
       ((t :: ts).map fun x => mono x.1 (x.2.getD k 0)).sum := by
@@ -229,14 +229,14 @@ theorem from_terms_spec {L : ℕ} (t : ℤ × List F) (ts : List (ℤ × List F)
 
 /-! ## `eval` -/
 
-theorem foldl_mul_const (b a : F) (n : ℕ) :
+lemma foldl_mul_const (b a : F) (n : ℕ) :
     (List.range n).foldl (fun acc _ => acc * b) a = a * b ^ n := by
   induction n generalizing a with
   | zero => simp
   | succ n ih => rw [List.range_succ, List.foldl_append, ih]; simp [pow_succ, mul_assoc]
 
 /-- `Laurent::eval` evaluates every entry at a nonzero point. -/
-theorem eval_eq {L : ℕ} {P : Laurent (List F)} (hP : Uniform L P) (τ : Fˣ) :
+lemma eval_eq {L : ℕ} {P : Laurent (List F)} (hP : Uniform L P) (τ : Fˣ) :
     P.eval (τ : F) = .ok ((List.range L).map fun k => evalAt τ (P.toPolys k)) := by
   have hx : (τ : F) ≠ 0 := τ.ne_zero
   -- The loop over the remaining coefficients from `(res, xp)`.
@@ -309,28 +309,28 @@ theorem eval_eq {L : ℕ} {P : Laurent (List F)} (hP : Uniform L P) (τ : Fˣ) :
 
 /-! ## Inner products -/
 
-theorem getD_modify_add (R : List F) (m n : ℕ) (v : F) :
+lemma getD_modify_add (R : List F) (m n : ℕ) (v : F) :
     (R.modify m (· + v)).getD n 0 = R.getD n 0 + if m = n ∧ n < R.length then v else 0 := by
   simp only [List.getD_eq_getElem?_getD, List.getElem?_modify]
   rcases lt_or_ge n R.length with hn | hn
   · rw [List.getElem?_eq_getElem hn]; by_cases hmn : m = n <;> simp [hmn, hn]
   · rw [List.getElem?_eq_none hn]; simp; omega
 
-theorem getD_mem' {α : Type*} {l : List α} {i : ℕ} (h : i < l.length) (d : α) :
+lemma getD_mem' {α : Type*} {l : List α} {i : ℕ} (h : i < l.length) (d : α) :
     l.getD i d ∈ l := by
   rw [List.getD_eq_getElem?_getD, List.getElem?_eq_getElem h, Option.getD_some]
   exact List.getElem_mem h
 
-theorem mono_sum {ι : Type*} (p : ℤ) (s : Finset ι) (f : ι → F) :
+lemma mono_sum {ι : Type*} (p : ℤ) (s : Finset ι) (f : ι → F) :
     mono p (∑ i ∈ s, f i) = ∑ i ∈ s, mono p (f i) := by
   simp only [mono, map_sum, sum_mul]
 
-theorem mono_ite (p : ℤ) (c : Prop) [Decidable c] (x : F) :
+lemma mono_ite (p : ℤ) (c : Prop) [Decidable c] (x : F) :
     mono p (if c then x else 0) = if c then mono p x else 0 := by
   split_ifs <;> simp
 
 /-- The inner loop of `inner_product` adds `g b_j` to entry `i + j`. -/
-theorem inner_loop (g : List F → F) (i : ℕ) : ∀ (bs : List (List F)) (s : ℕ) (R : List F),
+lemma inner_loop (g : List F → F) (i : ℕ) : ∀ (bs : List (List F)) (s : ℕ) (R : List F),
     ((bs.zipIdx s).foldl (fun R (b, j) => R.modify (i + j) (· + g b)) R).length = R.length ∧
     ∀ n, ((bs.zipIdx s).foldl (fun R (b, j) => R.modify (i + j) (· + g b)) R).getD n 0 =
       R.getD n 0 + ∑ j ∈ range bs.length,
@@ -347,7 +347,7 @@ theorem inner_loop (g : List F → F) (i : ℕ) : ∀ (bs : List (List F)) (s : 
     exact sum_congr rfl fun j _ => by rw [show s + 1 + j = s + (j + 1) by ring]
 
 /-- The nested loops of `inner_product` add `g a_i b_j` to entry `i + j`. -/
-theorem outer_loop (g : List F → List F → F) (bs : List (List F)) :
+lemma outer_loop (g : List F → List F → F) (bs : List (List F)) :
     ∀ (as : List (List F)) (s : ℕ) (R : List F),
     ((as.zipIdx s).foldl (fun R (a, i) =>
         (bs.zipIdx).foldl (fun R (b, j) => R.modify (i + j) (· + g a b)) R) R).length =
@@ -371,7 +371,7 @@ theorem outer_loop (g : List F → List F → F) (bs : List (List F)) :
       rw [show s + 1 + i = s + (i + 1) by ring]
 
 /-- `Laurent<Vec<S>>::inner_product` is the inner product of the denoted vectors. -/
-theorem toPoly_inner_product {L : ℕ} {P Q : Laurent (List F)} (hP : Uniform L P)
+lemma toPoly_inner_product {L : ℕ} {P Q : Laurent (List F)} (hP : Uniform L P)
     (hQ : Uniform L Q) :
     (P.inner_product Q).toPoly = ∑ k ∈ range L, P.toPolys k * Q.toPolys k := by
   have hla : 0 < P.coeffs.length := List.length_pos_of_ne_nil hP.1
@@ -416,7 +416,7 @@ theorem toPoly_inner_product {L : ℕ} {P Q : Laurent (List F)} (hP : Uniform L 
 
 /-- `Laurent<Vec<S>>::weighted_inner_product` is the weighted inner product of the denoted
 vectors, for weights of length `L`. -/
-theorem toPoly_weighted_inner_product {L : ℕ} {P Q : Laurent (List F)} (hP : Uniform L P)
+lemma toPoly_weighted_inner_product {L : ℕ} {P Q : Laurent (List F)} (hP : Uniform L P)
     (hQ : Uniform L Q) (w : List F) (hw : w.length = L) :
     (P.weighted_inner_product Q w).toPoly =
       ∑ k ∈ range L, mono 0 (w.getD k 0) * (P.toPolys k * Q.toPolys k) := by

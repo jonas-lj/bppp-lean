@@ -23,7 +23,7 @@ open BpppTranscript Circuit
 
 /-- An accepting `verify_batch` runs `circuit::verify` on the generators and parameters for the
 batch size, from the transcript `transcript` sets up. -/
-theorem verify_batch_run (rp : RangeProof F E) (oracle : List (Entry F E) → F)
+lemma verify_batch_run (rp : RangeProof F E) (oracle : List (Entry F E) → F)
     (generators : Range → ℕ → Result (Generators E)) (commitments : List (PedersenCommitment E))
     (range : Range) (dst : List ℕ) (gens : Generators E) (params : CircuitParams)
     (hgens : generators range commitments.length = .ok gens)
@@ -60,7 +60,7 @@ def BatchRun (generators : Range → ℕ → Result (Generators E))
       fun k => rp.proof.nl_proof.n_final.getD k 0⟩ ∧
     rp.verify_batch oracle generators commitments range dst = .ok ()
 
-theorem leafRun_of_batchRun (generators : Range → ℕ → Result (Generators E))
+lemma leafRun_of_batchRun (generators : Range → ℕ → Result (Generators E))
     (commitments : List (PedersenCommitment E)) (range : Range) (dst : List ℕ) (gens : Generators E)
     (params : CircuitParams) (hgens : generators range commitments.length = .ok gens)
     (hparams : CircuitParams.new range commitments.length = .ok params) (cS cO cL cR : E)

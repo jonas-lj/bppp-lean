@@ -19,7 +19,7 @@ variable {F : Type*} [Field F] [DecidableEq F] (P : Params)
 variable {E : Type*} [AddCommGroup E] [Module F E] (g : E) (H G : ℕ → E)
 
 /-- `Σ_{t<D} 16^t d_t < 16^D` for digits `d_t < 16`. -/
-theorem digits_lt (D : ℕ) (d : ℕ → ℕ) (hd : ∀ t < D, d t < 16) :
+lemma digits_lt (D : ℕ) (d : ℕ → ℕ) (hd : ∀ t < D, d t < 16) :
     ∑ t ∈ range D, 16 ^ t * d t < 16 ^ D := by
   induction D with
   | zero => simp
@@ -32,7 +32,7 @@ theorem digits_lt (D : ℕ) (d : ℕ → ℕ) (hd : ∀ t < D, d t < 16) :
 omit [DecidableEq F] in
 /-- An opening with no `G`-coordinates and no `H_1, ..., H_7`-coordinates is on the
 `(g, H_0)`-plane. -/
-theorem commit_plane (u : F) (h n : ℕ → F) (hh : ∀ s, 1 ≤ s → s < 8 → h s = 0)
+lemma commit_plane (u : F) (h n : ℕ → F) (hh : ∀ s, 1 ≤ s → s < 8 → h s = 0)
     (hn : ∀ k < P.nm, n k = 0) : commit P g H G u h n = u • g + h 0 • H 0 := by
   have h8 : NormLinear.msm 8 h H = h 0 • H 0 := by
     simp only [NormLinear.msm, sum_range_succ, sum_range_zero, zero_add]
@@ -53,7 +53,7 @@ def treeCh {A R L : ℕ} (α : Fin A → F) (μ δ : Fin A → Fin R → F) (β 
 every fork, whose every leaf opens `C(τ)` to a norm-linear witness, every input `V_i` is
 `v_i g + s_i H_0` with `v_i < 16^D`, or the generators satisfy a nontrivial linear relation. It
 assumes `2 ≠ 0`, that no `m = 1, ..., N_d` is zero in the field, and a nonempty batch. -/
-theorem circuit_extract (h2 : (2 : F) ≠ 0) (hchar : ∀ m : ℕ, 0 < m → m ≤ P.Nd → (m : F) ≠ 0)
+lemma circuit_extract (h2 : (2 : F) ≠ 0) (hchar : ∀ m : ℕ, 0 < m → m ≤ P.Nd → (m : F) ≠ 0)
     (hM : 0 < P.M) (V : ℕ → E) (cO cL : E) (cR : Fin (P.Nd + 16) → E)
     (cS : Fin (P.Nd + 16) → Fin (P.nm + 1) → Fin 2 → Fin (P.M * (P.nm + 8) + 1) → E)
     (α : Fin (P.Nd + 16) → F) (μ δ rho : Fin (P.Nd + 16) → Fin (P.nm + 1) → F)

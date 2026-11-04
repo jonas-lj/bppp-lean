@@ -51,7 +51,7 @@ def unzip_pairs {α : Type} : List α → List α × List α
 def halves (v : List F) : List F × List F :=
   unzip_pairs (if v.length % 2 ≠ 0 then v ++ [0] else v)
 
-theorem unzip_pairs_length {α : Type} : ∀ v : List α,
+lemma unzip_pairs_length {α : Type} : ∀ v : List α,
     (unzip_pairs v).1.length = v.length / 2 ∧ (unzip_pairs v).2.length = v.length / 2
   | x :: y :: rest => by
     have := unzip_pairs_length rest
@@ -60,7 +60,7 @@ theorem unzip_pairs_length {α : Type} : ∀ v : List α,
   | [_] => by simp [unzip_pairs]
 
 omit [DecidableEq F] in
-theorem halves_length (v : List F) :
+lemma halves_length (v : List F) :
     (halves v).1.length = (v.length + 1) / 2 ∧ (halves v).2.length = (v.length + 1) / 2 := by
   unfold halves
   split_ifs with h

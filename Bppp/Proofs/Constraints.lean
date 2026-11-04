@@ -30,16 +30,16 @@ def CircuitParams.toSpec (params : CircuitParams) (hv : params.Valid) : Spec.Par
   hnm := hv.n_d ▸ hv.le
   h15 := by have := hv.base; omega
 
-@[simp] theorem CircuitParams.M_toSpec (params : CircuitParams) (hv : params.Valid) :
+@[simp] lemma CircuitParams.M_toSpec (params : CircuitParams) (hv : params.Valid) :
     (params.toSpec hv).M = params.m := rfl
 
-@[simp] theorem CircuitParams.D_toSpec (params : CircuitParams) (hv : params.Valid) :
+@[simp] lemma CircuitParams.D_toSpec (params : CircuitParams) (hv : params.Valid) :
     (params.toSpec hv).D = params.d := rfl
 
-@[simp] theorem CircuitParams.nm_toSpec (params : CircuitParams) (hv : params.Valid) :
+@[simp] lemma CircuitParams.nm_toSpec (params : CircuitParams) (hv : params.Valid) :
     (params.toSpec hv).nm = params.nm := rfl
 
-@[simp] theorem CircuitParams.Nd_toSpec (params : CircuitParams) (hv : params.Valid) :
+@[simp] lemma CircuitParams.Nd_toSpec (params : CircuitParams) (hv : params.Valid) :
     (params.toSpec hv).Nd = params.n_d := by
   simp [Spec.Params.Nd, toSpec, hv.n_d]
 
@@ -67,7 +67,7 @@ structure Correct (C : Constraints F) (hv : params.Valid) : Prop where
   lambda_al : C.lambda_al = Spec.lamAl (params.toSpec hv) (challenges alpha mu lambda 0 0)
   mu_am : C.mu_am = Spec.muAm (params.toSpec hv) (challenges alpha mu lambda 0 0)
 
-theorem mod_succ_of_ne {j d : ℕ} (hd : 0 < d) (h : (j + 1) % d ≠ 0) :
+lemma mod_succ_of_ne {j d : ℕ} (hd : 0 < d) (h : (j + 1) % d ≠ 0) :
     (j + 1) % d = j % d + 1 := by
   have hr := Nat.mod_lt j hd
   rcases (show d = 1 ∨ 2 ≤ d by omega) with rfl | hd2
@@ -76,7 +76,7 @@ theorem mod_succ_of_ne {j d : ℕ} (hd : 0 < d) (h : (j + 1) % d ≠ 0) :
     split_ifs at h ⊢ <;> omega
 
 /-- The main loop after `K` iterations. -/
-theorem loop_spec (hv : params.Valid) (shape : List F) (K : ℕ) :
+lemma loop_spec (hv : params.Valid) (shape : List F) (K : ℕ) :
     let st := (List.range K).foldl
       (loop_step params alpha mu mu⁻¹ ((List.range (params.m + 1)).map (lambda ^ ·)) shape)
       ⟨[], [], [], [], 0, one, one, one⟩
@@ -135,11 +135,11 @@ theorem loop_spec (hv : params.Valid) (shape : List F) (K : ℕ) :
       · simp [Spec.cnR, hK]
       · rw [h5, show min (K + 1) params.n_d = min K params.n_d by omega]
 
-theorem getElem_eq_getD {α : Type*} (l : List α) {k : ℕ} (h : k < l.length) (d : α) :
+lemma getElem_eq_getD {α : Type*} (l : List α) {k : ℕ} (h : k < l.length) (d : α) :
     l[k] = l.getD k d := by
   rw [List.getD_eq_getElem?_getD, List.getElem?_eq_getElem h, Option.getD_some]
 
-theorem getD_iterate_mul (a r : F) (n k : ℕ) (hk : k < n) :
+lemma getD_iterate_mul (a r : F) (n k : ℕ) (hk : k < n) :
     (List.iterate (· * r) a n).getD k 0 = a * r ^ k := by
   rw [List.getD_eq_getElem?_getD, List.getElem?_iterate _ _ _ _ hk, Option.getD_some]
   induction k generalizing a with
@@ -148,7 +148,7 @@ theorem getD_iterate_mul (a r : F) (n k : ℕ) (hk : k < n) :
     rw [Function.iterate_succ_apply, ih _ (by omega), pow_succ]; ring
 
 /-- `Constraints::new` computes the public data (23), when no denominator vanishes. -/
-theorem new_correct (hv : params.Valid) (hmu : mu ≠ 0) (halpha : ∀ j : ℕ, j < 16 → alpha + j ≠ 0) :
+lemma new_correct (hv : params.Valid) (hmu : mu ≠ 0) (halpha : ∀ j : ℕ, j < 16 → alpha + j ≠ 0) :
     ∃ C, Constraints.new params alpha mu lambda = .ok C ∧ Correct params alpha mu lambda C hv := by
   have hbase := hv.base
   have ha0 : alpha ≠ 0 := by simpa using halpha 0 (by norm_num)

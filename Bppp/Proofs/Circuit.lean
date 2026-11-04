@@ -17,7 +17,7 @@ set_option linter.unusedSectionVars false
 namespace Circuit
 
 /-- `Generators::commit`, for vectors of the generators' lengths. -/
-theorem gens_commit_eq (gens : Generators E) (sigma : F) (l n : List F)
+lemma gens_commit_eq (gens : Generators E) (sigma : F) (l n : List F)
     (hl : l.length = gens.h_vec.length) (hn : n.length = gens.g_vec.length) :
     gens.commit sigma l n = .ok (sigma • gens.g + (List.zipWith (· • ·) l gens.h_vec).sum +
       (List.zipWith (· • ·) n gens.g_vec).sum) := by
@@ -27,12 +27,12 @@ theorem gens_commit_eq (gens : Generators E) (sigma : F) (l n : List F)
     List.sum_append, List.zipWith_nil_left, List.sum_nil, add_zero, add_assoc]
 
 /-- An MSM over a list, as `Spec.NormLinear.msm` over its entries. -/
-theorem sum_zipWith_msm (a : List F) (P : List E) {L : ℕ} (ha : a.length = L) (hP : P.length = L) :
+lemma sum_zipWith_msm (a : List F) (P : List E) {L : ℕ} (ha : a.length = L) (hP : P.length = L) :
     (List.zipWith (· • ·) a P).sum =
       Spec.NormLinear.msm L (fun k => a.getD k 0) (fun k => P.getD k 0) := by
   rw [sum_zipWith _ _ _ 0 0, ha, hP, min_self]; rfl
 
-theorem input_commitments_eq (params : CircuitParams) (rng : Randomness F) (values : List ℕ)
+lemma input_commitments_eq (params : CircuitParams) (rng : Randomness F) (values : List ℕ)
     (blindings : List F) (G H : E) (gens : Generators E) :
     (Witness.new params rng values blindings : Witness F).input_commitments G H gens =
       .ok ((List.zip (to_scalars values : List F) blindings).map fun (v, s) =>
@@ -55,12 +55,12 @@ theorem input_commitments_eq (params : CircuitParams) (rng : Randomness F) (valu
 variable (params : CircuitParams) (hv : params.Valid) (rng : Randomness F) (values : List ℕ)
   (blindings : List F)
 
-theorem dig_lt (k : ℕ) : (specHonest rng values blindings).dig (params.toSpec hv) k < 16 :=
+lemma dig_lt (k : ℕ) : (specHonest rng values blindings).dig (params.toSpec hv) k < 16 :=
   Spec.dig_lt (P := params.toSpec hv) (h := specHonest rng values blindings)
     (digits_lt params rng values blindings) k
 
 /-- `reciprocals` inverts `α + d_k`. -/
-theorem reciprocals_eq (hlen : values.length = params.m) (alpha : F)
+lemma reciprocals_eq (hlen : values.length = params.m) (alpha : F)
     (halpha : ∀ j : ℕ, j < 16 → alpha + j ≠ 0) (rho lambda beta delta : F) (r : ℕ → F) :
     ∃ n_r, reciprocals params (Witness.new params rng values blindings : Witness F).n_l alpha =
       .ok n_r ∧ n_r.length = params.nm ∧ ∀ k, n_r.getD k 0 =
@@ -91,7 +91,7 @@ theorem reciprocals_eq (hlen : values.length = params.m) (alpha : F)
 
 open BpppTranscript NormLinear
 
-theorem spec_commit_congr (P : Spec.Params) (g : E) (H G : ℕ → E) (σ : F) {ℓ ℓ' n n' : ℕ → F}
+lemma spec_commit_congr (P : Spec.Params) (g : E) (H G : ℕ → E) (σ : F) {ℓ ℓ' n n' : ℕ → F}
     (hℓ : ∀ s < 8, ℓ s = ℓ' s) (hn : ∀ k < P.nm, n k = n' k) :
     Spec.commit P g H G σ ℓ n = Spec.commit P g H G σ ℓ' n' := by
   simp only [Spec.commit, Spec.NormLinear.msm]
@@ -101,7 +101,7 @@ theorem spec_commit_congr (P : Spec.Params) (g : E) (H G : ℕ → E) (σ : F) {
     sum_congr rfl fun k hk => by rw [hn k (mem_range.1 hk)]
   rw [h1, h2]
 
-theorem sum_zipIdx_map {α : Type} (L : List α) (d : α) (f : ℕ → F) (q : α → E) :
+lemma sum_zipIdx_map {α : Type} (L : List α) (d : α) (f : ℕ → F) (q : α → E) :
     ((L.zipIdx.map fun (v, i) => (f i, q v)).map fun (s, p) => s • p).sum =
       ∑ i ∈ range L.length, f i • q (L.getD i d) := by
   suffices h : ∀ k, (((L.zipIdx k).map fun (v, i) => (f i, q v)).map fun (s, p) => s • p).sum =
@@ -118,7 +118,7 @@ theorem sum_zipIdx_map {α : Type} (L : List α) (d : α) (f : ℕ → F) (q : �
     exact sum_congr rfl fun i _ => by rw [show k + 1 + i = k + (i + 1) by ring]
 
 /-- The verifier's `p_s(τ)`, from `p_n(τ)`, is `p_s` of `Spec` at `τ`. -/
-theorem ps_eq (alpha rho lambda beta delta : F) (C : Constraints F)
+lemma ps_eq (alpha rho lambda beta delta : F) (C : Constraints F)
     (hC : Constraints.Correct params alpha (rho * rho) lambda C hv) (τ : Fˣ) :
     weighted_norm ((List.range params.nm).map fun k => evalAt τ ((C.p_n delta⁻¹).toPolys k))
         (rho * rho) + 2 * (C.lambda_al + C.mu_am) * ((τ : F) * τ * τ) =
@@ -143,7 +143,7 @@ theorem ps_eq (alpha rho lambda beta delta : F) (C : Constraints F)
   · ring
 
 /-- `<p_n(τ), G_vec>`. -/
-theorem pn_msm_eq (gens : Generators E) (hg : gens.g_vec.length = params.nm)
+lemma pn_msm_eq (gens : Generators E) (hg : gens.g_vec.length = params.nm)
     (alpha rho lambda beta delta : F) (C : Constraints F)
     (hC : Constraints.Correct params alpha (rho * rho) lambda C hv) (τ : Fˣ) :
     (List.zipWith (· • ·) ((List.range params.nm).map fun k => evalAt τ ((C.p_n delta⁻¹).toPolys k))
@@ -158,7 +158,7 @@ theorem pn_msm_eq (gens : Generators E) (hg : gens.g_vec.length = params.nm)
       toPolys_p_n params hv alpha rho lambda beta delta C hC k (mem_range.1 hk)]
 
 /-- The verifier's decomposed `C(τ)` (25). -/
-theorem combined_assembly (P : Spec.Params) (g : E) (G : ℕ → E) (ch : Spec.Challenges F) (τ : Fˣ)
+lemma combined_assembly (P : Spec.Params) (g : E) (G : ℕ → E) (ch : Spec.Challenges F) (τ : Fˣ)
     (cS cO cL cR : E) (V : ℕ → E) :
     evalAt τ (Spec.ps P ch) • g + Spec.NormLinear.msm P.nm (fun k => evalAt τ (Spec.pn P ch k)) G +
       ((τ : F)⁻¹ • cS + ch.δ • cO + (τ : F) • cL + ((τ : F) * τ) • cR +
@@ -170,7 +170,7 @@ theorem combined_assembly (P : Spec.Params) (g : E) (G : ℕ → E) (ch : Spec.C
   abel
 
 /-- A circuit commitment as `Spec.commit`. -/
-theorem commit_spec (gens : Generators E) (hh : gens.h_vec.length = H_LEN)
+lemma commit_spec (gens : Generators E) (hh : gens.h_vec.length = H_LEN)
     (hg : gens.g_vec.length = params.nm) (sigma : F) (l n : List F) (hl : l.length = H_LEN)
     (hn : n.length = params.nm) :
     sigma • gens.g + (List.zipWith (· • ·) l gens.h_vec).sum + (List.zipWith (· • ·) n gens.g_vec).sum =
@@ -183,7 +183,7 @@ set_option maxHeartbeats 1000000 in
 /-- **Completeness of the range circuit.** For honest inputs in range, generators of the right
 shape whose `G` and `H_0` are the Pedersen bases, and a transcript whose challenges are never
 `-j` for `j < 16`, `verify` accepts what `prove` outputs. -/
-theorem completeness (Gp Hp : E) (gens : Generators E) (t : BpppTranscript F E)
+lemma completeness (Gp Hp : E) (gens : Generators E) (t : BpppTranscript F E)
     (hh : gens.h_vec.length = H_LEN) (hg : gens.g_vec.length = params.nm)
     (hgH : gens.g = Hp) (hhG : gens.h_vec.getD 0 0 = Gp)
     (hlen : values.length = params.m) (hb : blindings.length = params.m)

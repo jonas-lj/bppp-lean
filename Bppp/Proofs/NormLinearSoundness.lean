@@ -49,7 +49,7 @@ def vInst (C : E) (c : List F) (rho : F) (w_h w_g : Weights F) : Spec.NormLinear
   μ := rho * rho
 
 /-- One iteration of the round loop folds as `Spec.NormLinear.foldInst`. -/
-theorem vInst_fold (C X R : E) (c : List F) (rho gamma : F) (w_h w_g : Weights F)
+lemma vInst_fold (C X R : E) (c : List F) (rho gamma : F) (w_h w_g : Weights F)
     (hwh : 0 < w_h.w.length) (hwg : 0 < w_g.w.length)
     (hc : c.length = (contract' w_h.w gens.h_vec).length) :
     vInst gens (C + gamma • X + (gamma ^ 2 - 1) • R)
@@ -68,7 +68,7 @@ theorem vInst_fold (C X R : E) (c : List F) (rho gamma : F) (w_h w_g : Weights F
   · rw [getD_foldPts_pts _ _ rfl]
 
 /-- The round loop of `verify` draws `gammasOf` and follows `Spec.NormLinear.foldPath`. -/
-theorem loop_spec : ∀ (rounds : List (E × E)) (C : E) (c : List F) (rho : F) (gs0 : List F)
+lemma loop_spec : ∀ (rounds : List (E × E)) (C : E) (c : List F) (rho : F) (gs0 : List F)
     (w_h w_g : Weights F) (T : BpppTranscript F E), 0 < w_h.w.length → 0 < w_g.w.length →
     c.length = (contract' w_h.w gens.h_vec).length →
     ∃ cf rhof wh' wg', (rounds.foldlM verify_round (c, rho, rho * rho, gs0, w_h, w_g)).run T =
@@ -108,7 +108,7 @@ theorem loop_spec : ∀ (rounds : List (E × E)) (C : E) (c : List F) (rho : F) 
         ← vInst_fold gens C X R c rho γ w_h w_g hwh hwg hc]
       exact hfold
 
-theorem headD_eq_getD' (v : List F) : v.getD 0 0 = v.headD 0 := by cases v <;> rfl
+lemma headD_eq_getD' (v : List F) : v.getD 0 0 = v.headD 0 := by cases v <;> rfl
 
 /-! ## Lengths -/
 
@@ -117,7 +117,7 @@ def halve (a : ℕ) : ℕ := (a + 1) / 2
 
 /-- `proof_shape` halves the linear length down to at most one entry, and the norm length down to
 the final length. -/
-theorem proof_shape_spec : ∀ (l n : ℕ),
+lemma proof_shape_spec : ∀ (l n : ℕ),
     halve^[(proof_shape l n).1] l ≤ 1 ∧ halve^[(proof_shape l n).1] n = (proof_shape l n).2 := by
   intro l n
   induction h : l + n using Nat.strong_induction_on generalizing l n with
@@ -133,16 +133,16 @@ theorem proof_shape_spec : ∀ (l n : ℕ),
       exact ⟨by rw [Function.iterate_succ_apply]; exact h1,
         by rw [Function.iterate_succ_apply]; exact h2⟩
 
-theorem halve_pos : ∀ (k a : ℕ), 0 < a → 0 < halve^[k] a
+lemma halve_pos : ∀ (k a : ℕ), 0 < a → 0 < halve^[k] a
   | 0, _, h => h
   | k + 1, a, h => by rw [Function.iterate_succ_apply]; exact halve_pos k _ (by simp [halve]; omega)
 
-theorem length_gammasOf : ∀ (T : BpppTranscript F E) (rounds : List (E × E)),
+lemma length_gammasOf : ∀ (T : BpppTranscript F E) (rounds : List (E × E)),
     (gammasOf T rounds).length = rounds.length
   | _, [] => rfl
   | T, (X, R) :: rounds => by simp [gammasOf, length_gammasOf _ rounds]
 
-theorem foldPath_lengths : ∀ (x : Spec.NormLinear.Instance F E) (rounds : List (E × E))
+lemma foldPath_lengths : ∀ (x : Spec.NormLinear.Instance F E) (rounds : List (E × E))
     (γs : List F), γs.length = rounds.length →
     (Spec.NormLinear.foldPath x rounds γs).Lℓ = halve^[rounds.length] x.Lℓ ∧
       (Spec.NormLinear.foldPath x rounds γs).Ln = halve^[rounds.length] x.Ln
@@ -156,7 +156,7 @@ theorem foldPath_lengths : ∀ (x : Spec.NormLinear.Instance F E) (rounds : List
 /-! ## The final check -/
 
 /-- The MSM of `verify`'s final check. -/
-theorem final_msm (cf : List F) (l_f : F) (n_f : List F) (muf ps : F) (pn : List F)
+lemma final_msm (cf : List F) (l_f : F) (n_f : List F) (muf ps : F) (pn : List F)
     (extra : List (F × E)) (rounds : List (E × E)) (gs : List F) (wh wg : Weights F)
     (hwh : 0 < wh.w.length) (hwg : 0 < wg.w.length) (hch : (contract' wh.w gens.h_vec).length = 1)
     (hcg : (contract' wg.w gens.g_vec).length = n_f.length) (hpn : pn.length = gens.g_vec.length) :
@@ -199,7 +199,7 @@ theorem final_msm (cf : List F) (l_f : F) (n_f : List F) (muf ps : F) (pn : List
 the clear satisfies the relation (19) on the instance of `Spec`, with commitment
 `ps*G + <pn, G_vec> + sum extra`, folded with the proof's rounds and the challenges `gammasOf`
 that the transcript derives. -/
-theorem verify_accepts (t t' : BpppTranscript F E) (c : List F) (ps : F) (pn : List F)
+lemma verify_accepts (t t' : BpppTranscript F E) (c : List F) (ps : F) (pn : List F)
     (extra : List (F × E)) (rho : F) (proof : NormLinearProof F E) (hH : 0 < gens.h_vec.length)
     (h : (verify gens c ps pn extra rho proof).run t = .ok ((), t')) :
     Spec.NormLinear.Rel gens.g (Spec.NormLinear.foldPath
@@ -263,7 +263,7 @@ challenges per round, each of whose paths is an accepting run of `verify` on its
 with the path's challenges derived by that transcript. Then the commitment
 `ps*G + <pn, G_vec> + sum extra` opens to a witness of the relation (19), or the generators satisfy
 a nontrivial linear relation. -/
-theorem verify_extract (c : List F) (ps : F) (pn : List F) (extra : List (F × E)) (rho : F)
+lemma verify_extract (c : List F) (ps : F) (pn : List F) (extra : List (F × E)) (rho : F)
     (tree : Spec.NormLinear.Tree F E) (d : ℕ) (hd : tree.Depth d) (hdist : tree.Distinct)
     (hL : 2 ^ d ∣ gens.g_vec.length) (hH : 0 < gens.h_vec.length) (hρ : rho ≠ 0)
     (hruns : ∀ p ∈ tree.paths, ∃ (proof : NormLinearProof F E) (t t' : BpppTranscript F E),

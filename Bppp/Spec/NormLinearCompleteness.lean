@@ -15,7 +15,7 @@ variable {F E : Type*} [Field F] [AddCommGroup E] [Module F E]
 
 /-! ## Splitting into even and odd halves -/
 
-theorem sum_range_two_mul {M : Type*} [AddCommMonoid M] (m : ℕ) (ψ : ℕ → M) :
+lemma sum_range_two_mul {M : Type*} [AddCommMonoid M] (m : ℕ) (ψ : ℕ → M) :
     ∑ k ∈ range (2 * m), ψ k = ∑ i ∈ range m, (ψ (2 * i) + ψ (2 * i + 1)) := by
   induction m with
   | zero => simp
@@ -24,7 +24,7 @@ theorem sum_range_two_mul {M : Type*} [AddCommMonoid M] (m : ℕ) (ψ : ℕ → 
       sum_range_succ, add_assoc]
 
 /-- A sum over `L` entries is the sum over the halves of the vector padded to even length. -/
-theorem sum_split {M : Type*} [AddCommMonoid M] (L : ℕ) (φ : ℕ → M) :
+lemma sum_split {M : Type*} [AddCommMonoid M] (L : ℕ) (φ : ℕ → M) :
     ∑ k ∈ range L, φ k = ∑ i ∈ range (half L), (pad L φ (2 * i) + pad L φ (2 * i + 1)) := by
   rw [← sum_range_two_mul]
   refine sum_subset_zero_on_sdiff (range_subset_range.mpr (by unfold half; omega)) ?_ ?_
@@ -34,14 +34,14 @@ theorem sum_split {M : Type*} [AddCommMonoid M] (L : ℕ) (φ : ℕ → M) :
   · intro k hk
     simp [pad, mem_range.mp hk]
 
-theorem ip_split (L : ℕ) (a b : ℕ → F) :
+lemma ip_split (L : ℕ) (a b : ℕ → F) :
     ip L a b = ip (half L) (ev L a) (ev L b) + ip (half L) (od L a) (od L b) := by
   rw [ip, sum_split, ip, ip, ← sum_add_distrib]
   refine sum_congr rfl fun i _ => ?_
   simp only [pad, ev, od]
   split_ifs <;> simp
 
-theorem msm_split (L : ℕ) (a : ℕ → F) (G : ℕ → E) :
+lemma msm_split (L : ℕ) (a : ℕ → F) (G : ℕ → E) :
     msm L a G = msm (half L) (ev L a) (ev L G) + msm (half L) (od L a) (od L G) := by
   rw [msm, sum_split, msm, msm, ← sum_add_distrib]
   refine sum_congr rfl fun i _ => ?_
@@ -49,7 +49,7 @@ theorem msm_split (L : ℕ) (a : ℕ → F) (G : ℕ → E) :
   split_ifs <;> simp
 
 /-- With `μ = ρ²`, `‖a‖²_μ = ‖ρ⁻¹[a]₀‖²_{μ²} + ‖[a]₁‖²_{μ²}`. -/
-theorem wip_split (L : ℕ) {ρ μ : F} (hρ : ρ ≠ 0) (hμ : μ = ρ ^ 2) (a : ℕ → F) :
+lemma wip_split (L : ℕ) {ρ μ : F} (hρ : ρ ≠ 0) (hμ : μ = ρ ^ 2) (a : ℕ → F) :
     wip L μ a a = wip (half L) (μ ^ 2) (fun i => ρ⁻¹ * ev L a i) (fun i => ρ⁻¹ * ev L a i) +
       wip (half L) (μ ^ 2) (od L a) (od L a) := by
   rw [wip, sum_split, wip, wip, ← sum_add_distrib]
@@ -62,7 +62,7 @@ theorem wip_split (L : ℕ) {ρ μ : F} (hρ : ρ ≠ 0) (hμ : μ = ρ ^ 2) (a 
 
 variable (g : E) (x : Instance F E) (w : Witness F)
 
-theorem fold_rel (hρ : x.ρ ≠ 0) (hμ : x.μ = x.ρ ^ 2) (γ : F) (h : Rel g x w) :
+lemma fold_rel (hρ : x.ρ ≠ 0) (hμ : x.μ = x.ρ ^ 2) (γ : F) (h : Rel g x w) :
     Rel g (foldInst x (msgX g x w) (msgR g x w) γ) (foldWit x w γ) := by
   -- `⟨c', ℓ'⟩`, `‖n'‖²_{μ²}`, `⟨ℓ', H'⟩` and `⟨n', G'⟩` in terms of the halves.
   have hc : ip (half x.Lℓ) (fun i => ev x.Lℓ x.c i + γ * od x.Lℓ x.c i)

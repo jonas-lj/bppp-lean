@@ -21,7 +21,7 @@ set_option linter.unusedSectionVars false
 /-! ## Digits -/
 
 /-- A value below `16^D` is the sum of its `D` base-16 digits. -/
-theorem sum_digits (D v : ℕ) (hv : v < 16 ^ D) : ∑ t ∈ range D, 16 ^ t * (v / 16 ^ t % 16) = v := by
+lemma sum_digits (D v : ℕ) (hv : v < 16 ^ D) : ∑ t ∈ range D, 16 ^ t * (v / 16 ^ t % 16) = v := by
   induction D generalizing v with
   | zero => simp at hv; simp [hv]
   | succ D ih =>
@@ -33,7 +33,7 @@ theorem sum_digits (D v : ℕ) (hv : v < 16 ^ D) : ∑ t ∈ range D, 16 ^ t * (
       rw [Nat.div_div_eq_div_mul, pow_succ']; ring
     rw [key, ih _ h16]; omega
 
-theorem getD_flatMap_uniform (vs : List ℕ) (f : ℕ → List ℕ) (d : ℕ) (hf : ∀ v, (f v).length = d)
+lemma getD_flatMap_uniform (vs : List ℕ) (f : ℕ → List ℕ) (d : ℕ) (hf : ∀ v, (f v).length = d)
     (k : ℕ) : (vs.flatMap f).getD k 0 =
       if k < vs.length * d then (f (vs.getD (k / d) 0)).getD (k % d) 0 else 0 := by
   rcases Nat.eq_zero_or_pos d with rfl | hd
@@ -59,7 +59,7 @@ theorem getD_flatMap_uniform (vs : List ℕ) (f : ℕ → List ℕ) (d : ℕ) (h
       generalize vs.length * d = X
       split_ifs <;> first | rfl | omega
 
-theorem count_eq_card (a : ℕ) (l : List ℕ) :
+lemma count_eq_card (a : ℕ) (l : List ℕ) :
     l.count a = ((range l.length).filter fun k => l.getD k 0 = a).card := by
   induction l with
   | nil => simp
@@ -82,7 +82,7 @@ def specHonest (rng : Randomness F) (values : List ℕ) (blindings : List F) : S
 variable (params : CircuitParams) (hv : params.Valid) (rng : Randomness F) (values : List ℕ)
   (blindings : List F)
 
-theorem getD_blinding_vector (rng' : ℕ → F) (zeros : List ℕ) (j : ℕ) :
+lemma getD_blinding_vector (rng' : ℕ → F) (zeros : List ℕ) (j : ℕ) :
     (blinding_vector rng' zeros).getD j 0 = if j < H_LEN ∧ j ∉ zeros then rng' j else 0 := by
   unfold blinding_vector
   rw [List.getD_eq_getElem?_getD, List.getElem?_map]
@@ -90,14 +90,14 @@ theorem getD_blinding_vector (rng' : ℕ → F) (zeros : List ℕ) (j : ℕ) :
   · rw [List.getElem?_range hj]; by_cases hz : j ∈ zeros <;> simp [hz, hj]
   · rw [List.getElem?_eq_none (by simpa using hj)]; simp [hj]
 
-theorem zero_pattern : (specHonest rng values blindings).ZeroPattern := by
+lemma zero_pattern : (specHonest rng values blindings).ZeroPattern := by
   constructor <;> (simp only [specHonest]; rw [getD_blinding_vector]; simp [H_LEN])
 
-theorem digits_lt : ∀ i < params.m, ∀ t < params.d,
+lemma digits_lt : ∀ i < params.m, ∀ t < params.d,
     (specHonest rng values blindings).d i t < 16 := fun _ _ _ _ => Nat.mod_lt _ (by norm_num)
 
 /-- The digits of `Witness::new`. -/
-theorem getD_digits (k : ℕ) (hlen : values.length = params.m) :
+lemma getD_digits (k : ℕ) (hlen : values.length = params.m) :
     (values.flatMap fun v => to_digits v params.d).getD k 0 =
       (specHonest rng values blindings).dig (params.toSpec hv) k := by
   rw [getD_flatMap_uniform _ _ params.d (fun v => by simp [to_digits_eq]), hlen, Spec.Honest.dig,
@@ -112,13 +112,13 @@ theorem getD_digits (k : ℕ) (hlen : values.length = params.m) :
     rfl
   · rfl
 
-theorem length_digits (hlen : values.length = params.m) :
+lemma length_digits (hlen : values.length = params.m) :
     (values.flatMap fun v => to_digits v params.d).length = params.m * params.d := by
   rw [List.length_flatMap]
   simp only [to_digits_eq, List.length_map, List.length_range, List.map_const', List.sum_replicate,
     smul_eq_mul, hlen]
 
-theorem getD_n_l (hlen : values.length = params.m) (k : ℕ) :
+lemma getD_n_l (hlen : values.length = params.m) (k : ℕ) :
     (Witness.new params rng values blindings : Witness F).n_l.getD k 0 =
       ((specHonest rng values blindings).dig (params.toSpec hv) k : F) := by
   simp only [Witness.new]
@@ -127,7 +127,7 @@ theorem getD_n_l (hlen : values.length = params.m) (k : ℕ) :
   · rfl
   · rw [Spec.Honest.dig, if_neg (by rw [CircuitParams.Nd_toSpec]; have := hv.le; omega)]; simp
 
-theorem getD_n_o (hlen : values.length = params.m) (k : ℕ) :
+lemma getD_n_o (hlen : values.length = params.m) (k : ℕ) :
     (Witness.new params rng values blindings : Witness F).n_o.getD k 0 =
       if k < 15 then ((specHonest rng values blindings).mult (params.toSpec hv) (k + 1) : F)
       else 0 := by

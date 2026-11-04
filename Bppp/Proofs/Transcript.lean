@@ -16,34 +16,34 @@ namespace BpppTranscript
 def extend (t : BpppTranscript F E) (es : List (Entry F E)) : BpppTranscript F E :=
   { t with log := t.log ++ es }
 
-@[simp] theorem extend_nil (t : BpppTranscript F E) : t.extend [] = t := by simp [extend]
+@[simp] lemma extend_nil (t : BpppTranscript F E) : t.extend [] = t := by simp [extend]
 
-@[simp] theorem extend_extend (t : BpppTranscript F E) (es es' : List (Entry F E)) :
+@[simp] lemma extend_extend (t : BpppTranscript F E) (es es' : List (Entry F E)) :
     (t.extend es).extend es' = t.extend (es ++ es') := by simp [extend]
 
-@[simp] theorem extend_oracle (t : BpppTranscript F E) (es : List (Entry F E)) :
+@[simp] lemma extend_oracle (t : BpppTranscript F E) (es : List (Entry F E)) :
     (t.extend es).oracle = t.oracle := rfl
 
-@[simp] theorem extend_log (t : BpppTranscript F E) (es : List (Entry F E)) :
+@[simp] lemma extend_log (t : BpppTranscript F E) (es : List (Entry F E)) :
     (t.extend es).log = t.log ++ es := rfl
 
-theorem run_absorb (t : BpppTranscript F E) (e : Entry F E) :
+lemma run_absorb (t : BpppTranscript F E) (e : Entry F E) :
     (absorb e).run t = .ok ((), t.extend [e]) := by
   simp [absorb, StateT.run, modify, modifyGet, MonadStateOf.modifyGet, StateT.modifyGet, pure,
     Except.pure, extend]
 
-theorem run_domain_sep (t : BpppTranscript F E) (label : String) :
+lemma run_domain_sep (t : BpppTranscript F E) (label : String) :
     (domain_sep label).run t =
       .ok ((), t.extend [.message "dom-sep" (label.toList.map Char.toNat)]) :=
   run_absorb _ _
 
-theorem run_append_point (t : BpppTranscript F E) (label : String) (p : E) :
+lemma run_append_point (t : BpppTranscript F E) (label : String) (p : E) :
     (append_point label p).run t = .ok ((), t.extend [.point label p]) := run_absorb _ _
 
-theorem run_append_scalar (t : BpppTranscript F E) (label : String) (s : F) :
+lemma run_append_scalar (t : BpppTranscript F E) (label : String) (s : F) :
     (append_scalar label s).run t = .ok ((), t.extend [.scalar label s]) := run_absorb _ _
 
-theorem run_append_scalars (t : BpppTranscript F E) (label : String) (ss : List F) :
+lemma run_append_scalars (t : BpppTranscript F E) (label : String) (ss : List F) :
     (append_scalars label ss).run t = .ok ((), t.extend (ss.map (.scalar label))) := by
   induction ss generalizing t with
   | nil => simp [append_scalars, StateT.run, pure, StateT.pure, Except.pure]
@@ -55,7 +55,7 @@ theorem run_append_scalars (t : BpppTranscript F E) (label : String) (ss : List 
     simp only [Except.bind]
     rw [ih]; simp
 
-theorem run_append_commits (t : BpppTranscript F E) (label : String)
+lemma run_append_commits (t : BpppTranscript F E) (label : String)
     (cs : List (PedersenCommitment E)) :
     (append_commits label cs).run t = .ok ((), t.extend (cs.map fun c => .point label c.point)) := by
   induction cs generalizing t with
@@ -68,7 +68,7 @@ theorem run_append_commits (t : BpppTranscript F E) (label : String)
     simp only [Except.bind]
     rw [ih]; simp
 
-theorem run_challenge_scalar (t : BpppTranscript F E) (label : String) :
+lemma run_challenge_scalar (t : BpppTranscript F E) (label : String) :
     (challenge_scalar label : TranscriptM F E F).run t =
       .ok (t.oracle (t.log ++ [.challenge label]), t.extend [.challenge label]) := by
   simp [challenge_scalar, absorb, StateT.run, modify, modifyGet, MonadStateOf.modifyGet,

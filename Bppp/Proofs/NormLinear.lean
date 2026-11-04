@@ -39,51 +39,51 @@ def toWit (l n : List F) : Spec.NormLinear.Witness F := ⟨fun k => l.getD k 0, 
 
 /-! ## Vectors as functions -/
 
-theorem pad_getD {α : Type} [Zero α] (v : List α) (k : ℕ) :
+lemma pad_getD {α : Type} [Zero α] (v : List α) (k : ℕ) :
     pad v.length (fun k => v.getD k 0) k = v.getD k 0 := by
   unfold pad; split_ifs with h
   · rfl
   · rw [List.getD_eq_getElem?_getD, List.getElem?_eq_none (by omega)]; rfl
 
-theorem ev_getD (v : List F) (j : ℕ) : ev v.length (fun k => v.getD k 0) j = (halves v).1.getD j 0 := by
+lemma ev_getD (v : List F) (j : ℕ) : ev v.length (fun k => v.getD k 0) j = (halves v).1.getD j 0 := by
   rw [ev, pad_getD, (getD_halves v j).1]
 
-theorem od_getD (v : List F) (j : ℕ) : od v.length (fun k => v.getD k 0) j = (halves v).2.getD j 0 := by
+lemma od_getD (v : List F) (j : ℕ) : od v.length (fun k => v.getD k 0) j = (halves v).2.getD j 0 := by
   rw [od, pad_getD, (getD_halves v j).2]
 
-theorem ev_getD_pts {Q : List E} {L : ℕ} (h : Q.length = L) (j : ℕ) :
+lemma ev_getD_pts {Q : List E} {L : ℕ} (h : Q.length = L) (j : ℕ) :
     ev L (fun k => Q.getD k 0) j = Q.getD (2 * j) 0 := by
   rw [ev, ← h, pad_getD]
 
-theorem od_getD_pts {Q : List E} {L : ℕ} (h : Q.length = L) (j : ℕ) :
+lemma od_getD_pts {Q : List E} {L : ℕ} (h : Q.length = L) (j : ℕ) :
     od L (fun k => Q.getD k 0) j = Q.getD (2 * j + 1) 0 := by
   rw [od, ← h, pad_getD]
 
-theorem ev_fun {v : List F} {L : ℕ} (h : v.length = L) :
+lemma ev_fun {v : List F} {L : ℕ} (h : v.length = L) :
     ev L (fun k => v.getD k 0) = fun j => (halves v).1.getD j 0 := by
   subst h; funext j; exact ev_getD v j
 
-theorem od_fun {v : List F} {L : ℕ} (h : v.length = L) :
+lemma od_fun {v : List F} {L : ℕ} (h : v.length = L) :
     od L (fun k => v.getD k 0) = fun j => (halves v).2.getD j 0 := by
   subst h; funext j; exact od_getD v j
 
-theorem length_halves_fst (v : List F) : (halves v).1.length = half v.length :=
+lemma length_halves_fst (v : List F) : (halves v).1.length = half v.length :=
   (halves_length v).1
 
-theorem length_halves_snd (v : List F) : (halves v).2.length = half v.length :=
+lemma length_halves_snd (v : List F) : (halves v).2.length = half v.length :=
   (halves_length v).2
 
-theorem inner_product_ip {u v : List F} {N : ℕ} (h : min u.length v.length = N) :
+lemma inner_product_ip {u v : List F} {N : ℕ} (h : min u.length v.length = N) :
     inner_product u v = ip N (fun k => u.getD k 0) (fun k => v.getD k 0) := by
   rw [inner_product_eq, h, ip]
 
-theorem weighted_inner_product_wip {u v : List F} {N : ℕ} (h : min u.length v.length = N) (mu : F) :
+lemma weighted_inner_product_wip {u v : List F} {N : ℕ} (h : min u.length v.length = N) (mu : F) :
     weighted_inner_product u v mu = wip N mu (fun k => u.getD k 0) (fun k => v.getD k 0) := by
   rw [weighted_inner_product_eq, h, wip]
   exact sum_congr rfl fun k _ => by ring
 
 /-- An MSM over `Q` with coefficients `from_halves a b`, as a sum over the halves. -/
-theorem sum_from_halves (a b : List F) (h : a.length = b.length) (Q : List E) :
+lemma sum_from_halves (a b : List F) (h : a.length = b.length) (Q : List E) :
     ∑ i ∈ range (from_halves a b).length, (from_halves a b).getD i 0 • Q.getD i 0 =
       ∑ j ∈ range a.length, (a.getD j 0 • Q.getD (2 * j) 0 + b.getD j 0 • Q.getD (2 * j + 1) 0) := by
   rw [length_from_halves, h, min_self, ← h, Spec.NormLinear.sum_range_two_mul]
@@ -96,7 +96,7 @@ section Round
 
 variable (C : E) (lb : LazyBases F E) (c : List F) (rho : F) (l n : List F)
 
-theorem msm_halves_eq {a b : List F} (hab : a.length = b.length) {v : List F}
+lemma msm_halves_eq {a b : List F} (hab : a.length = b.length) {v : List F}
     (ha : a.length = half v.length) {Q : List E} (hQ : Q.length = v.length) :
     ∑ i ∈ range (from_halves a b).length, (from_halves a b).getD i 0 • Q.getD i 0 =
       Spec.NormLinear.msm (half v.length) (fun j => a.getD j 0) (ev v.length fun k => Q.getD k 0) +
@@ -106,7 +106,7 @@ theorem msm_halves_eq {a b : List F} (hab : a.length = b.length) {v : List F}
   rw [ev_getD_pts hQ, od_getD_pts hQ]
 
 /-- `prove_rec`'s first message is `Spec.NormLinear.msgX`. -/
-theorem x_point_eq (hc : c.length = l.length) (hh : lb.cur_h.length = l.length)
+lemma x_point_eq (hc : c.length = l.length) (hh : lb.cur_h.length = l.length)
     (hg : lb.cur_g.length = n.length) :
     (2 * rho⁻¹ * weighted_inner_product (halves n).1 (halves n).2 (rho * rho * (rho * rho)) +
         inner_product (halves c).1 (halves l).2 + inner_product (halves c).2 (halves l).1) • lb.g0 +
@@ -134,7 +134,7 @@ theorem x_point_eq (hc : c.length = l.length) (hh : lb.cur_h.length = l.length)
     od_getD, ev_getD, getD_vec_scalar_mul, add_assoc]
 
 /-- `prove_rec`'s second message is `Spec.NormLinear.msgR`. -/
-theorem r_point_eq (hc : c.length = l.length) (hh : lb.cur_h.length = l.length)
+lemma r_point_eq (hc : c.length = l.length) (hh : lb.cur_h.length = l.length)
     (hg : lb.cur_g.length = n.length) :
     (weighted_norm (halves n).2 (rho * rho * (rho * rho)) +
         inner_product (halves c).2 (halves l).2) • lb.g0 +
@@ -162,21 +162,21 @@ theorem r_point_eq (hc : c.length = l.length) (hh : lb.cur_h.length = l.length)
   simp only [Spec.NormLinear.msgR, toInst, toWit, od_fun hc, od_fun rfl, hz, zero_add,
     add_assoc]
 
-theorem getD_fold_vec (a : List F) (gamma : F) (s : F) (j : ℕ) :
+lemma getD_fold_vec (a : List F) (gamma : F) (s : F) (j : ℕ) :
     (vec_add (vec_scalar_mul s (halves a).1) (vec_scalar_mul gamma (halves a).2)).getD j 0 =
       s * ev a.length (fun k => a.getD k 0) j + gamma * od a.length (fun k => a.getD k 0) j := by
   rw [getD_vec_add (by simp [length_vec_scalar_mul, length_halves_fst, length_halves_snd]),
     getD_vec_scalar_mul, getD_vec_scalar_mul, ev_getD, od_getD]
 
-theorem vec_scalar_mul_one (a : List F) : vec_scalar_mul 1 a = a := by
+lemma vec_scalar_mul_one (a : List F) : vec_scalar_mul 1 a = a := by
   simp [vec_scalar_mul]
 
-theorem length_fold_vec (a : List F) (gamma s : F) :
+lemma length_fold_vec (a : List F) (gamma s : F) :
     (vec_add (vec_scalar_mul s (halves a).1) (vec_scalar_mul gamma (halves a).2)).length =
       half a.length := by
   simp [length_vec_add, length_vec_scalar_mul, length_halves_fst, length_halves_snd]
 
-theorem getD_foldPts_pts (f0 f1 : F) {Q : List E} {L : ℕ} (h : Q.length = L) (i : ℕ) :
+lemma getD_foldPts_pts (f0 f1 : F) {Q : List E} {L : ℕ} (h : Q.length = L) (i : ℕ) :
     (foldPts f0 f1 Q).getD i 0 =
       f0 • ev L (fun k => Q.getD k 0) i + f1 • od L (fun k => Q.getD k 0) i := by
   rw [getD_foldPts, ev_getD_pts h, od_getD_pts h]
@@ -186,7 +186,7 @@ theorem getD_foldPts_pts (f0 f1 : F) {Q : List E} {L : ℕ} (h : Q.length = L) (
       add_zero]
 
 /-- The state after a round stands for `Spec.NormLinear.foldInst` and `foldWit`. -/
-theorem fold_toInst (X R : E) (gamma : F) (lb' : LazyBases F E) (hp : lb'.Pos)
+lemma fold_toInst (X R : E) (gamma : F) (lb' : LazyBases F E) (hp : lb'.Pos)
     (hc : c.length = l.length) (hh : lb.cur_h.length = l.length) (hg : lb.cur_g.length = n.length)
     (hh' : lb'.cur_h = lb.cur_h) (hg' : lb'.cur_g = lb.cur_g) :
     toInst (C + gamma • X + (gamma ^ 2 - 1) • R) (lb'.fold rho gamma)
@@ -218,24 +218,24 @@ end Round
 
 open BpppTranscript
 
-theorem run_liftM_ok {σ ε α : Type} (a : α) (t : σ) :
+lemma run_liftM_ok {σ ε α : Type} (a : α) (t : σ) :
     (liftM (Except.ok a : Except ε α) : StateT σ (Except ε) α).run t = .ok (a, t) := rfl
 
-@[simp] theorem ok_bind {ε α β : Type} (a : α) (f : α → Except ε β) :
+@[simp] lemma ok_bind {ε α β : Type} (a : α) (f : α → Except ε β) :
     (Except.ok a >>= f) = f a := rfl
 
 /-- The transcript entries of the final opening. -/
 def finalEntries (proof : NormLinearProof F E) : List (Entry F E) :=
   .scalar "l_final" proof.l_final :: proof.n_final.map (.scalar "n_final")
 
-theorem proof_shape_step {a b : ℕ} (h : ¬ is_base_case a b) :
+lemma proof_shape_step {a b : ℕ} (h : ¬ is_base_case a b) :
     proof_shape a b = ((proof_shape ((a + 1) / 2) ((b + 1) / 2)).1 + 1,
       (proof_shape ((a + 1) / 2) ((b + 1) / 2)).2) := by
   rw [proof_shape, dif_neg h]
 
 /-- `prove_rec` and the round loop of `norm_linear::verify` agree, and the final opening satisfies
 the relation on the commitment folded by the rounds, over the bases the verifier's weights give. -/
-theorem prove_rec_spec (gens : Generators E) :
+lemma prove_rec_spec (gens : Generators E) :
     ∀ (N : ℕ) (lb : LazyBases F E) (c : List F) (rho : F) (l n : List F) (C : E)
       (t : BpppTranscript F E) (W_h W_g : Weights F) (gammas : List F),
     l.length + n.length = N → lb.Pos → 0 < W_h.w.length → 0 < W_g.w.length →
@@ -372,10 +372,10 @@ theorem prove_rec_spec (gens : Generators E) :
     · simp only [List.zip_cons_cons, List.map_cons, List.sum_cons, ← add_assoc]
       exact hfin
 
-theorem scale_eq_tensor (W : Weights F) (s : F) : W.scale s = W.tensor [s] := by
+lemma scale_eq_tensor (W : Weights F) (s : F) : W.scale s = W.tensor [s] := by
   simp [Weights.scale, Weights.tensor]
 
-theorem sum_zipWith_sub (a b : List F) (G : List E) (h : a.length = b.length)
+lemma sum_zipWith_sub (a b : List F) (G : List E) (h : a.length = b.length)
     (hG : G.length ≤ a.length) :
     (List.zipWith (· • ·) (List.zipWith (fun w p => w - p) a b) G).sum =
       (List.zipWith (· • ·) a G).sum - (List.zipWith (· • ·) b G).sum := by
@@ -389,13 +389,13 @@ theorem sum_zipWith_sub (a b : List F) (G : List E) (h : a.length = b.length)
       List.getElem?_eq_getElem (by omega : k < a.length),
       List.getElem?_eq_getElem (by omega : k < b.length)], sub_smul]
 
-theorem zipWith_map_fst_snd {α β γ : Type} (f : α → β → γ) (L : List (α × β)) :
+lemma zipWith_map_fst_snd {α β γ : Type} (f : α → β → γ) (L : List (α × β)) :
     List.zipWith f (L.map (·.1)) (L.map (·.2)) = L.map fun x => f x.1 x.2 := by
   induction L with
   | nil => rfl
   | cons x L ih => simp [ih]
 
-theorem dynamic_sum (extra : List (F × E)) (rounds : List (E × E)) (gs : List F) :
+lemma dynamic_sum (extra : List (F × E)) (rounds : List (E × E)) (gs : List F) :
     ((extra.map (fun ((s, p) : F × E) => (-s, p)) ++ (List.zip rounds gs).flatMap
         fun (((x_point, r_point), gamma) : (E × E) × F) =>
           [(-gamma, x_point), ((one : F) - gamma * gamma, r_point)]).map
@@ -420,7 +420,7 @@ theorem dynamic_sum (extra : List (F × E)) (rounds : List (E × E)) (gs : List 
 /-- **Completeness of the norm-linear argument.** If the commitment, given to the verifier as
 `ps*G + <pn, G_vec> + sum extra`, opens to `(l, n)` with `sigma = <c, l> + |n|^2_{rho^2}`, the
 verifier accepts the honest proof on the same transcript. -/
-theorem completeness (gens : Generators E) (t : BpppTranscript F E) (c : List F) (rho : F)
+lemma completeness (gens : Generators E) (t : BpppTranscript F E) (c : List F) (rho : F)
     (l n : List F) (ps : F) (pn : List F) (extra : List (F × E))
     (hc : c.length = gens.h_vec.length) (hl : l.length = gens.h_vec.length)
     (hn : n.length = gens.g_vec.length) (hpn : pn.length = gens.g_vec.length)

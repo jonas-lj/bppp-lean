@@ -14,13 +14,13 @@ namespace Bppp
 
 variable {F E : Type} [Field F] [DecidableEq F] [AddCommGroup E] [Module F E] [DecidableEq E]
 
-theorem le_next_power_of_two (n : ℕ) : n ≤ next_power_of_two n :=
+lemma le_next_power_of_two (n : ℕ) : n ≤ next_power_of_two n :=
   Nat.le_pow_clog (by norm_num) n
 
 namespace RangeProof
 
 /-- `CircuitParams::new` for a nonempty batch. -/
-theorem params_new (range : Range) (m : ℕ) (hm : m ≠ 0) :
+lemma params_new (range : Range) (m : ℕ) (hm : m ≠ 0) :
     ∃ params, CircuitParams.new range m = .ok params ∧ params.Valid ∧ params.range = range ∧
       params.m = m ∧ params.nm = (dims range m).2.2 ∧ 16 ^ params.d = 2 ^ range.bits := by
   refine ⟨_, by simp [CircuitParams.new, hm]; rfl, ⟨rfl, ?_, ?_⟩, rfl, rfl, rfl, ?_⟩

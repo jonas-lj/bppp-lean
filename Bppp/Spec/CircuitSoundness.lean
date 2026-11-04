@@ -18,21 +18,21 @@ variable {F : Type*} [Field F] (P : Params) (ch : Challenges F)
 
 /-! ## The support of `f(T)` -/
 
-theorem e_range (s : ℕ) : -1 ≤ e s ∧ e s ≤ 7 := by
+lemma e_range (s : ℕ) : -1 ≤ e s ∧ e s ≤ 7 := by
   unfold e; split <;> norm_num
 
-theorem supp_c (s : ℕ) : Supp (c P ch s) (-1) 7 := by
+lemma supp_c (s : ℕ) : Supp (c P ch s) (-1) 7 := by
   unfold c
   refine Supp.add ?_ (Supp.mono _ (by norm_num) (by norm_num))
   split_ifs
   · exact Supp.mono _ (e_range s).1 (e_range s).2
   · exact Supp.zero _ _
 
-theorem supp_ℓ (w : Opening F) (s : ℕ) : Supp (ℓ ch w s) (-1) 3 := by
+lemma supp_ℓ (w : Opening F) (s : ℕ) : Supp (ℓ ch w s) (-1) 3 := by
   unfold ℓ; split_ifs <;> supp_tac
 
 /-- For any opening, the error polynomial has powers `T⁻², ..., T¹⁰` only. -/
-theorem supp_f (w : Opening F) : Supp (f P ch w) (-2) 10 := by
+lemma supp_f (w : Opening F) : Supp (f P ch w) (-2) 10 := by
   refine Supp.sub (Supp.sub ?_ ?_) ((supp_normμ P ch (supp_n P ch w)).widen le_rfl (by norm_num))
   · simp only [σ, ps]
     refine Supp.add (Supp.add (Supp.add ((supp_normμ P ch (supp_pn P ch)).widen
@@ -46,21 +46,21 @@ theorem supp_f (w : Opening F) : Supp (f P ch w) (-2) 10 := by
 
 variable (τ : Fˣ) (w : Opening F)
 
-theorem eval_σ : evalAt τ (σ P ch w) = evalAt τ (ps P ch) + (τ : F) ^ (-1 : ℤ) * w.rS 0 +
+lemma eval_σ : evalAt τ (σ P ch w) = evalAt τ (ps P ch) + (τ : F) ^ (-1 : ℤ) * w.rS 0 +
     ch.δ * w.rO 0 + (τ : F) * w.rL 0 + (τ : F) ^ 2 * w.rR 0 + (τ : F) ^ 3 * w.vhat := by
   simp only [σ, map_add, evalAt_mono, zpow_ofNat]; ring
 
-theorem eval_ℓ (s : ℕ) (_hs : s < 8) : evalAt τ (ℓ ch w s) = (τ : F) ^ (-1 : ℤ) * lin w.rS w.ℓS s +
+lemma eval_ℓ (s : ℕ) (_hs : s < 8) : evalAt τ (ℓ ch w s) = (τ : F) ^ (-1 : ℤ) * lin w.rS w.ℓS s +
     ch.δ * lin w.rO w.ℓO s + (τ : F) * lin w.rL w.ℓL s + (τ : F) ^ 2 * lin w.rR w.ℓR s +
     (τ : F) ^ 3 * lin w.rV w.ℓV s := by
   simp only [ℓ, lin]
   split_ifs <;> simp only [map_add, evalAt_mono, zpow_ofNat] <;> ring
 
-theorem eval_n (k : ℕ) : evalAt τ (n P ch w k) = evalAt τ (pn P ch k) + (τ : F) ^ (-1 : ℤ) * w.nS k +
+lemma eval_n (k : ℕ) : evalAt τ (n P ch w k) = evalAt τ (pn P ch k) + (τ : F) ^ (-1 : ℤ) * w.nS k +
     ch.δ * w.nO k + (τ : F) * w.nL k + (τ : F) ^ 2 * w.nR k + (τ : F) ^ 3 * w.nV k := by
   simp only [n, map_add, evalAt_mono, zpow_ofNat]; ring
 
-theorem eval_f : evalAt τ (f P ch w) = evalAt τ (σ P ch w) -
+lemma eval_f : evalAt τ (f P ch w) = evalAt τ (σ P ch w) -
     ∑ s ∈ range 8, evalAt τ (c P ch s) * evalAt τ (ℓ ch w s) -
     ∑ k ∈ range P.nm, ch.μ ^ (k + 1) * (evalAt τ (n P ch w k) * evalAt τ (n P ch w k)) := by
   simp only [f, normμ, map_sub, map_sum, map_mul, evalAt_mono, zpow_zero, mul_one]
@@ -82,29 +82,29 @@ noncomputable def tauInst (cS cO cL cR V : E) (rho : F) (τ : Fˣ) : NormLinear.
   ρ := rho
   μ := ch.μ
 
-theorem commit_sum {ι : Type*} (S : Finset ι) (a s : ι → F) (h n : ι → ℕ → F) :
+lemma commit_sum {ι : Type*} (S : Finset ι) (a s : ι → F) (h n : ι → ℕ → F) :
     commit P g H G (∑ m ∈ S, a m * s m) (fun j => ∑ m ∈ S, a m * h m j)
       (fun j => ∑ m ∈ S, a m * n m j) = ∑ m ∈ S, a m • commit P g H G (s m) (h m) (n m) := by
   simp only [commit, NormLinear.msm, sum_smul, smul_add, sum_add_distrib, smul_sum, mul_smul]
   rw [sum_comm (s := range 8), sum_comm (s := range P.nm)]
 
-theorem commit_smul (a s : F) (h n : ℕ → F) :
+lemma commit_smul (a s : F) (h n : ℕ → F) :
     commit P g H G (a * s) (fun j => a * h j) (fun j => a * n j) = a • commit P g H G s h n := by
   simp only [commit, NormLinear.msm, mul_smul, smul_add, smul_sum]
 
-theorem commit_sub (s s' : F) (h h' n n' : ℕ → F) :
+lemma commit_sub (s s' : F) (h h' n n' : ℕ → F) :
     commit P g H G (s - s') (fun j => h j - h' j) (fun j => n j - n' j) =
       commit P g H G s h n - commit P g H G s' h' n' := by
   simp only [commit, NormLinear.msm, sub_smul, sum_sub_distrib]; abel
 
-theorem commit_congr (s : F) {h h' n n' : ℕ → F} (hh : ∀ j < 8, h j = h' j)
+lemma commit_congr (s : F) {h h' n n' : ℕ → F} (hh : ∀ j < 8, h j = h' j)
     (hn : ∀ j < P.nm, n j = n' j) : commit P g H G s h n = commit P g H G s h' n' := by
   simp only [commit, NormLinear.msm]
   congr 1
   · congr 1; exact sum_congr rfl fun j hj => by rw [hh j (mem_range.1 hj)]
   · exact sum_congr rfl fun j hj => by rw [hn j (mem_range.1 hj)]
 
-theorem lin_shift (c a : F) (h : ℕ → F) (s : ℕ) (hs : s < 8) :
+lemma lin_shift (c a : F) (h : ℕ → F) (s : ℕ) (hs : s < 8) :
     lin (fun j => c * if j = 0 then a else h (j - 1)) (c * h 7) s = c * h s := by
   unfold lin
   split_ifs with h1
@@ -115,7 +115,7 @@ theorem lin_shift (c a : F) (h : ℕ → F) (s : ℕ) (hs : s < 8) :
 /-- **The `τ` level.** From openings of `C(τ)` satisfying the norm-linear relation at thirteen
 distinct `τ`, either `C_S`, `C_O`, `C_L`, `C_R`, `V̂` open to an opening with `f(T) ≡ 0`, or the
 generators satisfy a nontrivial linear relation. -/
-theorem extract_tau (cS cO cL cR V : E) (rho : F) (τ : Fin 13 → Fˣ) (hτ : Function.Injective τ)
+lemma extract_tau (cS cO cL cR V : E) (rho : F) (τ : Fin 13 → Fˣ) (hτ : Function.Injective τ)
     (hδ : ch.δ ≠ 0) (w : Fin 13 → NormLinear.Witness F)
     (h : ∀ k, NormLinear.Rel g (tauInst P ch g H G cS cO cL cR V rho (τ k)) (w k)) :
     (∃ wo : Opening F, f P ch wo = 0 ∧ cS = Spec.cS P g H G wo ∧ cO = Spec.cO P g H G wo ∧

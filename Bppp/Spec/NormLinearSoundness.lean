@@ -33,19 +33,19 @@ def unH (γ : F) (ℓ : ℕ → F) : ℕ → F := fun j => if j % 2 = 0 then ℓ
 /-- The coordinates over `G` of an opening `n` over the folded `G' = ρ[G]₀ + γ[G]₁`. -/
 def unG (ρ γ : F) (n : ℕ → F) : ℕ → F := fun j => if j % 2 = 0 then ρ * n (j / 2) else γ * n (j / 2)
 
-@[simp] theorem unH_even (γ : F) (ℓ : ℕ → F) (i : ℕ) : unH γ ℓ (2 * i) = ℓ i := by
+@[simp] lemma unH_even (γ : F) (ℓ : ℕ → F) (i : ℕ) : unH γ ℓ (2 * i) = ℓ i := by
   simp [unH]
 
-@[simp] theorem unH_odd (γ : F) (ℓ : ℕ → F) (i : ℕ) : unH γ ℓ (2 * i + 1) = γ * ℓ i := by
+@[simp] lemma unH_odd (γ : F) (ℓ : ℕ → F) (i : ℕ) : unH γ ℓ (2 * i + 1) = γ * ℓ i := by
   rw [unH, if_neg (by omega), show (2 * i + 1) / 2 = i by omega]
 
-@[simp] theorem unG_even (ρ γ : F) (n : ℕ → F) (i : ℕ) : unG ρ γ n (2 * i) = ρ * n i := by
+@[simp] lemma unG_even (ρ γ : F) (n : ℕ → F) (i : ℕ) : unG ρ γ n (2 * i) = ρ * n i := by
   simp [unG]
 
-@[simp] theorem unG_odd (ρ γ : F) (n : ℕ → F) (i : ℕ) : unG ρ γ n (2 * i + 1) = γ * n i := by
+@[simp] lemma unG_odd (ρ γ : F) (n : ℕ → F) (i : ℕ) : unG ρ γ n (2 * i + 1) = γ * n i := by
   rw [unG, if_neg (by omega), show (2 * i + 1) / 2 = i by omega]
 
-theorem msm_unH (L : ℕ) (γ : F) (ℓ : ℕ → F) (H : ℕ → E) :
+lemma msm_unH (L : ℕ) (γ : F) (ℓ : ℕ → F) (H : ℕ → E) :
     msm (half L) ℓ (fun i => ev L H i + γ • od L H i) = msm L (unH γ ℓ) H := by
   rw [msm, msm, sum_split L]
   refine sum_congr rfl fun i hi => ?_
@@ -53,7 +53,7 @@ theorem msm_unH (L : ℕ) (γ : F) (ℓ : ℕ → F) (H : ℕ → E) :
   simp only [ev, od, pad, unH_even, unH_odd, if_pos h2, smul_add, smul_smul]
   split_ifs <;> simp [mul_comm]
 
-theorem msm_unG (L : ℕ) (ρ γ : F) (n : ℕ → F) (G : ℕ → E) :
+lemma msm_unG (L : ℕ) (ρ γ : F) (n : ℕ → F) (G : ℕ → E) :
     msm (half L) n (fun i => ρ • ev L G i + γ • od L G i) = msm L (unG ρ γ n) G := by
   rw [msm, msm, sum_split L]
   refine sum_congr rfl fun i hi => ?_
@@ -62,7 +62,7 @@ theorem msm_unG (L : ℕ) (ρ γ : F) (n : ℕ → F) (G : ℕ → E) :
   split_ifs <;> simp [mul_comm]
 
 /-- An opening of a folded instance is an opening of the round's combination. -/
-theorem fold_pt (x : Instance F E) (X R : E) (γ : F) (w : Witness F)
+lemma fold_pt (x : Instance F E) (X R : E) (γ : F) (w : Witness F)
     (h : Rel g (foldInst x X R γ) w) :
     x.C + γ • X + (γ ^ 2 - 1) • R = pt g x
       (ip (half x.Lℓ) (foldInst x X R γ).c w.ℓ + wip (half x.Ln) (x.μ ^ 2) w.n w.n)
@@ -70,43 +70,43 @@ theorem fold_pt (x : Instance F E) (X R : E) (γ : F) (w : Witness F)
   rw [pt, ← msm_unH, ← msm_unG]
   exact h
 
-theorem pt_add (x : Instance F E) (s s' : F) (h h' n n' : ℕ → F) :
+lemma pt_add (x : Instance F E) (s s' : F) (h h' n n' : ℕ → F) :
     pt g x (s + s') (fun j => h j + h' j) (fun j => n j + n' j) = pt g x s h n + pt g x s' h' n' := by
   simp only [pt, msm, add_smul, sum_add_distrib]; abel
 
-theorem pt_smul (x : Instance F E) (a s : F) (h n : ℕ → F) :
+lemma pt_smul (x : Instance F E) (a s : F) (h n : ℕ → F) :
     pt g x (a * s) (fun j => a * h j) (fun j => a * n j) = a • pt g x s h n := by
   simp only [pt, msm, mul_smul, smul_add, smul_sum]
 
-theorem pt_sum (x : Instance F E) {ι : Type*} (S : Finset ι) (a : ι → F) (s : ι → F)
+lemma pt_sum (x : Instance F E) {ι : Type*} (S : Finset ι) (a : ι → F) (s : ι → F)
     (h n : ι → ℕ → F) :
     pt g x (∑ m ∈ S, a m * s m) (fun j => ∑ m ∈ S, a m * h m j) (fun j => ∑ m ∈ S, a m * n m j) =
       ∑ m ∈ S, a m • pt g x (s m) (h m) (n m) := by
   simp only [pt, msm, sum_smul, smul_add, sum_add_distrib, smul_sum, mul_smul]
   rw [sum_comm (s := range x.Lℓ), sum_comm (s := range x.Ln)]
 
-theorem pt_sub (x : Instance F E) (s s' : F) (h h' n n' : ℕ → F) :
+lemma pt_sub (x : Instance F E) (s s' : F) (h h' n n' : ℕ → F) :
     pt g x (s - s') (fun j => h j - h' j) (fun j => n j - n' j) = pt g x s h n - pt g x s' h' n' := by
   simp only [pt, msm, sub_smul, sum_sub_distrib]; abel
 
-theorem comb3 {ι : Type*} (S : Finset ι) (a t : ι → F) (C X R : E) :
+lemma comb3 {ι : Type*} (S : Finset ι) (a t : ι → F) (C X R : E) :
     ∑ m ∈ S, a m • (C + t m • X + (t m ^ 2 - 1) • R) =
       (∑ m ∈ S, a m) • C + (∑ m ∈ S, a m * t m) • X + (∑ m ∈ S, a m * (t m ^ 2 - 1)) • R := by
   simp only [smul_add, sum_add_distrib, sum_smul, smul_smul]
 
-theorem sum_quad {ι : Type*} (S : Finset ι) (a b c : ι → F) (t : F) :
+lemma sum_quad {ι : Type*} (S : Finset ι) (a b c : ι → F) (t : F) :
     ∑ i ∈ S, (a i + t * b i + t ^ 2 * c i) = ∑ i ∈ S, a i + t * ∑ i ∈ S, b i + t ^ 2 * ∑ i ∈ S, c i := by
   simp only [sum_add_distrib, mul_sum]
 
 /-- The weights `(1, γ, γ² - 1)` of `C`, `X`, `R` in the round's combination. -/
 def coef (γ : F) : Fin 3 → F := ![1, γ, γ ^ 2 - 1]
 
-theorem sum_coef (γ : F) (f : Fin 3 → F) :
+lemma sum_coef (γ : F) (f : Fin 3 → F) :
     ∑ b, coef γ b * f b = f 0 + γ * f 1 + (γ ^ 2 - 1) * f 2 := by
   simp [coef, Fin.sum_univ_three]
 
 /-- Interpolating from `γ_0, γ_1, γ_2` and evaluating at `γ_k` returns the value at `γ_k`. -/
-theorem interp {t0 t1 t2 : F} (h01 : t0 ≠ t1) (h02 : t0 ≠ t2) (h12 : t1 ≠ t2) (f : Fin 3 → F)
+lemma interp {t0 t1 t2 : F} (h01 : t0 ≠ t1) (h02 : t0 ≠ t2) (h12 : t1 ≠ t2) (f : Fin 3 → F)
     (k : Fin 3) :
     ∑ b, coef (![t0, t1, t2] k) b * ∑ m, lam t0 t1 t2 b m * f m = f k := by
   simp only [mul_sum, ← mul_assoc]
@@ -118,7 +118,7 @@ theorem interp {t0 t1 t2 : F} (h01 : t0 ≠ t1) (h02 : t0 ≠ t2) (h12 : t1 ≠ 
 /-- **One round of extraction.** From openings of the folded instance for four distinct
 challenges, either the round's instance opens to a witness, or its generators satisfy a nontrivial
 linear relation. -/
-theorem extract_round (x : Instance F E) (X R : E) (γ : Fin 4 → F) (hγ : Function.Injective γ)
+lemma extract_round (x : Instance F E) (X R : E) (γ : Fin 4 → F) (hγ : Function.Injective γ)
     (hρ : x.ρ ≠ 0) (hμ : x.μ = x.ρ ^ 2) (hn : x.Ln % 2 = 0) (w : Fin 4 → Witness F)
     (h : ∀ k, Rel g (foldInst x X R (γ k)) (w k)) :
     (∃ w, Rel g x w) ∨ Relation g x := by
@@ -298,7 +298,7 @@ theorem extract_round (x : Instance F E) (X R : E) (γ : Fin 4 → F) (hγ : Fun
   linear_combination q0 + q2 + hcomb
 
 /-- A relation among the folded generators is a relation among the round's generators. -/
-theorem relation_unfold (x : Instance F E) (X R : E) (γ : F) (hρ : x.ρ ≠ 0)
+lemma relation_unfold (x : Instance F E) (X R : E) (γ : F) (hρ : x.ρ ≠ 0)
     (h : Relation g (foldInst x X R γ)) : Relation g x := by
   obtain ⟨s, h', n', hnt, hz⟩ := h
   refine ⟨s, unH γ h', unG x.ρ γ n', ?_, ?_⟩
@@ -332,7 +332,7 @@ def Accepts : Instance F E → Tree F E → Prop
 /-- **Special soundness of the norm-linear argument.** From a tree of accepting transcripts with
 four distinct challenges per round, either the commitment opens to a witness of the relation
 (19), or the generators satisfy a nontrivial linear relation. -/
-theorem extract : ∀ (t : Tree F E) (d : ℕ) (x : Instance F E), t.Depth d → 2 ^ d ∣ x.Ln →
+lemma extract : ∀ (t : Tree F E) (d : ℕ) (x : Instance F E), t.Depth d → 2 ^ d ∣ x.Ln →
     x.ρ ≠ 0 → x.μ = x.ρ ^ 2 → Accepts g x t → (∃ w, Rel g x w) ∨ Relation g x
   | .leaf w, _, x, _, _, _, _, h => Or.inl ⟨w, h⟩
   | .node X R γ child, _, x, .node _ _ _ _ d hd, hL, hρ, hμ, ⟨hγ, h⟩ => by
@@ -372,7 +372,7 @@ def Tree.Distinct : Tree F E → Prop
   | .node _ _ γ child => Function.Injective γ ∧ ∀ k, (child k).Distinct
 
 /-- A tree accepts when its challenges are distinct and each of its transcripts accepts. -/
-theorem accepts_of_paths : ∀ (t : Tree F E) (x : Instance F E), t.Distinct →
+lemma accepts_of_paths : ∀ (t : Tree F E) (x : Instance F E), t.Distinct →
     (∀ p ∈ t.paths, Rel g (foldPath x p.1 p.2.1) p.2.2) → Accepts g x t
   | .leaf w, x, _, h => h ([], [], w) (by simp [Tree.paths])
   | .node X R γ child, x, ⟨hγ, hd⟩, h => ⟨hγ, fun k => accepts_of_paths (child k) _ (hd k)

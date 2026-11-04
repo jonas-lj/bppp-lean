@@ -64,7 +64,7 @@ def extraOf (C : Constraints F) (delta : F) (τ : Fˣ) (vcs : List (PedersenComm
 
 /-- An accepting run of `verify` checks the shape of the inputs and is an accepting run of
 `norm_linear::verify` after `τ`, on the verifier's decomposed `C(τ)`. -/
-theorem verify_run (hv : params.Valid) (proof : CircuitProof F E)
+lemma verify_run (hv : params.Valid) (proof : CircuitProof F E)
     (vcs : List (PedersenCommitment E)) (t t' : BpppTranscript F E)
     (alpha rho lambda beta delta : F) (τ : Fˣ) (C : Constraints F)
     (hα : t.oracle (alphaLog t vcs proof) = alpha) (hρ : t.oracle (rhoLog t vcs proof) = rho)
@@ -105,7 +105,7 @@ theorem verify_run (hv : params.Valid) (proof : CircuitProof F E)
 /-! ## The instance of `norm_linear::verify` is `C(τ)` -/
 
 /-- The norm-linear relation depends on an instance only through its entries up to its lengths. -/
-theorem rel_congr {g : E} {x y : Spec.NormLinear.Instance F E} (hC : x.C = y.C)
+lemma rel_congr {g : E} {x y : Spec.NormLinear.Instance F E} (hC : x.C = y.C)
     (hL : x.Lℓ = y.Lℓ) (hn : x.Ln = y.Ln) (hμ : x.μ = y.μ) (hc : ∀ k < x.Lℓ, x.c k = y.c k)
     (hH : ∀ k < x.Lℓ, x.H k = y.H k) (hG : ∀ k < x.Ln, x.G k = y.G k)
     {w : Spec.NormLinear.Witness F} (h : Spec.NormLinear.Rel g x w) : Spec.NormLinear.Rel g y w := by
@@ -119,7 +119,7 @@ theorem rel_congr {g : E} {x y : Spec.NormLinear.Instance F E} (hC : x.C = y.C)
     sum_congr rfl fun k hk => by rw [hG k (mem_range.1 hk)]
   rw [← hC, h, e1, e2, e3, hL, hn, hμ]
 
-theorem relation_congr {g : E} {x y : Spec.NormLinear.Instance F E} (hL : x.Lℓ = y.Lℓ)
+lemma relation_congr {g : E} {x y : Spec.NormLinear.Instance F E} (hL : x.Lℓ = y.Lℓ)
     (hn : x.Ln = y.Ln) (hH : ∀ k < x.Lℓ, x.H k = y.H k) (hG : ∀ k < x.Ln, x.G k = y.G k)
     (h : Spec.NormLinear.Relation g x) : Spec.NormLinear.Relation g y := by
   obtain ⟨s, hh, n, hne, he⟩ := h
@@ -132,7 +132,7 @@ theorem relation_congr {g : E} {x y : Spec.NormLinear.Instance F E} (hL : x.Lℓ
   rw [← he, e2, e3, hL, hn]
 
 /-- The commitment `norm_linear::verify` checks is `C(τ)` (25) of the proof's messages. -/
-theorem combined_eq (hv : params.Valid) (hg : gens.g_vec.length = params.nm)
+lemma combined_eq (hv : params.Valid) (hg : gens.g_vec.length = params.nm)
     (alpha rho lambda beta delta : F) (τ : Fˣ) (C : Constraints F)
     (hC : Constraints.Correct params alpha (rho * rho) lambda C hv)
     (vcs : List (PedersenCommitment E)) (hvcs : vcs.length = params.m) (cS cO cL cR : E) :
@@ -178,7 +178,7 @@ def LeafRun (vcs : List (PedersenCommitment E)) (cS cO cL cR : E) (alpha rho lam
 
 /-- A tree of accepting runs at one `τ`, forked at the norm-linear challenges, opens `C(τ)` to a
 norm-linear witness, or the generators satisfy a nontrivial relation. -/
-theorem leaf_extract (hv : params.Valid) (hh : gens.h_vec.length = H_LEN)
+lemma leaf_extract (hv : params.Valid) (hh : gens.h_vec.length = H_LEN)
     (hg : gens.g_vec.length = params.nm) (vcs : List (PedersenCommitment E))
     (hvcs : vcs.length = params.m) (cS cO cL cR : E) (alpha rho lambda beta delta : F) (τ : Fˣ)
     (halpha : ∀ j : ℕ, j < 16 → alpha + j ≠ 0) (hρ : rho ≠ 0) (hδ : delta ≠ 0)
@@ -238,7 +238,7 @@ of its path. `C_O`, `C_L` are fixed, `C_R` depends on `α` and `C_S` on the path
 Then every input is `v_i g + s_i H_0` with `v_i < 16^D`, or the generators satisfy a nontrivial
 linear relation. It assumes `2 ≠ 0`, that no `m = 1, ..., N_d` is zero in the field, and a
 nonempty batch. -/
-theorem verify_extract (hv : params.Valid) (hh : gens.h_vec.length = H_LEN)
+lemma verify_extract (hv : params.Valid) (hh : gens.h_vec.length = H_LEN)
     (hg : gens.g_vec.length = params.nm) (h2 : (2 : F) ≠ 0)
     (hchar : ∀ m : ℕ, 0 < m → m ≤ (params.toSpec hv).Nd → (m : F) ≠ 0) (hM : 0 < params.m)
     (vcs : List (PedersenCommitment E)) (hvcs : vcs.length = params.m) (cO cL : E)

@@ -30,10 +30,10 @@ def specCh : Spec.Challenges F := ⟨alpha, rho * rho, lambda, beta, delta⟩
 
 /-! ## `h_coordinates` -/
 
-theorem length_h_coordinates {r : List F} (h : r.length = H_LEN) : (h_coordinates r).length = H_LEN := by
+lemma length_h_coordinates {r : List F} (h : r.length = H_LEN) : (h_coordinates r).length = H_LEN := by
   simp [h_coordinates, h, H_LEN]
 
-theorem getD_h_coordinates {r : List F} (h : r.length = H_LEN) (s : ℕ) :
+lemma getD_h_coordinates {r : List F} (h : r.length = H_LEN) (s : ℕ) :
     (h_coordinates r).getD s 0 = Spec.lin (fun j => r.getD j 0) 0 s := by
   unfold h_coordinates Spec.lin
   split_ifs with hs
@@ -42,7 +42,7 @@ theorem getD_h_coordinates {r : List F} (h : r.length = H_LEN) (s : ℕ) :
     · rw [NormLinear.getD_append_ge _ _ (by simp [h, H_LEN])]; simp [h, H_LEN]
     · rw [getD_eq_zero_of_le (by simp [h, H_LEN]; omega)]
 
-theorem length_blinding_vector (rng' : ℕ → F) (zeros : List ℕ) :
+lemma length_blinding_vector (rng' : ℕ → F) (zeros : List ℕ) :
     (blinding_vector rng' zeros).length = H_LEN := by simp [blinding_vector]
 
 /-! ## The public part `p_n` -/
@@ -50,17 +50,17 @@ theorem length_blinding_vector (rng' : ℕ → F) (zeros : List ℕ) :
 variable (C : Constraints F) (hC : Constraints.Correct params alpha (rho * rho) lambda C hv)
 
 include hC in
-theorem uniform_p_n : Uniform params.nm (C.p_n delta⁻¹) := by
+lemma uniform_p_n : Uniform params.nm (C.p_n delta⁻¹) := by
   refine uniform_new (by simp) fun c hc => ?_
   simp only [List.mem_cons, List.not_mem_nil, or_false] at hc
   rcases hc with rfl | rfl | rfl | rfl <;>
     simp [hC.cn_v, hC.cn_r, hC.cn_l, hC.cn_o, length_vec_scalar_mul]
 
-theorem getD_map_range (f : ℕ → F) {N k : ℕ} (hk : k < N) : ((List.range N).map f).getD k 0 = f k := by
+lemma getD_map_range (f : ℕ → F) {N k : ℕ} (hk : k < N) : ((List.range N).map f).getD k 0 = f k := by
   rw [List.getD_eq_getElem?_getD, List.getElem?_map, List.getElem?_range hk]; rfl
 
 include hC in
-theorem toPolys_p_n (k : ℕ) (hk : k < params.nm) :
+lemma toPolys_p_n (k : ℕ) (hk : k < params.nm) :
     (C.p_n delta⁻¹).toPolys k = Spec.pn (params.toSpec hv) (specCh alpha rho lambda beta delta) k := by
   simp only [Constraints.p_n, toPolys_new, List.length_cons, List.length_nil, sum_range_succ,
     sum_range_zero, zero_add, List.getD_cons_zero, List.getD_cons_succ, getD_vec_scalar_mul,
@@ -77,7 +77,7 @@ noncomputable abbrev specOpening : Spec.Opening F :=
   (specHonest rng values blindings).opening (params.toSpec hv) (specCh alpha rho lambda beta delta) r
 
 include hC in
-theorem n_spec (hlen : values.length = params.m) (hnr_len : n_r.length = params.nm)
+lemma n_spec (hlen : values.length = params.m) (hnr_len : n_r.length = params.nm)
     (hnr : ∀ k, n_r.getD k 0 =
       (specOpening params hv rng values blindings alpha rho lambda beta delta r).nR k) :
     let n := (coordinates_without_c_s params C (Witness.new params rng values blindings) n_r delta
@@ -115,16 +115,16 @@ theorem n_spec (hlen : values.length = params.m) (hnr_len : n_r.length = params.
 /-! ## `ℓ(T)` and `σ(T)` -/
 
 include hC in
-theorem lambdas_take : C.lambdas.take params.m = (List.range params.m).map (lambda ^ ·) := by
+lemma lambdas_take : C.lambdas.take params.m = (List.range params.m).map (lambda ^ ·) := by
   rw [hC.lambdas, ← List.map_take, List.take_range, min_eq_left (by omega)]
 
 include hC in
-theorem getD_lambdas (i : ℕ) (hi : i < params.m) : C.lambdas.getD i 0 = lambda ^ i := by
+lemma getD_lambdas (i : ℕ) (hi : i < params.m) : C.lambdas.getD i 0 = lambda ^ i := by
   rw [hC.lambdas, getD_map_range _ (by omega)]
 
 include hC in
 /-- `2 Σ_i λ^i x_i`, the input aggregation of `coordinates_without_c_s`. -/
-theorem inner_product_weights (xs : List F) (hxs : xs.length = params.m) :
+lemma inner_product_weights (xs : List F) (hxs : xs.length = params.m) :
     inner_product ((C.lambdas.take params.m).map (2 * ·)) xs =
       2 * ∑ i ∈ range params.m, lambda ^ i * xs.getD i 0 := by
   rw [lambdas_take params hv alpha rho lambda C hC, inner_product_eq, List.map_map]
@@ -132,7 +132,7 @@ theorem inner_product_weights (xs : List F) (hxs : xs.length = params.m) :
   exact sum_congr rfl fun i hi => by
     rw [getD_map_range _ (mem_range.1 hi)]; simp only [Function.comp_apply]; ring
 
-theorem getD_v_hat_h (x y : F) (s : ℕ) :
+lemma getD_v_hat_h (x y : F) (s : ℕ) :
     (((List.replicate H_LEN (0 : F)).set 0 x).set (H_LEN - 1) y).getD s 0 =
       if s = 0 then x else if s = 7 then y else 0 := by
   rw [List.getD_eq_getElem?_getD, List.getElem?_set, List.getElem?_set, List.getElem?_replicate]
@@ -145,7 +145,7 @@ theorem getD_v_hat_h (x y : F) (s : ℕ) :
 
 include hC in
 /-- `ℓ(T)` without the term `T⁻¹(r_{S,1:7} ‖ ℓ_S)` of `C_S`. -/
-theorem l_base (hb : blindings.length = params.m) :
+lemma l_base (hb : blindings.length = params.m) :
     let l := (coordinates_without_c_s params C (Witness.new params rng values blindings) n_r delta
       delta⁻¹).2.1
     Uniform H_LEN l ∧ ∀ s < H_LEN, l.toPolys s =
@@ -173,21 +173,21 @@ theorem l_base (hb : blindings.length = params.m) :
       · simp [h0]; ring
     · simp
 
-theorem value_eq (hrange : ∀ v ∈ values, v < 16 ^ params.d) (i : ℕ) (hi : i < values.length) :
+lemma value_eq (hrange : ∀ v ∈ values, v < 16 ^ params.d) (i : ℕ) (hi : i < values.length) :
     ((values.getD i 0 : ℕ) : F) =
       (specHonest rng values blindings).value (params.toSpec hv) i := by
   simp only [Spec.Honest.value, specHonest, CircuitParams.D_toSpec]
   conv_lhs => rw [← sum_digits params.d (values.getD i 0) (hrange _ (getD_mem' hi 0))]
   push_cast; rfl
 
-theorem mono_add' (p : ℤ) (x y : F) : mono p (x + y) = mono p x + mono p y := by
+lemma mono_add' (p : ℤ) (x y : F) : mono p (x + y) = mono p x + mono p y := by
   simp [mono, map_add, add_mul]
 
-theorem headD_eq_getD (v : List F) : v.headD 0 = v.getD 0 0 := by cases v <;> rfl
+lemma headD_eq_getD (v : List F) : v.headD 0 = v.getD 0 0 := by cases v <;> rfl
 
 include hC in
 /-- `σ(T)` without the term `T⁻¹ r_{S,0}` of `C_S`. -/
-theorem sigma_base (hlen : values.length = params.m) (hrange : ∀ v ∈ values, v < 16 ^ params.d) :
+lemma sigma_base (hlen : values.length = params.m) (hrange : ∀ v ∈ values, v < 16 ^ params.d) :
     (coordinates_without_c_s params C (Witness.new params rng values blindings) n_r delta
       delta⁻¹).1.toPoly =
       Spec.σ (params.toSpec hv) (specCh alpha rho lambda beta delta)
@@ -222,7 +222,7 @@ theorem sigma_base (hlen : values.length = params.m) (hrange : ∀ v ∈ values,
   push_cast
   ring
 
-theorem getD_set_replicate (j s : ℕ) (b : F) (hs : s < H_LEN) :
+lemma getD_set_replicate (j s : ℕ) (b : F) (hs : s < H_LEN) :
     ((List.replicate H_LEN (0 : F)).set j b).getD s 0 = if j = s then b else 0 := by
   rw [List.getD_eq_getElem?_getD, List.getElem?_set, List.getElem?_replicate]
   simp only [List.length_replicate, hs, if_true]
@@ -230,7 +230,7 @@ theorem getD_set_replicate (j s : ℕ) (b : F) (hs : s < H_LEN) :
 
 include hC in
 /-- `c(T)` (24). -/
-theorem c_spec : Uniform H_LEN (Circuit.c C beta) ∧ ∀ s < H_LEN, (Circuit.c C beta).toPolys s =
+lemma c_spec : Uniform H_LEN (Circuit.c C beta) ∧ ∀ s < H_LEN, (Circuit.c C beta).toPolys s =
     Spec.c (params.toSpec hv) (specCh alpha rho lambda beta delta) s := by
   have hterms : ∀ x ∈ ((0, C.cl_v) :: CR_POWERS.zipIdx.map fun (a, j) =>
       (a, (List.replicate H_LEN (0 : F)).set j beta)), x.2.length = H_LEN := by
@@ -254,7 +254,7 @@ theorem c_spec : Uniform H_LEN (Circuit.c C beta) ∧ ∀ s < H_LEN, (Circuit.c 
 include hC in
 /-- The error polynomial before `C_S` is `f(T)` of `Spec` at `r_S = 0`, plus the term `ℓ_S` of
 `C_S` adds through `c_{ℓ,V}`. -/
-theorem rest_eq (hlen : values.length = params.m) (hb : blindings.length = params.m)
+lemma rest_eq (hlen : values.length = params.m) (hb : blindings.length = params.m)
     (hrange : ∀ v ∈ values, v < 16 ^ params.d) (hnr_len : n_r.length = params.nm)
     (hnr : ∀ k, n_r.getD k 0 =
       (specOpening params hv rng values blindings alpha rho lambda beta delta 0).nR k) :
@@ -318,12 +318,12 @@ theorem rest_eq (hlen : values.length = params.m) (hb : blindings.length = param
 /-- The blinding of `C_S` as `Spec` indexes it: `r_{S,0} = g_s` and `r_{S,j} = h_{j-1}`. -/
 def rSOf (g_s : F) (h_s : List F) : ℕ → F := fun j => if j = 0 then g_s else h_s.getD (j - 1) 0
 
-theorem e_eq (j : ℕ) (hj : j < 7) : CR_POWERS.getD j 0 = Spec.e j := by
+lemma e_eq (j : ℕ) (hj : j < 7) : CR_POWERS.getD j 0 = Spec.e j := by
   interval_cases j <;> rfl
 
 include hC in
 /-- `solve_r_s` solves the blinding of `C_S` as `Spec.Honest.rS` does. -/
-theorem solve_r_s_eq (rest : Laurent F) (hbeta : beta ≠ 0)
+lemma solve_r_s_eq (rest : Laurent F) (hbeta : beta ≠ 0)
     (hrest : rest.toPoly = Spec.f (params.toSpec hv) (specCh alpha rho lambda beta delta)
         (specOpening params hv rng values blindings alpha rho lambda beta delta 0) +
       mono (-1) (Spec.clV (params.toSpec hv) (specCh alpha rho lambda beta delta) 7 * rng.l_s)) :
@@ -373,7 +373,7 @@ theorem solve_r_s_eq (rest : Laurent F) (hbeta : beta ≠ 0)
 /-! ## The error polynomial vanishes -/
 
 /-- With `r_S` from `solve_r_s`, the error polynomial vanishes. -/
-theorem f_zero (halpha : ∀ j : ℕ, j < 16 → alpha + j ≠ 0) (hbeta : beta ≠ 0) (hdelta : delta ≠ 0)
+lemma f_zero (halpha : ∀ j : ℕ, j < 16 → alpha + j ≠ 0) (hbeta : beta ≠ 0) (hdelta : delta ≠ 0)
     (hrho : rho ≠ 0) (g_s : F) (h_s : List F)
     (hr : ∀ j ≤ 7, rSOf g_s h_s j =
       (specHonest rng values blindings).rS (params.toSpec hv) (specCh alpha rho lambda beta delta) j) :
@@ -389,7 +389,7 @@ theorem f_zero (halpha : ∀ j : ℕ, j < 16 → alpha + j ≠ 0) (hbeta : beta 
   · exact sum_congr rfl fun s hs => by rw [hr (s + 1) (by simp at hs; omega)]
 
 /-- The norm-linear relation (27) at `τ`, for an opening with `f(T) = 0`. -/
-theorem relation_of_f_zero (P : Spec.Params) (ch : Spec.Challenges F) (w : Spec.Opening F)
+lemma relation_of_f_zero (P : Spec.Params) (ch : Spec.Challenges F) (w : Spec.Opening F)
     (hf : Spec.f P ch w = 0) (τ : Fˣ) :
     evalAt τ (Spec.σ P ch w) = ∑ s ∈ range 8, evalAt τ (Spec.c P ch s) * evalAt τ (Spec.ℓ ch w s) +
       ∑ k ∈ range P.nm, ch.μ ^ (k + 1) * (evalAt τ (Spec.n P ch w k) * evalAt τ (Spec.n P ch w k)) := by

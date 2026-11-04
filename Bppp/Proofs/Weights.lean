@@ -23,14 +23,14 @@ namespace NormLinear
 
 /-! ## `chunks` -/
 
-theorem chunks_nil {α : Type} (n : ℕ) : chunks n ([] : List α) = [] := by
+lemma chunks_nil {α : Type} (n : ℕ) : chunks n ([] : List α) = [] := by
   rw [chunks]; simp
 
-theorem chunks_cons {α : Type} {n : ℕ} (hn : 0 < n) {l : List α} (hl : l ≠ []) :
+lemma chunks_cons {α : Type} {n : ℕ} (hn : 0 < n) {l : List α} (hl : l ≠ []) :
     chunks n l = l.take n :: chunks n (l.drop n) := by
   rw [chunks, dif_neg (by rintro (h | h) <;> [omega; exact hl h])]
 
-theorem ceil_div_step {a n : ℕ} (ha : 0 < a) (hn : 0 < n) :
+lemma ceil_div_step {a n : ℕ} (ha : 0 < a) (hn : 0 < n) :
     (a + n - 1) / n = (a - n + n - 1) / n + 1 := by
   rcases Nat.lt_or_ge n a with h | h
   · rw [show a + n - 1 = (a - n + n - 1) + n by omega, Nat.add_div_right _ hn]
@@ -38,7 +38,7 @@ theorem ceil_div_step {a n : ℕ} (ha : 0 < a) (hn : 0 < n) :
       Nat.div_eq_of_lt (by omega : a - 1 < n), show a - n + n - 1 = n - 1 by omega,
       Nat.div_eq_of_lt (by omega : n - 1 < n)]
 
-theorem length_chunks {α : Type} {n : ℕ} (hn : 0 < n) :
+lemma length_chunks {α : Type} {n : ℕ} (hn : 0 < n) :
     ∀ l : List α, (chunks n l).length = (l.length + n - 1) / n := by
   intro l
   induction h : l.length using Nat.strong_induction_on generalizing l with
@@ -60,11 +60,11 @@ def contractAt (w : List F) (P : List E) (i : ℕ) : E :=
 def contract' (w : List F) (P : List E) : List E :=
   (chunks w.length P).map fun chunk => (List.zipWith (· • ·) (w.take chunk.length) chunk).sum
 
-theorem length_contract' {w : List F} (hw : 0 < w.length) (P : List E) :
+lemma length_contract' {w : List F} (hw : 0 < w.length) (P : List E) :
     (contract' w P).length = (P.length + w.length - 1) / w.length := by
   rw [contract', List.length_map, length_chunks hw]
 
-theorem length_le_of_mem_chunks {α : Type} {n : ℕ} (hn : 0 < n) :
+lemma length_le_of_mem_chunks {α : Type} {n : ℕ} (hn : 0 < n) :
     ∀ (l : List α), ∀ ch ∈ chunks n l, ch.length ≤ n := by
   intro l
   induction h : l.length using Nat.strong_induction_on generalizing l with
@@ -77,7 +77,7 @@ theorem length_le_of_mem_chunks {α : Type} {n : ℕ} (hn : 0 < n) :
       · simp
       · subst h; exact ih _ (by rw [List.length_drop]; simp; omega) _ rfl ch hch
 
-theorem contract_eq {W : Weights F} (hw : 0 < W.w.length) (P : List E) :
+lemma contract_eq {W : Weights F} (hw : 0 < W.w.length) (P : List E) :
     W.contract P = .ok (contract' W.w P) := by
   unfold Weights.contract contract'
   simp only [Weights.len]
@@ -91,27 +91,27 @@ theorem contract_eq {W : Weights F} (hw : 0 < W.w.length) (P : List E) :
       rw [List.length_take]; exact min_eq_left (hle ch (by simp))
     simp [multi_scalar_mul, this, bind, Except.bind, pure, Except.pure]
 
-theorem contractAt_nil (w : List F) (i : ℕ) : contractAt w ([] : List E) i = 0 := by
+lemma contractAt_nil (w : List F) (i : ℕ) : contractAt w ([] : List E) i = 0 := by
   simp [contractAt]
 
-theorem getD_drop' {α : Type} (l : List α) (n k : ℕ) (d : α) :
+lemma getD_drop' {α : Type} (l : List α) (n k : ℕ) (d : α) :
     (l.drop n).getD k d = l.getD (n + k) d := by
   simp [List.getD_eq_getElem?_getD, List.getElem?_drop]
 
-theorem getD_take' {α : Type} (l : List α) {n k : ℕ} (h : k < n) (d : α) :
+lemma getD_take' {α : Type} (l : List α) {n k : ℕ} (h : k < n) (d : α) :
     (l.take n).getD k d = l.getD k d := by
   simp [List.getD_eq_getElem?_getD, h]
 
-theorem getD_append_lt {α : Type} (l₁ l₂ : List α) {k : ℕ} (h : k < l₁.length) (d : α) :
+lemma getD_append_lt {α : Type} (l₁ l₂ : List α) {k : ℕ} (h : k < l₁.length) (d : α) :
     (l₁ ++ l₂).getD k d = l₁.getD k d := by
   simp [List.getD_eq_getElem?_getD, List.getElem?_append_left h]
 
-theorem getD_append_ge {α : Type} (l₁ l₂ : List α) {k : ℕ} (h : l₁.length ≤ k) (d : α) :
+lemma getD_append_ge {α : Type} (l₁ l₂ : List α) {k : ℕ} (h : l₁.length ≤ k) (d : α) :
     (l₁ ++ l₂).getD k d = l₂.getD (k - l₁.length) d := by
   simp [List.getD_eq_getElem?_getD, List.getElem?_append_right h]
 
 /-- A zipped sum, extended by terms that vanish. -/
-theorem sum_zipWith_ext {α β M : Type*} [AddCommMonoid M] (f : α → β → M) (a : List α)
+lemma sum_zipWith_ext {α β M : Type*} [AddCommMonoid M] (f : α → β → M) (a : List α)
     (b : List β) (da : α) (db : β) (N : ℕ) (hN : min a.length b.length ≤ N)
     (hz : ∀ k, min a.length b.length ≤ k → k < N → f (a.getD k da) (b.getD k db) = 0) :
     (List.zipWith f a b).sum = ∑ k ∈ range N, f (a.getD k da) (b.getD k db) := by
@@ -120,13 +120,13 @@ theorem sum_zipWith_ext {α β M : Type*} [AddCommMonoid M] (f : α → β → M
   simp only [mem_range, not_lt] at hk hk'
   exact hz k hk' hk
 
-theorem contractAt_drop (w : List F) (P : List E) (i : ℕ) :
+lemma contractAt_drop (w : List F) (P : List E) (i : ℕ) :
     contractAt w (P.drop w.length) i = contractAt w P (i + 1) := by
   refine sum_congr rfl fun r _ => ?_
   rw [getD_drop']
   congr 2; ring
 
-theorem getD_contract' {w : List F} (hw : 0 < w.length) (P : List E) (i : ℕ) :
+lemma getD_contract' {w : List F} (hw : 0 < w.length) (P : List E) (i : ℕ) :
     (contract' w P).getD i 0 = contractAt w P i := by
   induction h : P.length using Nat.strong_induction_on generalizing P i with
   | _ k ih =>
@@ -155,21 +155,21 @@ theorem getD_contract' {w : List F} (hw : 0 < w.length) (P : List E) (i : ℕ) :
 
 /-! ## `tensor` -/
 
-theorem sparse_mul_eq (a b : F) : sparse_mul a b = a * b := by
+lemma sparse_mul_eq (a b : F) : sparse_mul a b = a * b := by
   unfold sparse_mul; split_ifs with h <;> simp [h]
 
-theorem tensor_cons (W : Weights F) (c : F) (cs : List F) :
+lemma tensor_cons (W : Weights F) (c : F) (cs : List F) :
     W.tensor (c :: cs) = W.w.map (c * ·) ++ W.tensor cs := by
   simp [Weights.tensor, sparse_mul_eq]
 
-theorem length_tensor (W : Weights F) (cs : List F) : (W.tensor cs).length = cs.length * W.w.length := by
+lemma length_tensor (W : Weights F) (cs : List F) : (W.tensor cs).length = cs.length * W.w.length := by
   induction cs with
   | nil => simp [Weights.tensor]
   | cons c cs ih => rw [tensor_cons, List.length_append, ih, List.length_map]; simp; ring
 
 /-- An MSM with coefficients `cs ⊗ w` over `P` is an MSM with coefficients `cs` over the contracted
 points. -/
-theorem msm_tensor (W : Weights F) (cs : List F) (P : List E) (hP : P.length ≤ cs.length * W.w.length) :
+lemma msm_tensor (W : Weights F) (cs : List F) (P : List E) (hP : P.length ≤ cs.length * W.w.length) :
     (List.zipWith (· • ·) ((W.tensor cs).take P.length) P).sum =
       ∑ i ∈ range cs.length, cs.getD i 0 • contractAt W.w P i := by
   -- Both are `Σ_{j < |cs||w|} (cs ⊗ w)_j P_j`.
@@ -205,12 +205,12 @@ theorem msm_tensor (W : Weights F) (cs : List F) (P : List E) (hP : P.length ≤
   · simp only [mem_range] at hj
     rw [getD_take' _ hj]
 
-theorem tensor_pair_w (W : Weights F) (f0 f1 : F) :
+lemma tensor_pair_w (W : Weights F) (f0 f1 : F) :
     (W.tensor_pair f0 f1).w = W.w.map (f0 * ·) ++ W.w.map (f1 * ·) := by
   simp [Weights.tensor_pair, Weights.tensor, sparse_mul_eq]
 
 /-- Folding the weights folds the contracted points. -/
-theorem contractAt_tensor_pair (W : Weights F) (f0 f1 : F) (P : List E) (i : ℕ) :
+lemma contractAt_tensor_pair (W : Weights F) (f0 f1 : F) (P : List E) (i : ℕ) :
     contractAt (W.tensor_pair f0 f1).w P i =
       f0 • contractAt W.w P (2 * i) + f1 • contractAt W.w P (2 * i + 1) := by
   rw [contractAt, tensor_pair_w]
@@ -231,22 +231,22 @@ theorem contractAt_tensor_pair (W : Weights F) (f0 f1 : F) (P : List E) (i : ℕ
     simp only [Option.map_some, Option.getD_some, mul_smul]
     congr 3; ring
 
-theorem length_tensor_pair (W : Weights F) (f0 f1 : F) :
+lemma length_tensor_pair (W : Weights F) (f0 f1 : F) :
     (W.tensor_pair f0 f1).w.length = 2 * W.w.length := by
   rw [tensor_pair_w]; simp; ring
 
-theorem ceil_div_two {a n : ℕ} (hn : 0 < n) :
+lemma ceil_div_two {a n : ℕ} (hn : 0 < n) :
     (a + 2 * n - 1) / (2 * n) = ((a + n - 1) / n + 1) / 2 := by
   rw [← Nat.add_div_right _ hn, Nat.div_div_eq_div_mul, mul_comm n 2]
   congr 1; omega
 
-theorem length_contract'_tensor_pair {W : Weights F} (hw : 0 < W.w.length) (f0 f1 : F) (P : List E) :
+lemma length_contract'_tensor_pair {W : Weights F} (hw : 0 < W.w.length) (f0 f1 : F) (P : List E) :
     (contract' (W.tensor_pair f0 f1).w P).length =
       ((contract' W.w P).length + 1) / 2 := by
   rw [length_contract' (by rw [length_tensor_pair]; omega), length_contract' hw,
     length_tensor_pair, ceil_div_two hw]
 
-theorem contract'_one (P : List E) : contract' [(1 : F)] P = P := by
+lemma contract'_one (P : List E) : contract' [(1 : F)] P = P := by
   apply List.ext_getElem (by rw [length_contract' (by simp)]; simp)
   intro i h1 h2
   have := getD_contract' (w := [(1 : F)]) (by simp) P i
@@ -256,7 +256,7 @@ theorem contract'_one (P : List E) : contract' [(1 : F)] P = P := by
 
 /-! ## `halves`, `from_halves`, `from_odd_half` -/
 
-theorem getD_unzip_pairs {α : Type} (d : α) : ∀ (v : List α), v.length % 2 = 0 → ∀ i,
+lemma getD_unzip_pairs {α : Type} (d : α) : ∀ (v : List α), v.length % 2 = 0 → ∀ i,
     (unzip_pairs v).1.getD i d = v.getD (2 * i) d ∧ (unzip_pairs v).2.getD i d = v.getD (2 * i + 1) d
   | [], _, i => by simp [unzip_pairs]
   | [_], h, _ => by simp at h
@@ -268,7 +268,7 @@ theorem getD_unzip_pairs {α : Type} (d : α) : ∀ (v : List α), v.length % 2 
       rw [(ih i).1, (ih i).2, show 2 * (i + 1) = 2 * i + 1 + 1 by ring]
       simp
 
-theorem getD_append_zero (v : List F) (k : ℕ) : (v ++ [0]).getD k 0 = v.getD k 0 := by
+lemma getD_append_zero (v : List F) (k : ℕ) : (v ++ [0]).getD k 0 = v.getD k 0 := by
   rcases lt_or_ge k v.length with hk | hk
   · rw [getD_append_lt _ _ hk]
   · rw [getD_append_ge _ _ hk, getD_eq_zero_of_le hk]
@@ -276,7 +276,7 @@ theorem getD_append_zero (v : List F) (k : ℕ) : (v ++ [0]).getD k 0 = v.getD k
     · rw [h0]; rfl
     · exact getD_eq_zero_of_le (by simpa using h0)
 
-theorem getD_halves (v : List F) (i : ℕ) :
+lemma getD_halves (v : List F) (i : ℕ) :
     (halves v).1.getD i 0 = v.getD (2 * i) 0 ∧ (halves v).2.getD i 0 = v.getD (2 * i + 1) 0 := by
   unfold halves
   split_ifs with h
@@ -284,7 +284,7 @@ theorem getD_halves (v : List F) (i : ℕ) :
     rw [h1, h2, getD_append_zero, getD_append_zero]; exact ⟨rfl, rfl⟩
   · exact getD_unzip_pairs (0 : F) v (by omega) i
 
-theorem length_from_halves (a b : List F) : (from_halves a b).length = 2 * min a.length b.length := by
+lemma length_from_halves (a b : List F) : (from_halves a b).length = 2 * min a.length b.length := by
   induction a generalizing b with
   | nil => simp [from_halves]
   | cons x a ih =>
@@ -295,7 +295,7 @@ theorem length_from_halves (a b : List F) : (from_halves a b).length = 2 * min a
       simp only [from_halves, List.zip_cons_cons, List.flatMap_cons] at this ⊢
       simp only [List.length_append, this, List.length_cons, List.length_nil]; omega
 
-theorem getD_from_halves (a b : List F) (h : a.length = b.length) (j : ℕ) :
+lemma getD_from_halves (a b : List F) (h : a.length = b.length) (j : ℕ) :
     (from_halves a b).getD (2 * j) 0 = a.getD j 0 ∧
       (from_halves a b).getD (2 * j + 1) 0 = b.getD j 0 := by
   induction a generalizing b j with
@@ -315,7 +315,7 @@ theorem getD_from_halves (a b : List F) (h : a.length = b.length) (j : ℕ) :
 
 /-- An MSM with coefficients `from_halves a b` over `Q` pairs `a` with the even points and `b`
 with the odd ones. -/
-theorem msm_from_halves (a b : List F) (Q : List E) (h : a.length = b.length) :
+lemma msm_from_halves (a b : List F) (Q : List E) (h : a.length = b.length) :
     (List.zipWith (· • ·) (from_halves a b) Q).sum =
       ∑ j ∈ range a.length, (a.getD j 0 • Q.getD (2 * j) 0 + b.getD j 0 • Q.getD (2 * j + 1) 0) := by
   rw [sum_zipWith_ext _ _ _ 0 0 (2 * a.length) (by rw [length_from_halves, h, min_self]; omega)
@@ -326,7 +326,7 @@ theorem msm_from_halves (a b : List F) (Q : List E) (h : a.length = b.length) :
   refine sum_congr rfl fun j _ => ?_
   rw [(getD_from_halves a b h j).1, (getD_from_halves a b h j).2]
 
-theorem from_odd_half_eq (b : List F) : from_odd_half b = from_halves (List.replicate b.length 0) b := by
+lemma from_odd_half_eq (b : List F) : from_odd_half b = from_halves (List.replicate b.length 0) b := by
   induction b with
   | nil => simp [from_odd_half, from_halves]
   | cons y b ih =>

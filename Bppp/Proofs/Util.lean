@@ -14,7 +14,7 @@ section Lists
 
 variable {α β M : Type*} [AddCommMonoid M]
 
-theorem sum_zipWith (f : α → β → M) (a : List α) (b : List β) (da : α) (db : β) :
+lemma sum_zipWith (f : α → β → M) (a : List α) (b : List β) (da : α) (db : β) :
     (List.zipWith f a b).sum =
       ∑ k ∈ range (min a.length b.length), f (a.getD k da) (b.getD k db) := by
   induction a generalizing b with
@@ -27,13 +27,13 @@ theorem sum_zipWith (f : α → β → M) (a : List α) (b : List β) (da : α) 
         Nat.add_min_add_right, sum_range_succ', List.getD_cons_succ, List.getD_cons_zero]
       rw [add_comm]
 
-theorem foldl_add (g : α → M) (l : List α) (init : M) :
+lemma foldl_add (g : α → M) (l : List α) (init : M) :
     l.foldl (fun acc x => acc + g x) init = init + (l.map g).sum := by
   induction l generalizing init with
   | nil => simp
   | cons x l ih => simp only [List.foldl_cons, ih, List.map_cons, List.sum_cons, add_assoc]
 
-theorem foldl_zip_add (g : α → β → M) (a : List α) (b : List β) (da : α) (db : β) (init : M) :
+lemma foldl_zip_add (g : α → β → M) (a : List α) (b : List β) (da : α) (db : β) (init : M) :
     (List.zip a b).foldl (fun acc (x, y) => acc + g x y) init =
       init + ∑ k ∈ range (min a.length b.length), g (a.getD k da) (b.getD k db) := by
   induction a generalizing b init with
@@ -46,11 +46,11 @@ theorem foldl_zip_add (g : α → β → M) (a : List α) (b : List β) (da : α
         Nat.add_min_add_right, sum_range_succ', List.getD_cons_succ, List.getD_cons_zero]
       rw [add_assoc, add_comm (g x y)]
 
-theorem getElem_eq_getD' {α : Type*} (l : List α) {k : ℕ} (h : k < l.length) (d : α) :
+lemma getElem_eq_getD' {α : Type*} (l : List α) {k : ℕ} (h : k < l.length) (d : α) :
     l[k] = l.getD k d := by
   rw [List.getD_eq_getElem?_getD, List.getElem?_eq_getElem h, Option.getD_some]
 
-theorem getD_eq_zero_of_le {R : Type*} [Zero R] {v : List R} {k : ℕ} (h : v.length ≤ k) :
+lemma getD_eq_zero_of_le {R : Type*} [Zero R] {v : List R} {k : ℕ} (h : v.length ≤ k) :
     v.getD k 0 = 0 := by
   simp [List.getD_eq_getElem?_getD, List.getElem?_eq_none h]
 
@@ -60,11 +60,11 @@ variable {F : Type} [Field F] [DecidableEq F]
 
 set_option linter.unusedSectionVars false
 
-theorem inner_product_eq (a b : List F) :
+lemma inner_product_eq (a b : List F) :
     inner_product a b = ∑ k ∈ range (min a.length b.length), a.getD k 0 * b.getD k 0 := by
   rw [inner_product, foldl_zip_add (fun x y : F => x * y) a b 0 0, zero_add]
 
-theorem weighted_inner_product_eq (a b : List F) (mu : F) :
+lemma weighted_inner_product_eq (a b : List F) (mu : F) :
     weighted_inner_product a b mu =
       ∑ k ∈ range (min a.length b.length), a.getD k 0 * b.getD k 0 * mu ^ (k + 1) := by
   -- The loop from `(w, r)` ends at `r + Σ_k a_k b_k w μ^k`.
@@ -86,11 +86,11 @@ theorem weighted_inner_product_eq (a b : List F) (mu : F) :
   rw [weighted_inner_product, key, zero_add]
   exact sum_congr rfl fun k _ => by ring
 
-theorem weighted_norm_eq (n : List F) (mu : F) :
+lemma weighted_norm_eq (n : List F) (mu : F) :
     weighted_norm n mu = ∑ k ∈ range n.length, n.getD k 0 * n.getD k 0 * mu ^ (k + 1) := by
   rw [weighted_norm, weighted_inner_product_eq, min_self]
 
-theorem power_vector_eq (x : F) (n : ℕ) : power_vector x n = (List.range n).map (x ^ ·) := by
+lemma power_vector_eq (x : F) (n : ℕ) : power_vector x n = (List.range n).map (x ^ ·) := by
   have key : ∀ (n : ℕ) (v : List F) (cur : F), ((List.range n).foldl
       (fun (v, cur) _ => (v ++ [cur], cur * x)) (v, cur)) =
       (v ++ (List.range n).map (cur * x ^ ·), cur * x ^ n) := by
@@ -104,45 +104,45 @@ theorem power_vector_eq (x : F) (n : ℕ) : power_vector x n = (List.range n).ma
         List.append_assoc, pow_succ, mul_assoc]
   rw [power_vector, key]; simp [one]
 
-theorem length_vec_add (a b : List F) : (vec_add a b).length = min a.length b.length := by
+lemma length_vec_add (a b : List F) : (vec_add a b).length = min a.length b.length := by
   simp [vec_add]
 
-theorem getD_vec_add {a b : List F} (h : a.length = b.length) (k : ℕ) :
+lemma getD_vec_add {a b : List F} (h : a.length = b.length) (k : ℕ) :
     (vec_add a b).getD k 0 = a.getD k 0 + b.getD k 0 := by
   simp only [vec_add, List.getD_eq_getElem?_getD, List.getElem?_zipWith]
   rcases lt_or_ge k a.length with hk | hk
   · rw [List.getElem?_eq_getElem hk, List.getElem?_eq_getElem (h ▸ hk)]; rfl
   · rw [List.getElem?_eq_none hk, List.getElem?_eq_none (h ▸ hk)]; simp
 
-theorem length_vec_scalar_mul (s : F) (a : List F) : (vec_scalar_mul s a).length = a.length := by
+lemma length_vec_scalar_mul (s : F) (a : List F) : (vec_scalar_mul s a).length = a.length := by
   simp [vec_scalar_mul]
 
-theorem getD_vec_scalar_mul (s : F) (a : List F) (k : ℕ) :
+lemma getD_vec_scalar_mul (s : F) (a : List F) (k : ℕ) :
     (vec_scalar_mul s a).getD k 0 = s * a.getD k 0 := by
   simp only [vec_scalar_mul, List.getD_eq_getElem?_getD, List.getElem?_map]
   cases a[k]? <;> simp
 
-theorem length_hadamard (a b : List F) : (hadamard a b).length = min a.length b.length := by
+lemma length_hadamard (a b : List F) : (hadamard a b).length = min a.length b.length := by
   simp [hadamard]
 
-theorem getD_hadamard {a b : List F} (k : ℕ) (hk : k < b.length) :
+lemma getD_hadamard {a b : List F} (k : ℕ) (hk : k < b.length) :
     (hadamard a b).getD k 0 = a.getD k 0 * b.getD k 0 := by
   simp only [hadamard, List.getD_eq_getElem?_getD, List.getElem?_zipWith,
     List.getElem?_eq_getElem hk]
   cases a[k]? <;> simp
 
-theorem length_to_scalars (xs : List ℕ) : (to_scalars xs : List F).length = xs.length := by
+lemma length_to_scalars (xs : List ℕ) : (to_scalars xs : List F).length = xs.length := by
   simp [to_scalars]
 
-theorem getD_to_scalars (xs : List ℕ) (k : ℕ) :
+lemma getD_to_scalars (xs : List ℕ) (k : ℕ) :
     (to_scalars xs : List F).getD k 0 = (xs.getD k 0 : F) := by
   rw [to_scalars, List.getD_eq_getElem?_getD, List.getElem?_map, List.getD_eq_getElem?_getD]
   cases xs[k]? <;> simp
 
-theorem length_pad_to (v : List F) (n : ℕ) : (pad_to v n).length = n := by
+lemma length_pad_to (v : List F) (n : ℕ) : (pad_to v n).length = n := by
   simp only [pad_to, List.length_take, List.length_append, List.length_replicate]; omega
 
-theorem getD_pad_to (v : List F) (n k : ℕ) :
+lemma getD_pad_to (v : List F) (n k : ℕ) :
     (pad_to v n).getD k 0 = if k < n then v.getD k 0 else 0 := by
   simp only [pad_to, List.getD_eq_getElem?_getD, List.getElem?_take, List.getElem?_append,
     List.getElem?_replicate]
@@ -154,7 +154,7 @@ def prefixes (p : F) : List F → List F
   | x :: xs => p :: prefixes (p * x) xs
 
 /-- `batch_invert` inverts every entry when none is zero. -/
-theorem batch_invert_eq (inputs : List F) (h : ∀ x ∈ inputs, x ≠ 0) :
+lemma batch_invert_eq (inputs : List F) (h : ∀ x ∈ inputs, x ≠ 0) :
     batch_invert inputs = .ok (inputs.map (·⁻¹)) := by
   have hpre : ∀ (xs pre : List F) (p : F), xs.foldl (fun (pre, acc) x => (pre ++ [acc], acc * x))
       (pre, p) = (pre ++ prefixes p xs, p * xs.prod) := by
@@ -185,7 +185,7 @@ theorem batch_invert_eq (inputs : List F) (h : ∀ x ∈ inputs, x ≠ 0) :
   simp only [batch_invert, hpre, List.nil_append, one, one_mul, inverse, hprod, if_false,
     bind, Except.bind, pure, Except.pure, this]
 
-theorem to_digits_eq (value d : ℕ) :
+lemma to_digits_eq (value d : ℕ) :
     to_digits value d = (List.range d).map fun t => value / 16 ^ t % 16 := by
   simp only [to_digits]
   congr 1; funext t
@@ -193,7 +193,7 @@ theorem to_digits_eq (value d : ℕ) :
     Nat.and_two_pow_sub_one_eq_mod, Nat.shiftRight_eq_div_pow, pow_mul]
   rfl
 
-theorem getD_modify (l : List ℕ) (i j : ℕ) (f : ℕ → ℕ) :
+lemma getD_modify (l : List ℕ) (i j : ℕ) (f : ℕ → ℕ) :
     (l.modify i f).getD j 0 = if i = j ∧ j < l.length then f (l.getD j 0) else l.getD j 0 := by
   simp only [List.getD_eq_getElem?_getD, List.getElem?_modify]
   rcases lt_or_ge j l.length with hj | hj
@@ -201,7 +201,7 @@ theorem getD_modify (l : List ℕ) (i j : ℕ) (f : ℕ → ℕ) :
   · rw [List.getElem?_eq_none hj]; simp; omega
 
 /-- `multiplicities` counts each digit `j = 1..15`. -/
-theorem multiplicities_eq (digits : List ℕ) (h : ∀ d ∈ digits, d < 16) :
+lemma multiplicities_eq (digits : List ℕ) (h : ∀ d ∈ digits, d < 16) :
     multiplicities digits = (List.range 15).map fun j => digits.count (j + 1) := by
   have key : ∀ (ds : List ℕ) (m : List ℕ), (∀ d ∈ ds, d < 16) → m.length = 15 →
       (ds.foldl (fun m d => if d > 0 then m.modify (d - 1) (· + 1) else m) m).length = 15 ∧

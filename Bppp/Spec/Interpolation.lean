@@ -18,7 +18,7 @@ namespace Bppp.Spec
 variable {F : Type*} [Field F]
 
 /-- A cubic with four distinct roots is zero. -/
-theorem cubic_zero (t : Fin 4 → F) (ht : Function.Injective t) (a0 a1 a2 a3 : F)
+lemma cubic_zero (t : Fin 4 → F) (ht : Function.Injective t) (a0 a1 a2 a3 : F)
     (h : ∀ k, a0 + a1 * t k + a2 * t k ^ 2 + a3 * t k ^ 3 = 0) :
     a0 = 0 ∧ a1 = 0 ∧ a2 = 0 ∧ a3 = 0 := by
   set p : F[X] := C a0 + C a1 * X + C a2 * X ^ 2 + C a3 * X ^ 3
@@ -35,7 +35,7 @@ theorem cubic_zero (t : Fin 4 → F) (ht : Function.Injective t) (a0 a1 a2 a3 : 
   exact ⟨c0, c1, c2, c3⟩
 
 /-- A quadratic with three distinct roots is zero. -/
-theorem quadratic_zero (t : Fin 3 → F) (ht : Function.Injective t) (a0 a1 a2 : F)
+lemma quadratic_zero (t : Fin 3 → F) (ht : Function.Injective t) (a0 a1 a2 : F)
     (h : ∀ k, a0 + a1 * t k + a2 * t k ^ 2 = 0) : a0 = 0 ∧ a1 = 0 ∧ a2 = 0 := by
   set p : F[X] := C a0 + C a1 * X + C a2 * X ^ 2
   have hp : p = 0 := by
@@ -72,7 +72,7 @@ variable {t0 t1 t2} (h01 : t0 ≠ t1) (h02 : t0 ≠ t2) (h12 : t1 ≠ t2)
 include h01 h02 h12
 
 /-- Recombining with the weights recovers each of `C`, `X`, `R`. -/
-theorem lam_dual (b : Fin 3) :
+lemma lam_dual (b : Fin 3) :
     ∑ m, lam t0 t1 t2 b m = (if b = 0 then 1 else 0) ∧
     ∑ m, lam t0 t1 t2 b m * ![t0, t1, t2] m = (if b = 1 then 1 else 0) ∧
     ∑ m, lam t0 t1 t2 b m * (![t0, t1, t2] m ^ 2 - 1) = (if b = 2 then 1 else 0) := by
@@ -82,7 +82,7 @@ theorem lam_dual (b : Fin 3) :
   fin_cases b <;> simp [lam, Fin.sum_univ_three] <;> refine ⟨?_, ?_, ?_⟩ <;> field_simp <;> ring
 
 /-- The weighted combination at `γ_k` is the indicator of `k`. -/
-theorem lam_kron (k m : Fin 3) :
+lemma lam_kron (k m : Fin 3) :
     lam t0 t1 t2 0 m + ![t0, t1, t2] k * lam t0 t1 t2 1 m +
       (![t0, t1, t2] k ^ 2 - 1) * lam t0 t1 t2 2 m = if k = m then 1 else 0 := by
   have a := sub_ne_zero.2 h01; have b' := sub_ne_zero.2 h02; have c := sub_ne_zero.2 h12
@@ -96,7 +96,7 @@ end System
 
 /-- **Lemma 1.** A Laurent polynomial supported on the `n + 1` powers `T^a, ..., T^{a+n}` that
 vanishes at `n + 1` distinct nonzero points is zero. -/
-theorem laurent_zero {n : ℕ} {f : LaurentPolynomial F} {a : ℤ} (hf : Supp f a (a + n))
+lemma laurent_zero {n : ℕ} {f : LaurentPolynomial F} {a : ℤ} (hf : Supp f a (a + n))
     (τ : Fin (n + 1) → Fˣ) (hτ : Function.Injective τ) (h : ∀ k, evalAt (τ k) f = 0) : f = 0 := by
   classical
   -- The coefficients, shifted to start at `T^0`, as a polynomial.
@@ -143,7 +143,7 @@ theorem laurent_zero {n : ℕ} {f : LaurentPolynomial F} {a : ℤ} (hf : Supp f 
 
 /-- **Lemma 2 (reciprocal vanishing).** If `Σ_{p ∈ U} e_p / (x + p)` vanishes at `|U|` distinct
 points `x`, none a pole, then every `e_p` is zero. -/
-theorem reciprocal_zero [DecidableEq F] (U : Finset F) (e : F → F) (x : Fin U.card → F)
+lemma reciprocal_zero [DecidableEq F] (U : Finset F) (e : F → F) (x : Fin U.card → F)
     (hx : Function.Injective x) (hpole : ∀ k, ∀ p ∈ U, x k + p ≠ 0)
     (h : ∀ k, ∑ p ∈ U, e p / (x k + p) = 0) : ∀ p ∈ U, e p = 0 := by
   -- Clearing the denominators gives a polynomial of degree below `|U|`.
@@ -186,7 +186,7 @@ theorem reciprocal_zero [DecidableEq F] (U : Finset F) (e : F → F) (x : Fin U.
 
 /-- The inverse of the Vandermonde matrix of distinct nodes `t`: weights `W` that recover the
 coefficients of a polynomial of degree below `n` from its values at the nodes. -/
-theorem vandermonde_inv {n : ℕ} (t : Fin n → F) (ht : Function.Injective t) :
+lemma vandermonde_inv {n : ℕ} (t : Fin n → F) (ht : Function.Injective t) :
     ∃ W : Fin n → Fin n → F,
       (∀ b j : Fin n, ∑ k, W b k * t k ^ (j : ℕ) = if b = j then 1 else 0) ∧
       (∀ k m : Fin n, ∑ b : Fin n, t k ^ (b : ℕ) * W b m = if k = m then 1 else 0) := by

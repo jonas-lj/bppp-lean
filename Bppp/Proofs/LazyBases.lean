@@ -22,10 +22,10 @@ namespace NormLinear
 def foldPts (f0 f1 : F) (Q : List E) : List E :=
   (List.range ((Q.length + 1) / 2)).map fun i => f0 • Q.getD (2 * i) 0 + f1 • Q.getD (2 * i + 1) 0
 
-theorem length_foldPts (f0 f1 : F) (Q : List E) : (foldPts f0 f1 Q).length = (Q.length + 1) / 2 := by
+lemma length_foldPts (f0 f1 : F) (Q : List E) : (foldPts f0 f1 Q).length = (Q.length + 1) / 2 := by
   simp [foldPts]
 
-theorem getD_foldPts (f0 f1 : F) (Q : List E) (i : ℕ) :
+lemma getD_foldPts (f0 f1 : F) (Q : List E) (i : ℕ) :
     (foldPts f0 f1 Q).getD i 0 =
       if i < (Q.length + 1) / 2 then f0 • Q.getD (2 * i) 0 + f1 • Q.getD (2 * i + 1) 0 else 0 := by
   unfold foldPts
@@ -33,7 +33,7 @@ theorem getD_foldPts (f0 f1 : F) (Q : List E) (i : ℕ) :
   · rw [List.getD_eq_getElem?_getD, List.getElem?_map, List.getElem?_range h]; rfl
   · rw [getD_eq_zero_of_le (by simp; omega)]
 
-theorem contract'_tensor_pair {W : Weights F} (hw : 0 < W.w.length) (f0 f1 : F) (P : List E) :
+lemma contract'_tensor_pair {W : Weights F} (hw : 0 < W.w.length) (f0 f1 : F) (P : List E) :
     contract' (W.tensor_pair f0 f1).w P = foldPts f0 f1 (contract' W.w P) := by
   apply List.ext_getElem (by rw [length_contract'_tensor_pair hw, length_foldPts])
   intro i h1 h2
@@ -58,42 +58,42 @@ def cur_g : List E := contract' lb.w_g.w lb.points'.2.2
 /-- Both weight vectors are nonempty. -/
 def Pos : Prop := 0 < lb.w_h.w.length ∧ 0 < lb.w_g.w.length
 
-theorem pos_fold {lb : LazyBases F E} (h : lb.Pos) (rho gamma : F) : (lb.fold rho gamma).Pos := by
+lemma pos_fold {lb : LazyBases F E} (h : lb.Pos) (rho gamma : F) : (lb.fold rho gamma).Pos := by
   simp only [Pos, fold, length_tensor_pair] at h ⊢
   constructor <;> omega
 
-@[simp] theorem points'_fold (rho gamma : F) : (lb.fold rho gamma).points' = lb.points' := rfl
+@[simp] lemma points'_fold (rho gamma : F) : (lb.fold rho gamma).points' = lb.points' := rfl
 
-theorem cur_h_fold (h : lb.Pos) (rho gamma : F) :
+lemma cur_h_fold (h : lb.Pos) (rho gamma : F) :
     (lb.fold rho gamma).cur_h = foldPts one gamma lb.cur_h := by
   rw [cur_h, points'_fold]; exact contract'_tensor_pair h.1 _ _ _
 
-theorem cur_g_fold (h : lb.Pos) (rho gamma : F) :
+lemma cur_g_fold (h : lb.Pos) (rho gamma : F) :
     (lb.fold rho gamma).cur_g = foldPts rho gamma lb.cur_g := by
   rw [cur_g, points'_fold]; exact contract'_tensor_pair h.2 _ _ _
 
-@[simp] theorem g0_fold (rho gamma : F) : (lb.fold rho gamma).g0 = lb.g0 := rfl
+@[simp] lemma g0_fold (rho gamma : F) : (lb.fold rho gamma).g0 = lb.g0 := rfl
 
-theorem ceil_le {a n c : ℕ} (hn : 0 < n) (h : (a + n - 1) / n ≤ c) : a ≤ c * n := by
+lemma ceil_le {a n c : ℕ} (hn : 0 < n) (h : (a + n - 1) / n ≤ c) : a ≤ c * n := by
   have : (a + n - 1) / n < c + 1 := by omega
   rw [Nat.div_lt_iff_lt_mul hn, add_mul, one_mul] at this
   generalize c * n = m at *
   omega
 
 /-- The MSM over the current bases with coefficients `cs`, for `|cur| ≤ |cs|`. -/
-theorem msm_tensor_cur (W : Weights F) (hw : 0 < W.w.length) (cs : List F) (P : List E)
+lemma msm_tensor_cur (W : Weights F) (hw : 0 < W.w.length) (cs : List F) (P : List E)
     (h : (contract' W.w P).length ≤ cs.length) :
     (List.zipWith (· • ·) ((W.tensor cs).take P.length) P).sum =
       ∑ i ∈ range cs.length, cs.getD i 0 • (contract' W.w P).getD i 0 := by
   rw [msm_tensor W cs P (ceil_le hw (by rwa [length_contract' hw] at h))]
   exact sum_congr rfl fun i _ => by rw [getD_contract' hw]
 
-theorem length_take_tensor (W : Weights F) (hw : 0 < W.w.length) (cs : List F) (P : List E)
+lemma length_take_tensor (W : Weights F) (hw : 0 < W.w.length) (cs : List F) (P : List E)
     (h : (contract' W.w P).length ≤ cs.length) : ((W.tensor cs).take P.length).length = P.length := by
   rw [List.length_take, length_tensor]
   exact min_eq_left (ceil_le hw (by rwa [length_contract' hw] at h))
 
-theorem sum_filter_unzip (L : List (F × E)) :
+lemma sum_filter_unzip (L : List (F × E)) :
     multi_scalar_mul (L.filter fun x => decide (x.1 ≠ 0)).unzip.1
       (L.filter fun x => decide (x.1 ≠ 0)).unzip.2 = .ok (L.map fun x => x.1 • x.2).sum := by
   unfold multi_scalar_mul
@@ -105,14 +105,14 @@ theorem sum_filter_unzip (L : List (F × E)) :
     obtain ⟨s, p⟩ := x
     by_cases hs : s = 0 <;> simp_all
 
-theorem sum_map_zip (a : List F) (b : List E) :
+lemma sum_map_zip (a : List F) (b : List E) :
     ((List.zip a b).map fun (s, p) => s • p).sum = (List.zipWith (· • ·) a b).sum := by
   rw [List.map_zip_eq_zipWith]; rfl
 
-theorem new_w : (Weights.new : Weights F).w = [1] := rfl
+lemma new_w : (Weights.new : Weights F).w = [1] := rfl
 
 /-- `LazyBases::msm` is an MSM over the current bases, and leaves them unchanged. -/
-theorem msm_eq (lb : LazyBases F E) (hp : lb.Pos) (v : F) (hc gc : List F)
+lemma msm_eq (lb : LazyBases F E) (hp : lb.Pos) (v : F) (hc gc : List F)
     (hh : lb.cur_h.length ≤ hc.length) (hg : lb.cur_g.length ≤ gc.length) :
     ∃ lb', lb.msm v hc gc = .ok (v • lb.g0 + ∑ i ∈ range hc.length, hc.getD i 0 • lb.cur_h.getD i 0 +
         ∑ i ∈ range gc.length, gc.getD i 0 • lb.cur_g.getD i 0, lb') ∧

@@ -53,7 +53,7 @@ section
 variable (P : Params) (g : E) (H G : ℕ → E) (ch : Challenges F) (τ : Fˣ)
 
 /-- `C(τ)` is linear in the openings of the commitments it combines. -/
-theorem combined_commit (σS σO σL σR σV : F) (ℓS ℓO ℓL ℓR ℓV nS nO nL nR nV : ℕ → F) :
+lemma combined_commit (σS σO σL σR σV : F) (ℓS ℓO ℓL ℓR ℓV nS nO nL nR nV : ℕ → F) :
     combined P g G ch τ (commit P g H G σS ℓS nS) (commit P g H G σO ℓO nO)
       (commit P g H G σL ℓL nL) (commit P g H G σR ℓR nR) (commit P g H G σV ℓV nV) =
     commit P g H G
@@ -70,7 +70,7 @@ theorem combined_commit (σS σO σL σR σV : F) (ℓS ℓO ℓL ℓR ℓV nS n
 variable (w : Opening F)
 
 /-- `C(τ)` commits to the evaluated opening `(σ(τ), ℓ(τ), n(τ))` (26), for any opening. -/
-theorem combined_eq (w : Opening F) :
+lemma combined_eq (w : Opening F) :
     combined P g G ch τ (cS P g H G w) (cO P g H G w) (cL P g H G w) (cR P g H G w)
       (commit P g H G w.vhat (lin w.rV w.ℓV) w.nV) =
     commit P g H G (evalAt τ (σ P ch w)) (fun s => evalAt τ (ℓ ch w s))
@@ -88,7 +88,7 @@ variable (h : Honest F)
 
 /-- The honest inputs aggregate to the commitment to the input coordinates of the opening:
 `2Σ_i λ^i V_i = v̂g + r_{V,1}H_0`. -/
-theorem vHat_honest (rS : ℕ → F) :
+lemma vHat_honest (rS : ℕ → F) :
     vHat P ch (Honest.inputs (P := P) g H h) = commit P g H G (h.opening P ch rS).vhat
       (lin (h.opening P ch rS).rV (h.opening P ch rS).ℓV) (h.opening P ch rS).nV := by
   have h8 : NormLinear.msm 8 (lin (h.opening P ch rS).rV (h.opening P ch rS).ℓV) H =

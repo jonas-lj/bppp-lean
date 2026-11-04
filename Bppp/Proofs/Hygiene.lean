@@ -34,12 +34,12 @@ structure ReadsOnly {α : Type} (Q : List (Entry F E) → Prop) (p : TranscriptM
 
 variable {Q : List (Entry F E) → Prop}
 
-@[simp] theorem withOracle_log (t : BpppTranscript F E) (o) : (t.withOracle o).log = t.log := rfl
-@[simp] theorem withOracle_oracle (t : BpppTranscript F E) (o) : (t.withOracle o).oracle = o := rfl
-@[simp] theorem extend_withOracle (t : BpppTranscript F E) (o) (es : List (Entry F E)) :
+@[simp] lemma withOracle_log (t : BpppTranscript F E) (o) : (t.withOracle o).log = t.log := rfl
+@[simp] lemma withOracle_oracle (t : BpppTranscript F E) (o) : (t.withOracle o).oracle = o := rfl
+@[simp] lemma extend_withOracle (t : BpppTranscript F E) (o) (es : List (Entry F E)) :
     (t.withOracle o).extend es = (t.extend es).withOracle o := rfl
 
-theorem ReadsOnly.bind {α β : Type} {p : TranscriptM F E α} {f : α → TranscriptM F E β}
+lemma ReadsOnly.bind {α β : Type} {p : TranscriptM F E α} {f : α → TranscriptM F E β}
     {t : BpppTranscript F E} (hp : ReadsOnly Q p t)
     (hf : ∀ a t', p.run t = .ok (a, t') → ReadsOnly Q (f a) t') : ReadsOnly Q (p >>= f) t := by
   constructor
@@ -56,11 +56,11 @@ theorem ReadsOnly.bind {α β : Type} {p : TranscriptM F E α} {f : α → Trans
     · have hk := hp.keeps a t' hr
       exact (hf a t' hr).swap o fun q hq => by rw [hk]; exact ho q hq
 
-theorem ReadsOnly.absorb (e : Entry F E) (t : BpppTranscript F E) : ReadsOnly Q (absorb e) t :=
+lemma ReadsOnly.absorb (e : Entry F E) (t : BpppTranscript F E) : ReadsOnly Q (absorb e) t :=
   ⟨fun a t' h => by rw [run_absorb] at h; cases h; rfl,
     fun o _ => by rw [run_absorb, run_absorb]; rfl⟩
 
-theorem ReadsOnly.challenge (l : String) (t : BpppTranscript F E)
+lemma ReadsOnly.challenge (l : String) (t : BpppTranscript F E)
     (hq : Q (t.log ++ [.challenge l])) : ReadsOnly Q (challenge_scalar l) t :=
   ⟨fun a t' h => by rw [run_challenge_scalar] at h; cases h; rfl,
     fun o ho => by
@@ -68,33 +68,33 @@ theorem ReadsOnly.challenge (l : String) (t : BpppTranscript F E)
       simp only [withOracle_log, withOracle_oracle, swapRes, ho _ hq]
       rfl⟩
 
-theorem ReadsOnly.pure {α : Type} (a : α) (t : BpppTranscript F E) :
+lemma ReadsOnly.pure {α : Type} (a : α) (t : BpppTranscript F E) :
     ReadsOnly Q (Pure.pure a : TranscriptM F E α) t :=
   ⟨fun a' t' h => (by cases h; rfl), fun o _ => rfl⟩
 
-theorem ReadsOnly.liftM {α : Type} (x : Except Error α) (t : BpppTranscript F E) :
+lemma ReadsOnly.liftM {α : Type} (x : Except Error α) (t : BpppTranscript F E) :
     ReadsOnly Q (liftM x : TranscriptM F E α) t := by
   cases x with
   | error e => exact ⟨fun a t' h => (by cases h), fun o _ => rfl⟩
   | ok a => exact ⟨fun a' t' h => (by cases h; rfl), fun o _ => rfl⟩
 
-theorem ReadsOnly.throw {α : Type} (e : Error) (t : BpppTranscript F E) :
+lemma ReadsOnly.throw {α : Type} (e : Error) (t : BpppTranscript F E) :
     ReadsOnly Q (MonadExcept.throw e : TranscriptM F E α) t :=
   ⟨fun a t' h => (by cases h), fun o _ => rfl⟩
 
-theorem ReadsOnly.ite {α : Type} {c : Prop} [Decidable c] {p q : TranscriptM F E α}
+lemma ReadsOnly.ite {α : Type} {c : Prop} [Decidable c] {p q : TranscriptM F E α}
     {t : BpppTranscript F E} (hp : c → ReadsOnly Q p t) (hq : ¬c → ReadsOnly Q q t) :
     ReadsOnly Q (if c then p else q) t := by
   split_ifs with h
   · exact hp h
   · exact hq h
 
-theorem liftM_run_eq {α : Type} (x : Except Error α) (t : BpppTranscript F E) {a : α}
+lemma liftM_run_eq {α : Type} (x : Except Error α) (t : BpppTranscript F E) {a : α}
     {t' : BpppTranscript F E} (h : (liftM x : TranscriptM F E α).run t = .ok (a, t')) : t' = t := by
   cases x <;> cases h; rfl
 
 /-- A run that only absorbs `es` reads no oracle. -/
-theorem ReadsOnly.of_run {α : Type} {p : TranscriptM F E α} (a : α) (es : List (Entry F E))
+lemma ReadsOnly.of_run {α : Type} {p : TranscriptM F E α} (a : α) (es : List (Entry F E))
     (h : ∀ t, p.run t = .ok (a, t.extend es)) (t : BpppTranscript F E) : ReadsOnly Q p t :=
   ⟨fun a' t' h' => by rw [h] at h'; cases h'; rfl, fun o _ => by rw [h, h]; rfl⟩
 
@@ -104,7 +104,7 @@ open BpppTranscript
 
 namespace NormLinear
 
-theorem verify_round_run (st : List F × F × F × List F × Weights F × Weights F) (r : E × E)
+lemma verify_round_run (st : List F × F × F × List F × Weights F × Weights F) (r : E × E)
     (T : BpppTranscript F E) : ∃ st', (verify_round st r).run T =
       .ok (st', T.extend (roundEntries [r])) := by
   obtain ⟨c, rho, mu, gs, wh, wg⟩ := st
@@ -114,7 +114,7 @@ theorem verify_round_run (st : List F × F × F × List F × Weights F × Weight
   exact ⟨_, rfl⟩
 
 /-- The round loop reads the oracle only at the logs ending in each round's `gamma`. -/
-theorem readsOnly_loop {Q : List (Entry F E) → Prop} : ∀ (rounds : List (E × E))
+lemma readsOnly_loop {Q : List (Entry F E) → Prop} : ∀ (rounds : List (E × E))
     (st : List F × F × F × List F × Weights F × Weights F) (T : BpppTranscript F E),
     (∀ i < rounds.length, Q (T.log ++ roundEntries (rounds.take (i + 1)))) →
     ReadsOnly Q (rounds.foldlM verify_round st) T
@@ -138,7 +138,7 @@ theorem readsOnly_loop {Q : List (Entry F E) → Prop} : ∀ (rounds : List (E �
 
 /-- `norm_linear::verify` reads the oracle only at the logs ending in each round's `gamma`, after
 its domain separator. -/
-theorem readsOnly_verify {Q : List (Entry F E) → Prop} (gens : Generators E) (c : List F) (ps : F) (pn : List F)
+lemma readsOnly_verify {Q : List (Entry F E) → Prop} (gens : Generators E) (c : List F) (ps : F) (pn : List F)
     (extra : List (F × E)) (rho : F) (proof : NormLinearProof F E) (T : BpppTranscript F E)
     (hQ : ∀ i < proof.rounds.length, Q (T.log ++
       [.message "dom-sep" ("norm_linear".toList.map Char.toNat)] ++
@@ -180,7 +180,7 @@ def challengeLogs (t : BpppTranscript F E) (vcs : List (PedersenCommitment E))
     deltaLog t vcs proof, tauLog t vcs proof] ++ nlLogs (tauLog t vcs proof) proof.nl_proof.rounds
 
 /-- `circuit::verify` reads the oracle only at `challengeLogs`. -/
-theorem readsOnly_verify (gens : Generators E) (params : CircuitParams) (proof : CircuitProof F E)
+lemma readsOnly_verify (gens : Generators E) (params : CircuitParams) (proof : CircuitProof F E)
     (vcs : List (PedersenCommitment E)) (t : BpppTranscript F E) :
     ReadsOnly (· ∈ challengeLogs t vcs proof) (verify gens params proof vcs) t := by
   simp only [verify, pure_bind]
@@ -295,12 +295,12 @@ def Entry.Labeled : Entry F E → Prop
   | .scalar _ _ => False
   | .challenge _ => True
 
-theorem bytes_inj {encP : E → List ℕ} {encS : F → List ℕ} (hP : Function.Injective encP)
+lemma bytes_inj {encP : E → List ℕ} {encS : F → List ℕ} (hP : Function.Injective encP)
     {e e' : Entry F E} (he : e.Labeled) (he' : e'.Labeled)
     (h : e.bytes encP encS = e'.bytes encP encS) : e = e' := by
   cases e <;> cases e' <;> simp_all [Entry.bytes, Entry.Labeled, hP.eq_iff]
 
-theorem map_bytes_inj {encP : E → List ℕ} {encS : F → List ℕ} (hP : Function.Injective encP) :
+lemma map_bytes_inj {encP : E → List ℕ} {encS : F → List ℕ} (hP : Function.Injective encP) :
     ∀ {q q' : List (Entry F E)}, (∀ e ∈ q, e.Labeled) → (∀ e ∈ q', e.Labeled) →
       q.map (Entry.bytes encP encS) = q'.map (Entry.bytes encP encS) → q = q'
   | [], [], _, _, _ => rfl
@@ -311,7 +311,7 @@ theorem map_bytes_inj {encP : E → List ℕ} {encS : F → List ℕ} (hP : Func
     rw [bytes_inj hP (hq e (by simp)) (hq' e' (by simp)) h.1,
       map_bytes_inj hP (fun x hx => hq x (by simp [hx])) (fun x hx => hq' x (by simp [hx])) h.2]
 
-theorem roundEntries_labeled : ∀ (rounds : List (E × E)), ∀ e ∈ NormLinear.roundEntries rounds,
+lemma roundEntries_labeled : ∀ (rounds : List (E × E)), ∀ e ∈ NormLinear.roundEntries rounds,
     (e : Entry F E).Labeled
   | [] => by simp [NormLinear.roundEntries]
   | (X, R) :: rounds => by
@@ -334,7 +334,7 @@ def stmtPrefix (dst : List ℕ) (bits : ℕ) (vcs : List (PedersenCommitment E))
     .message "dom-sep" ("bppp_circuit".toList.map Char.toNat)] ++ vcs.map (fun c => .point "V" c.point)
 
 /-- Every challenge log starts with the statement, and every entry tells its kind by its label. -/
-theorem challengeLogs_shape (o : List (Entry F E) → F) (dst : List ℕ) (bits : ℕ)
+lemma challengeLogs_shape (o : List (Entry F E) → F) (dst : List ℕ) (bits : ℕ)
     (vcs : List (PedersenCommitment E)) (proof : Circuit.CircuitProof F E) :
     ∀ q ∈ Circuit.challengeLogs (transcript o dst bits vcs.length) vcs proof,
       (∃ rest, q = stmtPrefix dst bits vcs ++ rest) ∧ ∀ e ∈ q, e.Labeled := by
@@ -370,14 +370,14 @@ theorem challengeLogs_shape (o : List (Entry F E) → F) (dst : List ℕ) (bits 
     and_intros
     all_goals first | exact roundEntries_labeled _ | simp [Entry.Labeled, pointLabels]
 
-theorem sum_le_bytes (v k : ℕ) :
+lemma sum_le_bytes (v k : ℕ) :
     ∑ i ∈ Finset.range k, v / 256 ^ i % 256 * 256 ^ i = v % 256 ^ k := by
   induction k with
   | zero => simp [Nat.mod_one]
   | succ k ih => rw [Finset.sum_range_succ, ih, Nat.mod_pow_succ, mul_comm]
 
 /-- `u64::to_le_bytes` is injective on `u64`. -/
-theorem u64_le_bytes_inj {v w : ℕ} (hv : v < 2 ^ 64) (hw : w < 2 ^ 64)
+lemma u64_le_bytes_inj {v w : ℕ} (hv : v < 2 ^ 64) (hw : w < 2 ^ 64)
     (h : u64_le_bytes v = u64_le_bytes w) : v = w := by
   have key : ∀ x : ℕ, x < 2 ^ 64 →
       ∑ i ∈ Finset.range 8, (u64_le_bytes x).getD i 0 * 256 ^ i = x := fun x hx => by
@@ -390,7 +390,7 @@ theorem u64_le_bytes_inj {v w : ℕ} (hv : v < 2 ^ 64) (hw : w < 2 ^ 64)
   rw [← key v hv, ← key w hw, h]
 
 /-- Equal challenge logs come from the same statement. -/
-theorem stmt_eq {dst dst' : List ℕ} {bits bits' : ℕ} {vcs vcs' : List (PedersenCommitment E)}
+lemma stmt_eq {dst dst' : List ℕ} {bits bits' : ℕ} {vcs vcs' : List (PedersenCommitment E)}
     {r r' : List (Entry F E)} (hb : bits < 2 ^ 64) (hb' : bits' < 2 ^ 64)
     (hm : vcs.length < 2 ^ 64) (hm' : vcs'.length < 2 ^ 64)
     (h : stmtPrefix dst bits vcs ++ r = stmtPrefix dst' bits' vcs' ++ r') :
@@ -421,7 +421,7 @@ theorem challenge_decodes {encP : E → List ℕ} {encS : F → List ℕ} (hP : 
   have e := map_bytes_inj hP hl hl' h
   exact ⟨(stmt_eq hb hb' hm hm' e).1, (stmt_eq hb hb' hm hm' e).2.1, (stmt_eq hb hb' hm hm' e).2.2, e⟩
 
-theorem length_roundEntries : ∀ rounds : List (E × E),
+lemma length_roundEntries : ∀ rounds : List (E × E),
     (NormLinear.roundEntries rounds : List (Entry F E)).length = 3 * rounds.length
   | [] => rfl
   | (_, _) :: rounds => by simp [NormLinear.roundEntries, length_roundEntries rounds]; ring

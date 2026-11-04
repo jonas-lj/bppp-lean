@@ -18,7 +18,7 @@ namespace Bppp.Spec
 variable {F : Type*} [Field F] (P : Params) (ch : Challenges F) (h : Honest F)
 
 /-- `r_S` enters `f(T)` linearly, through `σ(T)` and `ℓ_1(T), ..., ℓ_7(T)`. -/
-theorem f_opening (rS : ℕ → F) :
+lemma f_opening (rS : ℕ → F) :
     f P ch (h.opening P ch rS) = f P ch (h.opening P ch 0) +
       (mono (-1) (rS 0) - ∑ s ∈ range 7, c P ch s * mono (-1) (rS (s + 1))) := by
   have hn : n P ch (h.opening P ch rS) = n P ch (h.opening P ch 0) := rfl
@@ -35,20 +35,20 @@ macro "supp_tac" : tactic =>
     | exact Supp.zero _ _
     | (apply Supp.mono <;> norm_num)))
 
-theorem supp_normμ {v : ℕ → F[T;T⁻¹]} {a b : ℤ} (hv : ∀ k, Supp (v k) a b) :
+lemma supp_normμ {v : ℕ → F[T;T⁻¹]} {a b : ℤ} (hv : ∀ k, Supp (v k) a b) :
     Supp (normμ P ch v) (a + a) (b + b) :=
   Supp.sum _ fun k _ =>
     ((Supp.mono _ le_rfl le_rfl).mul ((hv k).mul (hv k))).widen (by omega) (by omega)
 
-theorem supp_pn (k : ℕ) : Supp (pn P ch k) 0 3 := by
+lemma supp_pn (k : ℕ) : Supp (pn P ch k) 0 3 := by
   simp only [pn]; supp_tac
 
-theorem supp_n (w : Opening F) (k : ℕ) : Supp (n P ch w k) (-1) 3 := by
+lemma supp_n (w : Opening F) (k : ℕ) : Supp (n P ch w k) (-1) 3 := by
   simp only [n, pn]; supp_tac
 
 variable {h} in
 /-- With `r_S = 0`, the error polynomial has powers `T⁻², ..., T⁶` only. -/
-theorem supp_g (hz : h.ZeroPattern) : Supp (f P ch (h.opening P ch 0)) (-2) 6 := by
+lemma supp_g (hz : h.ZeroPattern) : Supp (f P ch (h.opening P ch 0)) (-2) 6 := by
   refine Supp.sub (Supp.sub ?_ ?_) ((supp_normμ P ch (supp_n P ch _)).widen le_rfl le_rfl)
   · refine Supp.add (Supp.add ?_ ?_) ?_
     · exact Supp.add ((supp_normμ P ch (supp_pn P ch)).widen
@@ -60,34 +60,34 @@ theorem supp_g (hz : h.ZeroPattern) : Supp (f P ch (h.opening P ch 0)) (-2) 6 :=
       hz.rR5, hz.rR6, hz.rR7]
     supp_tac
 
-theorem mono_add (p : ℤ) (x y : F) : mono p (x + y) = mono p x + mono p y := by
+lemma mono_add (p : ℤ) (x y : F) : mono p (x + y) = mono p x + mono p y := by
   simp [mono, add_mul]
 
-theorem coeff_mono_zero_mul (p : ℤ) (x : F) (g : F[T;T⁻¹]) :
+lemma coeff_mono_zero_mul (p : ℤ) (x : F) (g : F[T;T⁻¹]) :
     coeff p (mono 0 x * g) = x * coeff p g := by
   simp [mono, coeff_apply, ← smul_eq_C_mul]
 
-theorem coeff3_sq (a b c d e : F) :
+lemma coeff3_sq (a b c d e : F) :
     coeff 3 ((mono (-1) a + mono 0 b + mono 1 c + mono 2 d + mono 3 e) *
       (mono (-1) a + mono 0 b + mono 1 c + mono 2 d + mono 3 e)) = 2 * (b * e + c * d) := by
   simp [add_mul, mul_add, mono_mul]; ring
 
-theorem n_eq (w : Opening F) (k : ℕ) : n P ch w k =
+lemma n_eq (w : Opening F) (k : ℕ) : n P ch w k =
     mono (-1) (w.nS k) + mono 0 (ch.δ * w.nO k + cnV P ch k) + mono 1 (w.nL k + cnR P ch k) +
       mono 2 (w.nR k + cnL P ch k) + mono 3 (w.nV k + ch.δ⁻¹ * cnO P ch k) := by
   simp only [n, pn, mono_add]; ring
 
-theorem pn_eq (k : ℕ) : pn P ch k =
+lemma pn_eq (k : ℕ) : pn P ch k =
     mono (-1) 0 + mono 0 (cnV P ch k) + mono 1 (cnR P ch k) + mono 2 (cnL P ch k) +
       mono 3 (ch.δ⁻¹ * cnO P ch k) := by
   simp [pn]
 
-theorem coeff3_normμ (v : ℕ → F[T;T⁻¹]) :
+lemma coeff3_normμ (v : ℕ → F[T;T⁻¹]) :
     coeff 3 (normμ P ch v) = ∑ k ∈ range P.nm, ch.μ ^ (k + 1) * coeff 3 (v k * v k) := by
   simp [normμ, coeff_mono_zero_mul]
 
 variable {h} in
-theorem coeff3_g (hz : h.ZeroPattern) (hδ : ch.δ ≠ 0) :
+lemma coeff3_g (hz : h.ZeroPattern) (hδ : ch.δ ≠ 0) :
     coeff 3 (f P ch (h.opening P ch 0)) = 2 * (lamAl P ch + muAm P ch) +
       (h.opening P ch 0).vhat - ∑ k ∈ range P.nm, ch.μ ^ (k + 1) * (2 *
         ((h.opening P ch 0).nO k * cnO P ch k + (h.opening P ch 0).nL k * (h.opening P ch 0).nR k +
@@ -116,7 +116,7 @@ theorem coeff3_g (hz : h.ZeroPattern) (hδ : ch.δ ≠ 0) :
 
 /-! ## The value row for an honest witness -/
 
-theorem sum_range_mul_div_mod (M D : ℕ) (φ : ℕ → ℕ → F) :
+lemma sum_range_mul_div_mod (M D : ℕ) (φ : ℕ → ℕ → F) :
     ∑ k ∈ range (M * D), φ (k / D) (k % D) = ∑ i ∈ range M, ∑ t ∈ range D, φ i t := by
   induction M with
   | zero => simp
@@ -130,7 +130,7 @@ theorem sum_range_mul_div_mod (M D : ℕ) (φ : ℕ → ℕ → F) :
 
 omit [Field F] in
 variable {P h} in
-theorem dig_lt (hd : ∀ i < P.M, ∀ t < P.D, h.d i t < 16) (k : ℕ) : h.dig P k < 16 := by
+lemma dig_lt (hd : ∀ i < P.M, ∀ t < P.D, h.d i t < 16) (k : ℕ) : h.dig P k < 16 := by
   unfold Honest.dig
   split_ifs with hk
   · have hD : 0 < P.D := Nat.pos_of_ne_zero fun h0 => by simp [Params.Nd, h0] at hk
@@ -138,7 +138,7 @@ theorem dig_lt (hd : ∀ i < P.M, ∀ t < P.D, h.d i t < 16) (k : ℕ) : h.dig P
   · norm_num
 
 /-- `Σ_{k<N_d} (α+d_k)⁻¹ + Σ_{j=1}^{15} j m_j/(α(α+j)) = N_d/α`, the set-membership row (6). -/
-theorem set_membership (hα : ∀ j : ℕ, j < 16 → ch.α + j ≠ 0)
+lemma set_membership (hα : ∀ j : ℕ, j < 16 → ch.α + j ≠ 0)
     (hd : ∀ i < P.M, ∀ t < P.D, h.d i t < 16) :
     ∑ k ∈ range P.Nd, (ch.α + h.dig P k)⁻¹ +
       ∑ j ∈ range 15, (h.mult P (j + 1) : F) * ((j + 1) / (ch.α * (ch.α + (j + 1)))) =
@@ -163,12 +163,12 @@ theorem set_membership (hα : ∀ j : ℕ, j < 16 → ch.α + j ≠ 0)
   have := hα j (mem_range.mp hj)
   field_simp
 
-theorem sum_range_of_le {m N : ℕ} (hmN : m ≤ N) {φ : ℕ → F} (hφ : ∀ k, m ≤ k → φ k = 0) :
+lemma sum_range_of_le {m N : ℕ} (hmN : m ≤ N) {φ : ℕ → F} (hφ : ∀ k, m ≤ k → φ k = 0) :
     ∑ k ∈ range N, φ k = ∑ k ∈ range m, φ k :=
   (sum_subset (range_subset_range.mpr hmN) fun k _ hk => hφ k (by simpa using hk)).symm
 
 /-- The value row (29) vanishes for an honest witness. -/
-theorem value_row (hα : ∀ j : ℕ, j < 16 → ch.α + j ≠ 0) (hμ : ch.μ ≠ 0)
+lemma value_row (hα : ∀ j : ℕ, j < 16 → ch.α + j ≠ 0) (hμ : ch.μ ≠ 0)
     (hd : ∀ i < P.M, ∀ t < P.D, h.d i t < 16) :
     2 * (lamAl P ch + muAm P ch) + (h.opening P ch 0).vhat - ∑ k ∈ range P.nm, ch.μ ^ (k + 1) *
       (2 * ((h.opening P ch 0).nO k * cnO P ch k +
@@ -231,7 +231,7 @@ theorem value_row (hα : ∀ j : ℕ, j < 16 → ch.α + j ≠ 0) (hμ : ch.μ �
 /-- **Completeness.** For an honest witness, blinding with the zero pattern (22) and the solved
 `r_S`, the error polynomial (28) vanishes identically, so the norm-linear relation (27) holds at
 every `τ`. -/
-theorem completeness (hα : ∀ j : ℕ, j < 16 → ch.α + j ≠ 0) (hβ : ch.β ≠ 0) (hδ : ch.δ ≠ 0)
+lemma completeness (hα : ∀ j : ℕ, j < 16 → ch.α + j ≠ 0) (hβ : ch.β ≠ 0) (hδ : ch.δ ≠ 0)
     (hμ : ch.μ ≠ 0) (hd : ∀ i < P.M, ∀ t < P.D, h.d i t < 16) (hz : h.ZeroPattern) :
     f P ch (h.opening P ch (h.rS P ch)) = 0 := by
   have hg3 : coeff 3 (f P ch (h.opening P ch 0)) = 0 := by

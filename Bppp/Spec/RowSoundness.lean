@@ -18,7 +18,7 @@ namespace Bppp.Spec
 variable {F : Type*} [Field F] (P : Params) (ch : Challenges F)
 
 /-- The value row (29) for any opening. -/
-theorem coeff3_f (hδ : ch.δ ≠ 0) (w : Opening F) : coeff 3 (f P ch w) =
+lemma coeff3_f (hδ : ch.δ ≠ 0) (w : Opening F) : coeff 3 (f P ch w) =
     2 * (lamAl P ch + muAm P ch) + w.vhat -
     2 * ∑ k ∈ range P.nm, ch.μ ^ (k + 1) * (ch.δ * w.nO k * w.nV k + w.nO k * cnO P ch k +
       cnV P ch k * w.nV k + w.nL k * w.nR k + w.nL k * cnL P ch k + cnR P ch k * w.nR k) -
@@ -72,7 +72,7 @@ noncomputable def rowR (j i : ℕ) : F := if j < P.nm then -4 * n i j else -2 * 
 
 end Rows
 
-theorem pieceO (hμ : ch.μ ≠ 0) (w : Opening F) :
+lemma pieceO (hμ : ch.μ ≠ 0) (w : Opening F) :
     ∑ k ∈ range P.nm, ch.μ ^ (k + 1) * (w.nO k * cnO P ch k) = ch.lam ^ P.M * ∑ k ∈ range P.nm,
       (if k ≤ 14 then w.nO k * (((k : F) + 1) / (ch.α * (ch.α + ((k : F) + 1)))) else 0) := by
   rw [mul_sum]
@@ -83,7 +83,7 @@ theorem pieceO (hμ : ch.μ ≠ 0) (w : Opening F) :
   · field_simp
   · simp
 
-theorem pieceR (hμ : ch.μ ≠ 0) (w : Opening F) :
+lemma pieceR (hμ : ch.μ ≠ 0) (w : Opening F) :
     ∑ k ∈ range P.nm, ch.μ ^ (k + 1) * (cnR P ch k * w.nR k) =
       ch.lam ^ P.M * ∑ k ∈ range P.nm, (if k < P.Nd then w.nR k else 0) +
         ∑ k ∈ range P.nm, ch.μ ^ (k + 1) * (if k < P.Nd then ch.α * w.nR k else 0) := by
@@ -95,7 +95,7 @@ theorem pieceR (hμ : ch.μ ≠ 0) (w : Opening F) :
   · field_simp
   · simp
 
-theorem pieceL (hμ : ch.μ ≠ 0) (w : Opening F) :
+lemma pieceL (hμ : ch.μ ≠ 0) (w : Opening F) :
     ∑ k ∈ range P.nm, ch.μ ^ (k + 1) * (w.nL k * cnL P ch k) =
       ∑ i ∈ range P.M, ch.lam ^ i * ∑ t ∈ range P.D, 16 ^ t * w.nL (i * P.D + t) := by
   rw [sum_range_of_le (m := P.Nd) P.hnm fun k hk => by simp [cnL]; omega]
@@ -114,7 +114,7 @@ section Inputs
 
 variable (w : Opening F) (u : ℕ → F) (h n : ℕ → ℕ → F)
 
-theorem pieceV (hμ : ch.μ ≠ 0) (hn : ∀ k < P.nm, w.nV k = 2 * ∑ i ∈ range P.M, ch.lam ^ i * n i k) :
+lemma pieceV (hμ : ch.μ ≠ 0) (hn : ∀ k < P.nm, w.nV k = 2 * ∑ i ∈ range P.M, ch.lam ^ i * n i k) :
     ∑ k ∈ range P.nm, ch.μ ^ (k + 1) * (cnV P ch k * w.nV k) =
       ∑ j ∈ range P.nm, ∑ i ∈ range P.M, ch.lam ^ (P.M * (j + 1) + 1 + i) * (2 * n i j) := by
   refine sum_congr rfl fun k hk => ?_
@@ -125,7 +125,7 @@ theorem pieceV (hμ : ch.μ ≠ 0) (hn : ∀ k < P.nm, w.nV k = 2 * ∑ i ∈ ra
   simp only [cnV, pow_add]
   field_simp
 
-theorem pieceOV (hn : ∀ k < P.nm, w.nV k = 2 * ∑ i ∈ range P.M, ch.lam ^ i * n i k) :
+lemma pieceOV (hn : ∀ k < P.nm, w.nV k = 2 * ∑ i ∈ range P.M, ch.lam ^ i * n i k) :
     ∑ k ∈ range P.nm, ch.μ ^ (k + 1) * (ch.δ * w.nO k * w.nV k) = 2 * ch.δ *
       ∑ i ∈ range P.M, ch.lam ^ i * ∑ k ∈ range P.nm, ch.μ ^ (k + 1) * (w.nO k * n i k) := by
   rw [sum_congr rfl fun k hk => by rw [hn k (mem_range.mp hk)]]
@@ -133,7 +133,7 @@ theorem pieceOV (hn : ∀ k < P.nm, w.nV k = 2 * ∑ i ∈ range P.M, ch.lam ^ i
   rw [sum_comm]
   exact sum_congr rfl fun k _ => sum_congr rfl fun i _ => by ring
 
-theorem pieceH (hl : ∀ s < 8, lin w.rV w.ℓV s = 2 * ∑ i ∈ range P.M, ch.lam ^ i * h i s) :
+lemma pieceH (hl : ∀ s < 8, lin w.rV w.ℓV s = 2 * ∑ i ∈ range P.M, ch.lam ^ i * h i s) :
     ∑ s ∈ range 8, clV P ch s * lin w.rV w.ℓV s =
       ∑ s ∈ range 7, ∑ i ∈ range P.M,
         ch.lam ^ (P.M * (P.nm + s + 1) + 1 + i) * (2 * h i (s + 1)) := by
@@ -145,7 +145,7 @@ theorem pieceH (hl : ∀ s < 8, lin w.rV w.ℓV s = 2 * ∑ i ∈ range P.M, ch.
   simp only [Params.g, pow_add]
   ring
 
-theorem shape_sum : ∑ j ∈ range (P.nm + 7), ∑ i ∈ range P.M,
+lemma shape_sum : ∑ j ∈ range (P.nm + 7), ∑ i ∈ range P.M,
     ch.lam ^ (P.M * (j + 1) + 1 + i) * rowR P h n j i =
     -(2 * ∑ j ∈ range P.nm, ∑ i ∈ range P.M, ch.lam ^ (P.M * (j + 1) + 1 + i) * (2 * n i j)) -
       ∑ s ∈ range 7, ∑ i ∈ range P.M,
@@ -165,7 +165,7 @@ theorem shape_sum : ∑ j ∈ range (P.nm + 7), ∑ i ∈ range P.M,
 
 /-- The value row as a polynomial in `λ` with the rows (35) as coefficients, when `V̂` opens to
 the `λ`-combination of the input coordinates. -/
-theorem coeff3_rows (hδ : ch.δ ≠ 0) (hμ : ch.μ ≠ 0)
+lemma coeff3_rows (hδ : ch.δ ≠ 0) (hμ : ch.μ ≠ 0)
     (hv : w.vhat = 2 * ∑ i ∈ range P.M, ch.lam ^ i * u i)
     (hl : ∀ s < 8, lin w.rV w.ℓV s = 2 * ∑ i ∈ range P.M, ch.lam ^ i * h i s)
     (hn : ∀ k < P.nm, w.nV k = 2 * ∑ i ∈ range P.M, ch.lam ^ i * n i k) :
@@ -191,7 +191,7 @@ end Inputs
 
 /-! ## Vanishing of the rows -/
 
-theorem shape_exp_inj {M j j' i i' : ℕ} (hi : i < M) (hi' : i' < M)
+lemma shape_exp_inj {M j j' i i' : ℕ} (hi : i < M) (hi' : i' < M)
     (h : M * (j + 1) + 1 + i = M * (j' + 1) + 1 + i') : j = j' ∧ i = i' := by
   rcases lt_trichotomy j j' with hj | rfl | hj
   · have : M * (j + 2) ≤ M * (j' + 1) := Nat.mul_le_mul_left _ (by omega)
@@ -205,7 +205,7 @@ theorem shape_exp_inj {M j j' i i' : ℕ} (hi : i < M) (hi' : i' < M)
 open Polynomial in
 /-- If the polynomial in `λ` with the rows as coefficients vanishes at `M(nm+8)+1` distinct
 points, every row vanishes, the degree-0 one together with the first value link. -/
-theorem rows_zero (hM : 0 < P.M) (E0 S : F) (L : ℕ → F) (R : ℕ → ℕ → F)
+lemma rows_zero (hM : 0 < P.M) (E0 S : F) (L : ℕ → F) (R : ℕ → ℕ → F)
     (x : Fin (P.M * (P.nm + 8) + 1) → F) (hx : Function.Injective x)
     (h : ∀ r, E0 + ∑ i ∈ range P.M, x r ^ i * L i + x r ^ P.M * S + ∑ j ∈ range (P.nm + 7),
       ∑ i ∈ range P.M, x r ^ (P.M * (j + 1) + 1 + i) * R j i = 0) :
@@ -266,7 +266,7 @@ theorem rows_zero (hM : 0 < P.M) (E0 S : F) (L : ℕ → F) (R : ℕ → ℕ →
     · intro hj'; exact absurd (mem_range.mpr hj) hj'
 
 /-- The rows depend on the opening only through `n_O`, `n_L`, `n_R` and three blindings. -/
-theorem rows_congr {w w' : Opening F} (hO : ∀ k < P.nm, w.nO k = w'.nO k)
+lemma rows_congr {w w' : Opening F} (hO : ∀ k < P.nm, w.nO k = w'.nO k)
     (hL : ∀ k < P.nm, w.nL k = w'.nL k) (hR : ∀ k < P.nm, w.nR k = w'.nR k)
     (hrO : w.rO 4 = w'.rO 4) (hrL : w.rL 3 = w'.rL 3) (hrR : w.rR 2 = w'.rR 2) :
     rowE0 P ch w = rowE0 P ch w' ∧ rowS P ch w = rowS P ch w' ∧
@@ -307,13 +307,13 @@ def Relation : Prop :=
     commit P g H G s h n = 0
 
 /-- The relation the `τ` level returns is one. -/
-theorem relation_of_tau {ch : Challenges F} {cS cO cL cR V : E} {rho : F} {τ : Fˣ}
+lemma relation_of_tau {ch : Challenges F} {cS cO cL cR V : E} {rho : F} {τ : Fˣ}
     (h : NormLinear.Relation g (tauInst P ch g H G cS cO cL cR V rho τ)) : Relation F P g H G := by
   obtain ⟨s, h, n, hne, he⟩ := h
   exact ⟨s, h, n, hne, he⟩
 
 /-- Two openings of one element agree, or their difference is a relation. -/
-theorem binding {s s' : F} {h h' n n' : ℕ → F}
+lemma binding {s s' : F} {h h' n n' : ℕ → F}
     (he : commit P g H G s h n = commit P g H G s' h' n') :
     (s = s' ∧ (∀ j < 8, h j = h' j) ∧ ∀ j < P.nm, n j = n' j) ∨ Relation F P g H G := by
   by_cases hc : s = s' ∧ (∀ j < 8, h j = h' j) ∧ ∀ j < P.nm, n j = n' j
@@ -330,7 +330,7 @@ theorem binding {s s' : F} {h h' n n' : ℕ → F}
 opening of `C_O`, `C_L`, `C_R` and `V̂ = 2Σ_i λ^i V_i` whose error polynomial vanishes. Either the
 inputs open in the `(g, H_0)`-plane, set membership holds, the value links of the inputs `i ≥ 1`
 hold and the degree-0 residue vanishes, or the generators satisfy a nontrivial relation. -/
-theorem extract_lam (h2 : (2 : F) ≠ 0) (hM : 0 < P.M) (hδ : ch.δ ≠ 0) (hμ : ch.μ ≠ 0)
+lemma extract_lam (h2 : (2 : F) ≠ 0) (hM : 0 < P.M) (hδ : ch.δ ≠ 0) (hμ : ch.μ ≠ 0)
     (cO cL cR : E) (V : ℕ → E) (lam : Fin (P.M * (P.nm + 8) + 1) → F)
     (hlam : Function.Injective lam) (wo : Fin (P.M * (P.nm + 8) + 1) → Opening F)
     (hf : ∀ r, f P { ch with lam := lam r } (wo r) = 0)
@@ -445,7 +445,7 @@ noncomputable def row36 (w : Opening F) (u0 : F) : F :=
   2 * u0 - 2 * ∑ t ∈ range P.D, 16 ^ t * w.nL t
 
 /-- With `V_0` in the `(g, H_0)`-plane, the degree-0 residue is (36) less the blinding bracket. -/
-theorem residue_eq (x : F) (w : Opening F) (u : ℕ → F) (n : ℕ → ℕ → F)
+lemma residue_eq (x : F) (w : Opening F) (u : ℕ → F) (n : ℕ → ℕ → F)
     (hn : ∀ k < P.nm, n 0 k = 0) :
     rowE0 P { ch with β := x } w + rowL P { ch with β := x } w u n 0 =
       row36 P ch w (u 0) - x * (ch.δ * w.rO 4 + w.rL 3 + w.rR 2) := by
@@ -457,7 +457,7 @@ theorem residue_eq (x : F) (w : Opening F) (u : ℕ → F) (n : ℕ → ℕ → 
 /-- **The `β` level.** Take two distinct `β`, the other challenges fixed, each with openings of
 `C_O`, `C_L`, `C_R` and of `V_0` in the `(g, H_0)`-plane whose degree-0 residue vanishes. Either
 (36) holds, or the generators satisfy a nontrivial relation. -/
-theorem extract_beta (hM : 0 < P.M) (cO cL cR V0 : E) (β : Fin 2 → F) (hβ : Function.Injective β)
+lemma extract_beta (hM : 0 < P.M) (cO cL cR V0 : E) (β : Fin 2 → F) (hβ : Function.Injective β)
     (w : Fin 2 → Opening F) (u : Fin 2 → ℕ → F) (h n : Fin 2 → ℕ → ℕ → F)
     (hO : ∀ b, cO = Spec.cO P g H G (w b)) (hL : ∀ b, cL = Spec.cL P g H G (w b))
     (hR : ∀ b, cR = Spec.cR P g H G (w b)) (hV : ∀ b, V0 = commit P g H G (u b 0) (h b 0) (n b 0))
@@ -500,7 +500,7 @@ theorem extract_beta (hM : 0 < P.M) (cO cL cR V0 : E) (β : Fin 2 → F) (hβ : 
 
 open Polynomial in
 /-- A polynomial of degree at most `N` with `N + 1` distinct roots is zero. -/
-theorem poly_zero {N : ℕ} (a : ℕ → F) (x : Fin (N + 1) → F) (hx : Function.Injective x)
+lemma poly_zero {N : ℕ} (a : ℕ → F) (x : Fin (N + 1) → F) (hx : Function.Injective x)
     (h : ∀ r, ∑ d ∈ range (N + 1), a d * x r ^ d = 0) : ∀ d ≤ N, a d = 0 := by
   set Q : F[X] := ∑ d ∈ range (N + 1), Polynomial.C (a d) * X ^ d
   have hco : ∀ d, Q.coeff d = if d < N + 1 then a d else 0 := fun d => by
@@ -520,7 +520,7 @@ theorem poly_zero {N : ℕ} (a : ℕ → F) (x : Fin (N + 1) → F) (hx : Functi
 
 /-- (36) as a polynomial in `μ`: the first value link at `μ⁰` and the Hadamard row of slot `k`
 at `μ^{k+1}`. -/
-theorem row36_eq (w : Opening F) (u0 : F) :
+lemma row36_eq (w : Opening F) (u0 : F) :
     row36 P ch w u0 = ∑ d ∈ range (P.nm + 1), (if d = 0 then
       2 * (u0 - ∑ t ∈ range P.D, 16 ^ t * w.nL t) else
       -2 * (w.nL (d - 1) * w.nR (d - 1) +
@@ -541,7 +541,7 @@ theorem row36_eq (w : Opening F) (u0 : F) :
 /-- **The `ρ` level.** Take `nm + 1` distinct `μ`, the other challenges fixed, each with openings
 of `C_L`, `C_R` and `V_0` satisfying (36). Either the first value link and the Hadamard rows hold,
 or the generators satisfy a nontrivial relation. -/
-theorem extract_rho (h2 : (2 : F) ≠ 0) (hM : 0 < P.M) (cL cR V0 : E) (μ : Fin (P.nm + 1) → F)
+lemma extract_rho (h2 : (2 : F) ≠ 0) (hM : 0 < P.M) (cL cR V0 : E) (μ : Fin (P.nm + 1) → F)
     (hμ : Function.Injective μ) (w : Fin (P.nm + 1) → Opening F) (u0 : Fin (P.nm + 1) → F)
     (h0 n0 : Fin (P.nm + 1) → ℕ → F)
     (hL : ∀ r, cL = Spec.cL P g H G (w r)) (hR : ∀ r, cR = Spec.cR P g H G (w r))
@@ -598,7 +598,7 @@ noncomputable def residue37 [DecidableEq F] (w : Opening F) (p : F) : F :=
   ∑ k ∈ range P.Nd, if w.nL k = p then 1 else 0
 
 /-- The partial-fraction form of set membership, given the Hadamard rows. -/
-theorem rowS_partial [DecidableEq F] (w : Opening F) (hα : ∀ j : ℕ, j < 16 → ch.α + j ≠ 0)
+lemma rowS_partial [DecidableEq F] (w : Opening F) (hα : ∀ j : ℕ, j < 16 → ch.α + j ≠ 0)
     (hR : ∀ k < P.Nd, w.nR k = (ch.α + w.nL k)⁻¹) (U : Finset F)
     (hU0 : ∀ j : ℕ, j < 16 → (j : F) ∈ U) (hUL : ∀ k < P.Nd, w.nL k ∈ U) :
     rowS P ch w = 2 * ∑ p ∈ U, residue37 P w p / (ch.α + p) := by
@@ -648,7 +648,7 @@ theorem rowS_partial [DecidableEq F] (w : Opening F) (hα : ∀ j : ℕ, j < 16 
   field_simp
   ring
 
-theorem residue37_congr [DecidableEq F] {w w' : Opening F} (hO : ∀ k < P.nm, w.nO k = w'.nO k)
+lemma residue37_congr [DecidableEq F] {w w' : Opening F} (hO : ∀ k < P.nm, w.nO k = w'.nO k)
     (hL : ∀ k < P.Nd, w.nL k = w'.nL k) (p : F) : residue37 P w p = residue37 P w' p := by
   have h1 : ∑ j ∈ range 15, w.nO j *
       ((if p = 0 then 1 else 0) - if p = ((j + 1 : ℕ) : F) then 1 else 0) =
@@ -664,7 +664,7 @@ theorem residue37_congr [DecidableEq F] {w w' : Opening F} (hO : ∀ k < P.nm, w
 fixed, each with openings of `C_O`, `C_L` and an `n_R` satisfying set membership and the Hadamard
 rows. If no `m = 1, ..., N_d` is zero in the field, either every digit of `C_L` is in
 `{0, ..., 15}`, or the generators satisfy a nontrivial relation. -/
-theorem extract_alpha [DecidableEq F] (h2 : (2 : F) ≠ 0)
+lemma extract_alpha [DecidableEq F] (h2 : (2 : F) ≠ 0)
     (hchar : ∀ m : ℕ, 0 < m → m ≤ P.Nd → (m : F) ≠ 0)
     (cO cL : E) (α : Fin (P.Nd + 16) → F) (hα : Function.Injective α)
     (hpole : ∀ r, ∀ j : ℕ, j < 16 → α r + j ≠ 0) (w : Fin (P.Nd + 16) → Opening F)

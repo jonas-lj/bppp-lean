@@ -5,6 +5,20 @@ is complete (`RangeProof::verify_batch` accepts what `RangeProof::prove_batch` o
 special sound (a tree of accepting `verify_batch` runs extracts an opening of every commitment to
 a value in range).
 
+## The results
+
+Five declarations are `theorem`s, and they are the results to check; everything else is a
+`lemma` used to prove them:
+
+- `RangeProof.completeness` (`Correctness.lean`)
+- `RangeProof.verify_extract` (`Soundness.lean`)
+- `RangeProof.verify_batch_local`, `RangeProof.challenge_decodes` and
+  `RangeProof.challengeLogs_nodup` (`Proofs/Hygiene.lean`)
+
+```bash
+grep -rn "^theorem" Bppp/
+```
+
 ## Layout
 
 | Files | Contents |
@@ -55,7 +69,7 @@ relation. It assumes:
 It depends only on the axioms `propext`, `Classical.choice` and `Quot.sound`. The proof follows
 §5.3 of the paper, from the innermost level outward:
 
-| Level | Theorem | Outcome |
+| Level | Lemma | Outcome |
 | --- | --- | --- |
 | `γ` | `NormLinear.verify_extract` | an opening of `C(τ)` satisfying (27) |
 | `τ` | `Spec.extract_tau` | openings of `C_S, C_O, C_L, C_R, V̂` with `f(T) ≡ 0` |
