@@ -65,19 +65,27 @@ result for `circuit::verify`.
 
 ## Zero-knowledge
 
-`RangeProof.zero_knowledge` (`ZeroKnowledge.lean`): fix the challenges, and let the transcript
-hash depend only on which challenges came before (an honest verifier). Then `prove_batch`, with
-uniform masks `n_S`, `ℓ_S` and uniform blindings of `C_O`, `C_L`, `C_R`, has exactly the output
-distribution of `simBatch`, which sees only the commitments, `range`, `dst`, the generators and
-the challenges. It is stated with [VCVio](https://github.com/Verified-zkEVM/VCV-io), in the form of
-its `PerfectHVZK`: `f <$> ($ᵗ X) =ᵈ g <$> ($ᵗ Y)`, where `$ᵗ` samples uniformly and `=ᵈ` is
-equality in distribution. It assumes:
+`RangeProof.zero_knowledge` (`ZeroKnowledge.lean`) is Theorem 1 of the paper, stated with
+[VCVio](https://github.com/Verified-zkEVM/VCV-io)'s `ChallengeVerifyProtocol.HVZK`. `protocol`
+casts `range_proof` for batches of `m` values as a VCVio protocol:
 
-- a finite field with a uniform sampler (`SampleableType`), values in `range`, and generators of
-  the right shape;
-- every generator is a multiple of `g`, as in a prime-order group: `h_vec[j] = h_j g`;
-- `α ∉ {0, -1, ..., -15}`, `ρ, β, δ, τ ≠ 0` and `h_0 ≠ 0`;
-- `β² ≠ h_0 (h_1 + λ^{g_1})`, the condition of (32) in the paper.
+- the statement is the commitments, and the witness the values and blindings, related by
+  `commitments` and range membership;
+- the honest verifier's challenges `(α, ρ, λ, β, δ, τ, γ_1, ..., γ_r)` are one uniform draw
+  (`Chal`), since they don't depend on the prover's messages, and `chalOracle` is the transcript
+  hash that returns them in order;
+- the response is `prove_batch` under uniform masks `n_S`, `ℓ_S` and blindings of `C_O`, `C_L`,
+  `C_R`.
+
+The theorem says the real transcripts are within total variation distance `22 / |F|` of
+`simTranscript`, which sees only the commitments, `range`, `dst` and the generators. The `22` is
+the number of bad challenge values (`pr_bad_le`): 16 for `α`, one each for `ρ`, `δ`, `τ`, and
+three for `β` (`β = 0` and the two roots of condition (32), `β² = h_0 (h_1 + λ^{g_1})`). For good
+challenges the distributions are equal (`zero_knowledge_at`). It assumes:
+
+- a finite field with a uniform sampler (`SampleableType`), and `m ≥ 1`;
+- generators of the right shape, all multiples of `g`, as in a prime-order group:
+  `h_vec[j] = h_j g`, with `h_0 ≠ 0`.
 
 The proof (`Spec/ZeroKnowledge.lean`) differs from the paper's pivot table but needs the same
 condition. With the masks fixed, the solved `r_S` is affine in the other 15 blindings, so they map
