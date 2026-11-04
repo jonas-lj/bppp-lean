@@ -318,8 +318,7 @@ lemma prove_rec_spec (gens : Generators E) :
     have hrel' := Spec.NormLinear.fold_rel gens.g x w hrho (by simp only [x, toInst]; ring) gamma
       hrel
     rw [← hfold.1, ← hfold.2] at hrel'
-    simp only [is_base_case, FOLD_THRESHOLD, Bool.and_eq_true, decide_eq_true_eq, not_and,
-      not_lt] at hb
+    rw [is_base_case_iff] at hb
     obtain ⟨proof', t', cf, rhof, muf, gs, Wh', Wg', hrun, hr1, hn1, hv, hgs, hcf, hWh', hWg', hch,
       hcg, hfin⟩ := ih _ (by
         simp only [length_vec_add, length_vec_scalar_mul, length_halves_fst,
@@ -345,7 +344,7 @@ lemma prove_rec_spec (gens : Generators E) :
       (mul_ne_zero hrho hrho) hrel'
     refine ⟨{ proof' with rounds := (X, R) :: proof'.rounds }, t', cf, rhof, muf, gamma :: gs, Wh',
       Wg', ?_, ?_, hn1.trans ?_, ?_, by simp [hgs], hcf, hWh', hWg', hch, hcg, ?_⟩
-    · simp only [dif_neg (by simp [is_base_case, FOLD_THRESHOLD]; omega : ¬ is_base_case l.length n.length),
+    · simp only [dif_neg (by rw [is_base_case_iff]; omega : ¬ is_base_case l.length n.length),
         StateT.run_bind]
       rw [hrinv, run_liftM_ok, ok_bind]
       simp only
@@ -356,10 +355,10 @@ lemma prove_rec_spec (gens : Generators E) :
         extend_oracle, List.append_assoc, List.cons_append, List.nil_append]
       rw [hrun]
       rfl
-    · have hb' : ¬ is_base_case l.length n.length := by simp [is_base_case, FOLD_THRESHOLD]; omega
+    · have hb' : ¬ is_base_case l.length n.length := by rw [is_base_case_iff]; omega
       rw [List.length_cons, hr1, proof_shape_step hb']
       simp [length_vec_add, length_vec_scalar_mul, hlen, hnlen]
-    · have hb' : ¬ is_base_case l.length n.length := by simp [is_base_case, FOLD_THRESHOLD]; omega
+    · have hb' : ¬ is_base_case l.length n.length := by rw [is_base_case_iff]; omega
       rw [proof_shape_step hb']
       simp [length_vec_add, length_vec_scalar_mul, hlen, hnlen]
     · rw [List.foldlM_cons, StateT.run_bind]
@@ -493,7 +492,6 @@ lemma completeness (gens : Generators E) (t : BpppTranscript F E) (c : List F) (
       simp only [hCdef] at hfin
       linear_combination (norm := module) -hfin
     simp only [verify, hpc, hps, if_false, StateT.run_bind, run_domain_sep, ok_bind]
-    simp only [StateT.run_pure, pure_bind]
     rw [hv]
     simp only [ok_bind, run_append_scalars, List.nil_append]
     rw [hmsm, run_liftM_ok, ok_bind]

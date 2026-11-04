@@ -127,8 +127,7 @@ lemma proof_shape_spec : ∀ (l n : ℕ),
       simp only [is_base_case, Bool.and_eq_true, decide_eq_true_eq] at hb
       exact ⟨by simpa using hb.1, rfl⟩
     · rw [proof_shape_step hb]
-      simp only [is_base_case, FOLD_THRESHOLD, Bool.and_eq_true, decide_eq_true_eq, not_and,
-        not_lt] at hb
+      rw [is_base_case_iff] at hb
       obtain ⟨h1, h2⟩ := ih _ (by omega) ((l + 1) / 2) ((n + 1) / 2) rfl
       exact ⟨by rw [Function.iterate_succ_apply]; exact h1,
         by rw [Function.iterate_succ_apply]; exact h2⟩

@@ -158,7 +158,7 @@ lemma l_base (hb : blindings.length = params.m) :
   refine ⟨uniform_new (by simp) fun c hc => ?_, fun s hs => ?_⟩
   · simp only [List.mem_cons, List.not_mem_nil, or_false] at hc
     rcases hc with rfl | rfl | rfl | rfl <;>
-      simp [Witness.new, length_vec_scalar_mul, length_h_coordinates, hr, H_LEN]
+      simp only [Witness.new, length_vec_scalar_mul, length_h_coordinates (hr _ _)] <;> rfl
   · simp only [l, coordinates_without_c_s, Witness.new, toPolys_new, List.length_cons,
       List.length_nil, sum_range_succ, sum_range_zero, zero_add, List.getD_cons_zero,
       List.getD_cons_succ, getD_vec_scalar_mul, getD_h_coordinates (hr _ _), getD_v_hat_h,
@@ -372,6 +372,7 @@ lemma solve_r_s_eq (rest : Laurent F) (hbeta : beta ≠ 0)
 
 /-! ## The error polynomial vanishes -/
 
+set_option maxHeartbeats 800000 in
 /-- With `r_S` from `solve_r_s`, the error polynomial vanishes. -/
 lemma f_zero (halpha : ∀ j : ℕ, j < 16 → alpha + j ≠ 0) (hbeta : beta ≠ 0) (hdelta : delta ≠ 0)
     (hrho : rho ≠ 0) (g_s : F) (h_s : List F)

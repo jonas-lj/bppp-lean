@@ -1,6 +1,7 @@
 import Bppp.Spec.Completeness
 import Bppp.Spec.CircuitSoundness
-import Mathlib.Probability.Distributions.Uniform
+import VCVio.OracleComp.Constructions.SampleableType.Measure
+import VCVio.EvalDist.EvalDistEq
 
 /-!
 # Zero-knowledge
@@ -8,6 +9,8 @@ import Mathlib.Probability.Distributions.Uniform
 Honest-verifier zero-knowledge of the range circuit (Theorem 1 of the paper). With the challenges
 fixed, the commitments `C_O`, `C_L`, `C_R` and the opening `(ℓ(τ), n(τ))` of `C(τ)` are uniform
 and independent; `C_S` and the norm-linear messages are functions of them and public data.
+
+Distributions are VCVio's: `$ᵗ X` samples `X` uniformly, and `=ᵈ` is equality in distribution.
 -/
 
 open Finset
@@ -22,24 +25,30 @@ open scoped ENNReal
 
 /-- A map whose fibers all have the same size pushes the uniform distribution to the uniform
 distribution. -/
-lemma map_uniform_of_card_fiber {X Y : Type*} [Fintype X] [Nonempty X] [Fintype Y] [Nonempty Y]
-    [DecidableEq Y] (f : X → Y) (k : ℕ)
+lemma map_uniform_of_card_fiber {X Y : Type} [Fintype X] [SampleableType X] [Fintype Y]
+    [SampleableType Y] [DecidableEq Y] (f : X → Y) (k : ℕ)
     (hk : ∀ y, (univ.filter fun x => f x = y).card = k) :
-    (PMF.uniformOfFintype X).map f = PMF.uniformOfFintype Y := by
+    f <$> ($ᵗ X) =ᵈ $ᵗ Y := by
+  classical
   have hX : Fintype.card X = k * Fintype.card Y := by
     rw [← Finset.card_univ, Finset.card_eq_sum_card_fiberwise (f := f) (t := univ)
       (fun _ _ => mem_univ _)]
     simp [hk, mul_comm]
   have hk0 : k ≠ 0 := by
     intro h0; have := Fintype.card_pos (α := X); rw [hX, h0, zero_mul] at this; omega
-  ext y
-  rw [PMF.map_apply, tsum_fintype, PMF.uniformOfFintype_apply]
-  simp only [PMF.uniformOfFintype_apply]
-  rw [Finset.sum_ite, Finset.sum_const_zero, add_zero, Finset.sum_const, nsmul_eq_mul]
-  have : (univ.filter fun x => y = f x) = univ.filter fun x => f x = y := by
-    ext x; simp [eq_comm]
-  rw [this, hk, hX, Nat.cast_mul, ENNReal.mul_inv (by simp) (by simp), ← mul_assoc,
-    ENNReal.mul_inv_cancel (by exact_mod_cast hk0) (by simp), one_mul]
+  intro p
+  rw [prEvent_map, SampleableType.prEvent_uniformSample, SampleableType.prEvent_uniformSample]
+  have hp : (univ.filter fun x => p (f x)).card = k * (univ.filter p).card := by
+    rw [Finset.card_eq_sum_card_fiberwise (f := f) (t := univ.filter p)
+      (fun x hx => by simpa using hx)]
+    rw [Finset.sum_congr rfl fun y hy => ?_, Finset.sum_const, smul_eq_mul, mul_comm]
+    rw [← hk y]
+    congr 1
+    ext x
+    simp only [mem_filter, mem_univ, true_and] at hy ⊢
+    exact ⟨fun h => h.2, fun h => ⟨h ▸ hy, h⟩⟩
+  rw [hp, hX, Nat.cast_mul, Nat.cast_mul,
+    ENNReal.mul_div_mul_left _ _ (by exact_mod_cast hk0) (by simp)]
 
 /-- The fibers of `(m, b) ↦ (ψ m, κ m + L b)`, for a bijection `ψ` and an additive map `L` with
 a right inverse, all have the size of the kernel of `L`. -/
@@ -76,7 +85,7 @@ section Honest
 
 open LaurentPolynomial
 
-variable {F : Type*} [Field F] (P : Params) (ch : Challenges F)
+variable {F : Type} [Field F] (P : Params) (ch : Challenges F)
 
 /-- The free blindings of `C_O` under the zero pattern (22), `r_{O,j}` for `j = 0, 1, 2, 3, 5, 6`,
 as entries `0, ..., 5` of `b`. -/
@@ -341,10 +350,10 @@ lemma realY_snd (m : Masks F P) (b : Fin 15 → F) :
 
 /-- **The view is uniform.** Under uniform masks and blindings, `(n(τ), ℓ(τ))` and the
 discrete logs of `C_O`, `C_L`, `C_R` are uniform and independent. -/
-lemma map_realY [Fintype F] [DecidableEq F] (hβ : ch.β ≠ 0) (hδ : ch.δ ≠ 0) (hh : h 0 ≠ 0)
-    (hD : ch.β ^ 2 - h 0 * (h 1 + ch.lam ^ P.g 1) ≠ 0) :
-    (PMF.uniformOfFintype (Masks F P × (Fin 15 → F))).map (realY P ch d s τ h gg) =
-      PMF.uniformOfFintype (((Fin P.nm → F) × F) × (Fin 10 → F)) := by
+lemma map_realY [Fintype F] [DecidableEq F] [SampleableType F] (hβ : ch.β ≠ 0) (hδ : ch.δ ≠ 0)
+    (hh : h 0 ≠ 0) (hD : ch.β ^ 2 - h 0 * (h 1 + ch.lam ^ P.g 1) ≠ 0) :
+    realY P ch d s τ h gg <$> ($ᵗ (Masks F P × (Fin 15 → F))) =ᵈ
+      $ᵗ (((Fin P.nm → F) × F) × (Fin 10 → F)) := by
   have hY : realY P ch d s τ h gg = fun x => (maskEquiv P ch d s τ x.1,
       (realY P ch d s τ h gg (x.1, 0)).2 + linMap P ch τ h x.2) := by
     funext x
@@ -359,7 +368,7 @@ lemma map_realY [Fintype F] [DecidableEq F] (hβ : ch.β ≠ 0) (hδ : ch.δ ≠
 
 /-! ## The simulator -/
 
-variable {E : Type*} [AddCommGroup E] [Module F E] (g : E) (H G : ℕ → E)
+variable {E : Type} [AddCommGroup E] [Module F E] (g : E) (H G : ℕ → E)
 
 /-- What the verifier sees before the norm-linear messages: `C_O`, `C_L`, `C_R`, `C_S` and the
 opening `(ℓ(τ), n(τ))` of `C(τ)`, from which the norm-linear prover computes its messages. -/
@@ -456,17 +465,17 @@ lemma realView_eq (hH : ∀ j, H j = h j • g) (hG : ∀ k, G k = gg k • g)
 `C_O`, `C_L`, `C_R`, `C_S` and opening `(ℓ(τ), n(τ))` of `C(τ)`, under uniform masks and blindings,
 have the distribution of `simView`, which sees only the inputs `V_i = v_i g + s_i H_0`, the
 generators and the challenges. The norm-linear messages are computed from the opening. -/
-lemma zero_knowledge [Fintype F] [DecidableEq F] (hH : ∀ j, H j = h j • g)
+lemma zero_knowledge [Fintype F] [DecidableEq F] [SampleableType F] (hH : ∀ j, H j = h j • g)
     (hG : ∀ k, G k = gg k • g) (hα : ∀ j : ℕ, j < 16 → ch.α + j ≠ 0) (hμ : ch.μ ≠ 0)
     (hβ : ch.β ≠ 0) (hδ : ch.δ ≠ 0) (hh : h 0 ≠ 0)
     (hD : ch.β ^ 2 - h 0 * (h 1 + ch.lam ^ P.g 1) ≠ 0) (hd : ∀ i < P.M, ∀ t < P.D, d i t < 16) :
-    (PMF.uniformOfFintype (Masks F P × (Fin 15 → F))).map (realView P ch d s τ g H G) =
-      (PMF.uniformOfFintype (((Fin P.nm → F) × F) × (Fin 10 → F))).map
-        (simView P ch τ g H G (Honest.inputs (P := P) g H (zkHonest P d s 0 0))) := by
+    realView P ch d s τ g H G <$> ($ᵗ (Masks F P × (Fin 15 → F))) =ᵈ
+      simView P ch τ g H G (Honest.inputs (P := P) g H (zkHonest P d s 0 0)) <$>
+        ($ᵗ (((Fin P.nm → F) × F) × (Fin 10 → F))) := by
   rw [show realView P ch d s τ g H G = simView P ch τ g H G
       (Honest.inputs (P := P) g H (zkHonest P d s 0 0)) ∘ realY P ch d s τ h gg from
-    funext (realView_eq P ch d s τ h gg g H G hH hG hα hβ hδ hμ hd), ← PMF.map_comp,
-    map_realY P ch d s τ h gg hβ hδ hh hD]
+    funext (realView_eq P ch d s τ h gg g H G hH hG hα hβ hδ hμ hd), LawfulFunctor.comp_map]
+  exact (map_realY P ch d s τ h gg hβ hδ hh hD).map _
 
 end Honest
 
