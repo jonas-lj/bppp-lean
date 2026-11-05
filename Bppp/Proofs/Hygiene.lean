@@ -255,7 +255,7 @@ open Circuit
 `challengeLogs` of the statement and the proof give the same `verify_batch` result, accepting or
 rejecting. -/
 theorem verify_batch_local (rp : RangeProof F E) (o o' : List (Entry F E) → F)
-    (generators : Range → ℕ → Result (Generators E)) (commitments : List (PedersenCommitment E))
+    (generators : ℕ → Result (Generators E)) (commitments : List (PedersenCommitment E))
     (range : Range) (dst : List ℕ)
     (h : ∀ q ∈ challengeLogs (transcript o dst range.bits commitments.length) commitments rp.proof,
       o' q = o q) :
@@ -264,11 +264,13 @@ theorem verify_batch_local (rp : RangeProof F E) (o o' : List (Entry F E) → F)
   simp only [verify_batch]
   split_ifs
   · rfl
-  rcases generators range commitments.length with e | gens
-  · rfl
+  simp only [setup]
   rcases CircuitParams.new range commitments.length with e | params
   · rfl
-  simp only [bind, Except.bind, StateT.run']
+  simp only [bind, Except.bind]
+  rcases generators params.nm with e | gens
+  · rfl
+  simp only [pure, Except.pure, StateT.run']
   have key := (Circuit.readsOnly_verify gens params rp.proof commitments
     (transcript o dst range.bits commitments.length)).swap o' h
   rw [show transcript o' dst range.bits commitments.length =

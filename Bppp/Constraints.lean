@@ -23,7 +23,9 @@ structure CircuitParams where
 def CircuitParams.new (range : Range) (m : ℕ) : Result CircuitParams :=
   if m = 0 then .error .InvalidInput
   else
-    let (d, n_d, nm) := dims range m
+    let d := range.bits / Nat.log2 BASE
+    let n_d := m * d
+    let nm := next_power_of_two (max n_d BASE)
     .ok { range, m, d, n_d, nm }
 
 variable (F) in
