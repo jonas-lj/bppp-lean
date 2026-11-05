@@ -85,7 +85,8 @@ lemma verify_run (hv : params.Valid) (proof : CircuitProof F E)
   refine ⟨hshape.1, hshape.2, ?_⟩
   have hver : ¬(vcs.length ≠ params.m ∨ gens.g_vec.length ≠ params.nm) := by simp [hshape]
   have hdinv : inverse delta = .ok delta⁻¹ := by simp [inverse, hδ0]
-  have htinv : inverse (τ : F) = .ok (τ : F)⁻¹ := by simp [inverse, τ.ne_zero]
+  have e3 : (τ : F) ^ (3 : ℤ) = τ * τ * τ := by
+    rw [show (3 : ℤ) = ((3 : ℕ) : ℤ) by norm_num, zpow_natCast]; ring
   obtain ⟨hcu, -⟩ := c_spec params hv alpha rho lambda beta delta C hC
   have hpnu := uniform_p_n params hv alpha rho lambda delta C hC
   simp only [alphaLog, rhoLog, lamLog, betaLog, deltaLog, tauLog, preAlpha, List.append_assoc,
@@ -96,8 +97,10 @@ lemma verify_run (hv : params.Valid) (proof : CircuitProof F E)
   rw [hα, hρ, hlam, hβ, hδ, hdinv] at hrun
   simp only [run_liftM_ok, ok_bind, extend_extend, extend_oracle, extend_log,
     List.append_assoc, List.cons_append, List.nil_append] at hrun
-  rw [hτ, htinv, hCnew] at hrun
-  simp only [run_liftM_ok, ok_bind, Laurent.eval_eq hpnu τ, Laurent.eval_eq hcu τ] at hrun
+  rw [hτ, hCnew] at hrun
+  simp only [run_liftM_ok, ok_bind, Laurent.eval_eq hpnu τ, Laurent.eval_eq hcu τ,
+    Laurent.eval_monomial_one, C_S_POWER, C_O_POWER, C_L_POWER, C_R_POWER, V_HAT_POWER, zpow_neg_one,
+    zpow_zero, zpow_one, zpow_two, e3, mul_one] at hrun
   convert hrun using 2
   · rfl
   · simp [afterTau, tauLog, deltaLog, betaLog, lamLog, rhoLog, alphaLog, preAlpha, extend]

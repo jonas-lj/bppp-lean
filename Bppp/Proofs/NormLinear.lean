@@ -418,9 +418,9 @@ lemma dynamic_sum (extra : List (F × E)) (rounds : List (E × E)) (gs : List F)
 
 /-- **Completeness of the norm-linear argument.** If the commitment, given to the verifier as
 `ps*G + <pn, G_vec> + sum extra`, opens to `(l, n)` with `sigma = <c, l> + |n|^2_{rho^2}`, the
-verifier accepts the honest proof on the same transcript. -/
+verifier accepts the honest proof on the same transcript. The prover ignores `sigma`. -/
 lemma completeness (gens : Generators E) (t : BpppTranscript F E) (c : List F) (rho : F)
-    (l n : List F) (ps : F) (pn : List F) (extra : List (F × E))
+    (sigma : F) (l n : List F) (ps : F) (pn : List F) (extra : List (F × E))
     (hc : c.length = gens.h_vec.length) (hl : l.length = gens.h_vec.length)
     (hn : n.length = gens.g_vec.length) (hpn : pn.length = gens.g_vec.length)
     (hH : 0 < gens.h_vec.length) (hrho : rho ≠ 0)
@@ -428,7 +428,7 @@ lemma completeness (gens : Generators E) (t : BpppTranscript F E) (c : List F) (
         (extra.map fun (s, p) => s • p).sum =
       (inner_product c l + weighted_norm n (rho * rho)) • gens.g +
         (List.zipWith (· • ·) l gens.h_vec).sum + (List.zipWith (· • ·) n gens.g_vec).sum) :
-    ∃ proof t', (prove gens c rho l n).run t = .ok (proof, t') ∧
+    ∃ proof t', (prove gens c rho ⟨sigma, l, n⟩).run t = .ok (proof, t') ∧
       (verify gens c ps pn extra rho proof).run t = .ok ((), t') := by
   set C := ps • gens.g + (List.zipWith (· • ·) pn gens.g_vec).sum +
     (extra.map fun (s, p) => s • p).sum with hCdef

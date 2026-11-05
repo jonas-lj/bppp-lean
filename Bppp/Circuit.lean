@@ -4,8 +4,8 @@ import Bppp.NormLinear
 /-!
 # `circuit.rs`
 
-The prover's random draws are an input (`Randomness`), and the test-only parameter
-`bad_reciprocals` of `prove_witness` is not modelled. Serialization is not modelled.
+The prover's random draws are an input (`Randomness`), indexed by slot. Serialization is not
+modelled.
 -/
 
 namespace Bppp
@@ -16,6 +16,21 @@ namespace Circuit
 
 /-- `CR_POWERS`. -/
 def CR_POWERS : List ℤ := [-1, 1, 2, 3, 5, 6, 7]
+
+/-- `C_S_POWER`. -/
+def C_S_POWER : ℤ := -1
+
+/-- `C_O_POWER`. -/
+def C_O_POWER : ℤ := 0
+
+/-- `C_L_POWER`. -/
+def C_L_POWER : ℤ := 1
+
+/-- `C_R_POWER`. -/
+def C_R_POWER : ℤ := 2
+
+/-- `V_HAT_POWER`. -/
+def V_HAT_POWER : ℤ := 3
 
 variable (F E) in
 /-- `CircuitProof`. -/
@@ -31,16 +46,14 @@ def c (constraints : Constraints F) (beta : F) : Laurent (List F) :=
   Laurent.from_terms ((0, constraints.cl_v) ::
     CR_POWERS.zipIdx.map fun (a, j) => (a, (List.replicate H_LEN 0).set j beta))
 
-/-- `h_coordinates`. -/
-def h_coordinates (r : List F) : List F := r.drop 1 ++ [0]
+/-- `message_opening`. -/
+def message_opening (r n : List F) : Opening F := ⟨r.headD 0, r.drop 1 ++ [0], n⟩
 
-/-- `commit`. -/
-def commit (gens : Generators E) (r n : List F) : Result E :=
-  gens.commit (r.headD 0) (h_coordinates r) n
-
-/-- `blinding_vector`, with `rng i` the draw for slot `i`. -/
-def blinding_vector (rng : ℕ → F) (zeros : List ℕ) : List F :=
-  (List.range H_LEN).map fun i => if i ∈ zeros then 0 else rng i
+/-- `blinding_vector`, with `rng p` the draw for slot `p`. -/
+def blinding_vector (rng : ℕ → F) (e : ℤ) : List F :=
+  rng 0 :: CR_POWERS.zipIdx.map fun (a, p) =>
+    let power := e + a
+    if power = -1 ∨ power + 1 ∈ CR_POWERS then rng (p + 1) else 0
 
 /-- `reciprocals`. -/
 def reciprocals (params : CircuitParams) (n_l : List F) (alpha : F) : Result (List F) := do
@@ -81,9 +94,9 @@ def new (params : CircuitParams) (rng : Randomness F) (values : List ℕ) (blind
     off_plane := []
     n_l := pad_to (to_scalars digits) params.nm
     n_o := pad_to (to_scalars (multiplicities digits)) params.nm
-    r_o := blinding_vector rng.r_o [4, 7]
-    r_l := blinding_vector rng.r_l [3, 6, 7]
-    r_r := blinding_vector rng.r_r [2, 5, 6, 7]
+    r_o := blinding_vector rng.r_o C_O_POWER
+    r_l := blinding_vector rng.r_l C_L_POWER
+    r_r := blinding_vector rng.r_r C_R_POWER
     n_s := (List.range params.nm).map rng.n_s
     l_s := rng.l_s }
 
@@ -100,10 +113,33 @@ def input_commitments (self : Witness F) (G H : E) (gens : Generators E) :
 
 end Witness
 
+variable (F) in
+/-- `CombinedOpening`. -/
+structure CombinedOpening where
+  sigma : Laurent F
+  l : Laurent (List F)
+  n : Laurent (List F)
+
+namespace CombinedOpening
+
+/-- `CombinedOpening::from_terms`. -/
+def from_terms (terms : List (ℤ × Opening F)) : CombinedOpening F :=
+  ⟨.from_terms (terms.map fun (p, o) => (p, o.sigma)),
+    .from_terms (terms.map fun (p, o) => (p, o.l)), .from_terms (terms.map fun (p, o) => (p, o.n))⟩
+
+/-- `CombinedOpening::with_r_s`. -/
+def with_r_s (self : CombinedOpening F) (r_s0 : F) (h : List F) : CombinedOpening F :=
+  { self with sigma := self.sigma + .monomial C_S_POWER r_s0, l := self.l + .monomial C_S_POWER h }
+
+/-- `CombinedOpening::eval`. -/
+def eval (self : CombinedOpening F) (tau : F) : Result (Opening F) := do
+  pure ⟨← self.sigma.eval tau, ← self.l.eval tau, ← self.n.eval tau⟩
+
+end CombinedOpening
+
 /-- `f`. -/
-def f (sigma : Laurent F) (c l n : Laurent (List F)) (norm_weights : List F) :
-    Laurent F :=
-  sigma - c.inner_product l - n.weighted_inner_product n norm_weights
+def f (opening : CombinedOpening F) (c : Laurent (List F)) (norm_weights : List F) : Laurent F :=
+  opening.sigma - c.inner_product opening.l - opening.n.weighted_inner_product opening.n norm_weights
 
 /-- `solve_r_s`. -/
 def solve_r_s (constraints : Constraints F) (f_bar : Laurent F) (l_s beta : F) :
@@ -112,47 +148,57 @@ def solve_r_s (constraints : Constraints F) (f_bar : Laurent F) (l_s beta : F) :
   let h := CR_POWERS.map (fun a => f_bar.coeff (a - 1) * beta_inv) ++ [l_s]
   pure (inner_product constraints.cl_v h - f_bar.coeff (-1), h)
 
-/-- `coordinates_without_c_s`. -/
-def coordinates_without_c_s (params : CircuitParams) (constraints : Constraints F)
-    (witness : Witness F) (n_r : List F) (delta delta_inv : F) :
-    Laurent F × Laurent (List F) × Laurent (List F) :=
+/-- `opening_without_r_s`. -/
+def opening_without_r_s (params : CircuitParams) (constraints : Constraints F)
+    (witness : Witness F) (n_r : List F) (delta delta_inv : F) : CombinedOpening F :=
   let two : F := 2
   let weights := (constraints.lambdas.take params.m).map (two * ·)
-  let v_hat := inner_product weights witness.values
   let (n_v_hat, l_v_hat) := (List.zip witness.off_plane weights).foldl
     (fun (n_v_hat, l_v_hat) ((n_i, l_i), w) =>
       (vec_add n_v_hat (vec_scalar_mul w n_i), l_v_hat + w * l_i))
     (List.replicate params.nm 0, 0)
-  let v_hat_h := ((List.replicate H_LEN 0).set 0 (inner_product weights witness.blindings)).set
-    (H_LEN - 1) l_v_hat
+  let v_hat : Opening F := ⟨inner_product weights witness.values,
+    ((List.replicate H_LEN 0).set 0 (inner_product weights witness.blindings)).set (H_LEN - 1)
+      l_v_hat, n_v_hat⟩
+  let o := message_opening witness.r_o witness.n_o
+  let delta_o : Opening F := ⟨delta * o.sigma, vec_scalar_mul delta o.l, vec_scalar_mul delta o.n⟩
+  let ⟨sigma, l, n⟩ := CombinedOpening.from_terms [(C_O_POWER, delta_o),
+    (C_L_POWER, message_opening witness.r_l witness.n_l),
+    (C_R_POWER, message_opening witness.r_r n_r), (V_HAT_POWER, v_hat)]
   let p_n := constraints.p_n delta_inv
-  let n := Laurent.new (-1) [witness.n_s, vec_scalar_mul delta witness.n_o, witness.n_l, n_r,
-    n_v_hat] + p_n
-  let sigma := Laurent.new 0 [delta * witness.r_o.headD 0, witness.r_l.headD 0,
-      witness.r_r.headD 0] + p_n.weighted_inner_product p_n constraints.norm_weights +
-    Laurent.monomial 3 (v_hat + two * (constraints.lambda_al + constraints.mu_am))
-  let l := Laurent.new 0 [vec_scalar_mul delta (h_coordinates witness.r_o),
-    h_coordinates witness.r_l, h_coordinates witness.r_r, v_hat_h]
-  (sigma, l, n)
+  let p_s := p_n.weighted_inner_product p_n constraints.norm_weights +
+    Laurent.monomial 3 (two * (constraints.lambda_al + constraints.mu_am))
+  ⟨sigma + p_s, l, n + Laurent.monomial C_S_POWER witness.n_s + p_n⟩
+
+/-- `commit_c_s`. -/
+def commit_c_s (gens : Generators E) (params : CircuitParams) (constraints : Constraints F)
+    (witness : Witness F) (n_r : List F) (c : Laurent (List F)) (beta delta delta_inv : F) :
+    Result (E × CombinedOpening F) := do
+  let opening := opening_without_r_s params constraints witness n_r delta delta_inv
+  let f_bar := f opening c constraints.norm_weights
+  let (r_s0, h) ← solve_r_s constraints f_bar witness.l_s beta
+  let c_s ← gens.commit ⟨r_s0, h, witness.n_s⟩
+  pure (c_s, opening.with_r_s r_s0 h)
 
 open BpppTranscript
 
-/-- `prove_witness`, without the test-only `bad_reciprocals`; `G`, `H` are the Pedersen bases. -/
+/-- `prove_witness`; `G`, `H` are the Pedersen bases. -/
 def prove_witness (G H : E) (gens : Generators E) (params : CircuitParams)
-    (witness : Witness F) : TranscriptM F E (CircuitProof F E × List (PedersenCommitment E)) := do
+    (witness : Witness F) (reciprocals_of : F → Result (List F)) :
+    TranscriptM F E (CircuitProof F E × List (PedersenCommitment E)) := do
   let v_commitments ← witness.input_commitments G H gens
   domain_sep "bppp_circuit"
   append_commits "V" v_commitments
   -- Step 1
-  let c_l ← commit gens witness.r_l witness.n_l
-  let c_o ← commit gens witness.r_o witness.n_o
+  let c_l ← gens.commit (message_opening witness.r_l witness.n_l)
+  let c_o ← gens.commit (message_opening witness.r_o witness.n_o)
   append_point "C_L" c_l
   append_point "C_O" c_o
   -- Step 2
   let alpha ← challenge_scalar "alpha"
   -- Step 3
-  let n_r ← reciprocals params witness.n_l alpha
-  let c_r ← commit gens witness.r_r n_r
+  let n_r ← reciprocals_of alpha
+  let c_r ← gens.commit (message_opening witness.r_r n_r)
   append_point "C_R" c_r
   -- Step 4
   let rho ← challenge_scalar "rho"
@@ -163,20 +209,13 @@ def prove_witness (G H : E) (gens : Generators E) (params : CircuitParams)
   let delta_inv ← inverse delta
   let constraints ← Constraints.new params alpha mu lambda
   -- Step 5
-  let (sigma, l, n) := coordinates_without_c_s params constraints witness n_r delta delta_inv
   let c := c constraints beta
-  let rest := f sigma c l n constraints.norm_weights
-  let (g_s, h_s) ← solve_r_s constraints rest witness.l_s beta
-  let c_s ← gens.commit g_s h_s witness.n_s
+  let (c_s, opening) ← commit_c_s gens params constraints witness n_r c beta delta delta_inv
   append_point "C_S" c_s
   -- Step 6
   let tau ← challenge_scalar "tau"
   -- Step 7
-  let l := l + Laurent.monomial (-1) h_s
-  let c_tau ← c.eval tau
-  let l_tau ← l.eval tau
-  let n_tau ← n.eval tau
-  let nl_proof ← NormLinear.prove gens c_tau rho l_tau n_tau
+  let nl_proof ← NormLinear.prove gens (← c.eval tau) rho (← opening.eval tau)
   pure ({ c_l, c_o, c_r, c_s, nl_proof }, v_commitments)
 
 /-- `prove`, with the draws `rng`; `G`, `H` are the Pedersen bases. -/
@@ -187,7 +226,7 @@ def prove (G H : E) (gens : Generators E) (params : CircuitParams) (rng : Random
       gens.g_vec.length ≠ params.nm ∨ values.any (fun v => !params.range.is_in_range v) then
     throw .InvalidInput
   let witness : Witness F := .new params rng values blindings
-  prove_witness G H gens params witness
+  prove_witness G H gens params witness fun alpha => reciprocals params witness.n_l alpha
 
 /-- `verify`. -/
 def verify (gens : Generators E) (params : CircuitParams) (proof : CircuitProof F E)
@@ -208,17 +247,17 @@ def verify (gens : Generators E) (params : CircuitParams) (proof : CircuitProof 
   let delta_inv ← inverse delta
   append_point "C_S" proof.c_s
   let tau ← challenge_scalar "tau"
-  let tau_inv ← inverse tau
-  let t2 := tau * tau
-  let t3 := t2 * tau
+  let tau_pow := fun (power : ℤ) => (Laurent.monomial power (one : F)).eval tau
   let constraints ← Constraints.new params alpha mu lambda
   let p_n_tau ← (constraints.p_n delta_inv).eval tau
-  let p_s_tau := weighted_norm p_n_tau mu + 2 * (constraints.lambda_al + constraints.mu_am) * t3
+  let p_s_tau := weighted_norm p_n_tau mu +
+    2 * (constraints.lambda_al + constraints.mu_am) * (← tau_pow 3)
   let c_tau ← (c constraints beta).eval tau
-  let two_t3 := 2 * t3
-  let extra := [(tau_inv, proof.c_s), (delta, proof.c_o), (tau, proof.c_l), (t2, proof.c_r)] ++
-    v_commitments.zipIdx.map fun (v_i, i) =>
-      (two_t3 * constraints.lambdas.getD i 0, v_i.point)
+  let extra := [(← tau_pow C_S_POWER, proof.c_s), (delta * (← tau_pow C_O_POWER), proof.c_o),
+    (← tau_pow C_L_POWER, proof.c_l), (← tau_pow C_R_POWER, proof.c_r)]
+  let v_hat_weight := 2 * (← tau_pow V_HAT_POWER)
+  let extra := extra ++ v_commitments.zipIdx.map fun (v_i, i) =>
+    (v_hat_weight * constraints.lambdas.getD i 0, v_i.point)
   NormLinear.verify gens c_tau p_s_tau p_n_tau extra rho proof.nl_proof
 
 end Circuit

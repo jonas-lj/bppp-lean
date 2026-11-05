@@ -46,7 +46,7 @@ noncomputable def finish (gens : Generators E) (P : Spec.Params) (ch : Spec.Chal
     Except Error ((CircuitProof F E × List (PedersenCommitment E)) × BpppTranscript F E) :=
   (do
     let nl ← NormLinear.prove gens ((List.range H_LEN).map fun j => evalAt τ (Spec.c P ch j)) rho
-      (List.ofFn v.2.2.2.2.1) (List.ofFn v.2.2.2.2.2)
+      ⟨0, List.ofFn v.2.2.2.2.1, List.ofFn v.2.2.2.2.2⟩
     pure ((⟨v.2.1, v.1, v.2.2.1, v.2.2.2.1, nl⟩ : CircuitProof F E), vcs)).run
     (t.extend (prefixLog vcs v.2.1 v.1 v.2.2.1 v.2.2.2.1))
 
@@ -136,10 +136,10 @@ lemma prove_view (Gp Hp : E) (gens : Generators E) (t : BpppTranscript F E)
   have hnl : W.n_l.length = params.nm := length_pad_to _ _
   have hno : W.n_o.length = params.nm := length_pad_to _ _
   have hns : W.n_s.length = params.nm := by simp [W, Witness.new]
-  obtain ⟨c_l, hcl⟩ : ∃ c_l, commit gens W.r_l W.n_l = .ok c_l :=
-    ⟨_, gens_commit_eq gens _ _ _ (by rw [length_h_coordinates hrl, hh]) (by rw [hnl, hg])⟩
-  obtain ⟨c_o, hco⟩ : ∃ c_o, commit gens W.r_o W.n_o = .ok c_o :=
-    ⟨_, gens_commit_eq gens _ _ _ (by rw [length_h_coordinates hro, hh]) (by rw [hno, hg])⟩
+  obtain ⟨c_l, hcl⟩ : ∃ c_l, gens.commit (message_opening W.r_l W.n_l) = .ok c_l :=
+    ⟨_, gens_commit_eq gens _ (by rw [message_opening_l, length_h_coordinates hrl, hh]) (by rw [message_opening_n, hnl, hg])⟩
+  obtain ⟨c_o, hco⟩ : ∃ c_o, gens.commit (message_opening W.r_o W.n_o) = .ok c_o :=
+    ⟨_, gens_commit_eq gens _ (by rw [message_opening_l, length_h_coordinates hro, hh]) (by rw [message_opening_n, hno, hg])⟩
   simp only [StateT.run_pure, pure_bind, run_liftM_ok, ok_bind,
     run_domain_sep, run_append_commits, hcl, hco, run_append_point, run_challenge_scalar,
     extend_extend, extend_oracle, extend_log, List.append_assoc, key, chalLabels_append,
@@ -149,8 +149,8 @@ lemma prove_view (Gp Hp : E) (gens : Generators E) (t : BpppTranscript F E)
   obtain ⟨n_r, hnr_eq, hnr_len, hnr⟩ := reciprocals_eq params hv rng values blindings hlen alpha
     halpha 0 0 0 0 0
   rw [← hW] at hnr_eq
-  obtain ⟨c_r, hcr⟩ : ∃ c_r, commit gens W.r_r n_r = .ok c_r :=
-    ⟨_, gens_commit_eq gens _ _ _ (by rw [length_h_coordinates hrr, hh]) (by rw [hnr_len, hg])⟩
+  obtain ⟨c_r, hcr⟩ : ∃ c_r, gens.commit (message_opening W.r_r n_r) = .ok c_r :=
+    ⟨_, gens_commit_eq gens _ (by rw [message_opening_l, length_h_coordinates hrr, hh]) (by rw [message_opening_n, hnr_len, hg])⟩
   simp only [hnr_eq, hcr, run_liftM_ok, ok_bind, extend_oracle, extend_log, extend_extend,
     List.append_assoc, key, chalLabels_append, chalLabels_points, chalLabels_nil,
     chalLabels_challenge, chalLabels_point, chalLabels_message, List.nil_append,
@@ -163,11 +163,20 @@ lemma prove_view (Gp Hp : E) (gens : Generators E) (t : BpppTranscript F E)
     hnr_len (fun k => hnr k)
   obtain ⟨g_s, h_s, hsolve, hhs_len, hhs7, hrS⟩ := solve_r_s_eq params hv rng values blindings alpha
     rho lambda beta delta C hC _ hbeta0 hrest
-  rw [← hW] at hsolve
-  obtain ⟨c_s, hcs⟩ : ∃ c_s, gens.commit g_s h_s W.n_s = .ok c_s :=
-    ⟨_, gens_commit_eq gens _ _ _ (by rw [hhs_len, hh]) (by rw [hns, hg])⟩
-  rw [show W.l_s = rng.l_s from rfl]
-  simp only [hsolve, hcs, run_liftM_ok, ok_bind, extend_oracle, extend_log, extend_extend,
+  obtain ⟨hOs, ⟨hOlu, hOl⟩, ⟨hOnu, hOn⟩⟩ := opening_without_r_s_spec params hv rng values blindings
+    alpha rho lambda delta C hC n_r hnr_len
+  have hfbar := f_eq_f3 params (w := C.norm_weights) (c_spec params hv alpha rho lambda beta delta C hC).1
+    (l_base params hv rng values blindings alpha rho lambda beta delta C hC 0 n_r hb).1
+    (n_spec params hv rng values blindings alpha rho lambda beta delta C hC 0 n_r hlen hnr_len
+      (fun k => hnr k)).1 (by simp [hC.norm_weights]) hOs hOlu hOl hOnu hOn
+  rw [← solve_r_s_congr C hfbar] at hsolve
+  rw [← hW] at hsolve hOs hOlu hOl hOnu hOn
+  obtain ⟨c_s, hcs⟩ : ∃ c_s, gens.commit ⟨g_s, h_s, W.n_s⟩ = .ok c_s :=
+    ⟨_, gens_commit_eq gens _ (by rw [hhs_len, hh]) (by rw [hns, hg])⟩
+  have hcommit : commit_c_s gens params C W n_r (Circuit.c C beta) beta delta delta⁻¹ =
+      .ok (c_s, (opening_without_r_s params C W n_r delta delta⁻¹).with_r_s g_s h_s) := by
+    simp only [commit_c_s, show W.l_s = rng.l_s from rfl, hsolve, ok_bind, hcs]; rfl
+  simp only [hcommit, run_liftM_ok, ok_bind, extend_oracle, extend_log, extend_extend,
     List.append_assoc, key, chalLabels_append, chalLabels_points, chalLabels_nil,
     chalLabels_challenge, chalLabels_point, chalLabels_message, List.nil_append,
     List.cons_append, hτ]
@@ -177,33 +186,39 @@ lemma prove_view (Gp Hp : E) (gens : Generators E) (t : BpppTranscript F E)
   obtain ⟨hnu, hnp⟩ := n_spec params hv rng values blindings alpha rho lambda beta delta C hC
     (rSOf g_s h_s) n_r hlen hnr_len (fun k => hnr k)
   rw [← hW] at hlu hlp hnu hnp
-  have hlu' := Laurent.uniform_add hlu (Laurent.uniform_monomial (-1) hhs_len)
-  simp only [Laurent.eval_eq hcu τ, Laurent.eval_eq hlu' τ, Laurent.eval_eq hnu τ, run_liftM_ok,
-    ok_bind]
+  set O := opening_without_r_s params C W n_r delta delta⁻¹ with hO
+  have hlu' := Laurent.uniform_add hOlu (Laurent.uniform_monomial C_S_POWER hhs_len)
+  obtain ⟨sig_tau, hsig⟩ := Laurent.eval_ok (O.sigma + Laurent.monomial C_S_POWER g_s) τ
+  simp only [CombinedOpening.eval, CombinedOpening.with_r_s, Laurent.eval_eq hcu τ, hsig,
+    Laurent.eval_eq hlu' τ, Laurent.eval_eq hOnu τ, run_liftM_ok, ok_bind, bind, Except.bind, pure,
+    Except.pure]
   set w := specOpening params hv rng values blindings alpha rho lambda beta delta (rSOf g_s h_s)
     with hw
   set Hf : ℕ → E := fun k => gens.h_vec.getD k 0 with hHf
   set Gf : ℕ → E := fun k => gens.g_vec.getD k 0 with hGf
   have ecl : c_l = Spec.cL (params.toSpec hv) gens.g Hf Gf w := by
-    have e := Except.ok.inj ((gens_commit_eq gens _ _ _ (by rw [length_h_coordinates hrl, hh])
-      (by rw [hnl, hg])).symm.trans hcl)
+    have e := Except.ok.inj ((gens_commit_eq gens _ (by rw [message_opening_l, length_h_coordinates hrl, hh])
+      (by rw [message_opening_n, hnl, hg])).symm.trans hcl)
+    rw [message_opening_sigma, message_opening_l, message_opening_n] at e
     rw [← e, commit_spec params hv gens hh hg _ _ _ (length_h_coordinates hrl) hnl, headD_eq_getD]
     exact spec_commit_congr _ _ _ _ _ (fun s _ => getD_h_coordinates hrl s)
       (fun k _ => getD_n_l params hv rng values blindings hlen k)
   have eco : c_o = Spec.cO (params.toSpec hv) gens.g Hf Gf w := by
-    have e := Except.ok.inj ((gens_commit_eq gens _ _ _ (by rw [length_h_coordinates hro, hh])
-      (by rw [hno, hg])).symm.trans hco)
+    have e := Except.ok.inj ((gens_commit_eq gens _ (by rw [message_opening_l, length_h_coordinates hro, hh])
+      (by rw [message_opening_n, hno, hg])).symm.trans hco)
+    rw [message_opening_sigma, message_opening_l, message_opening_n] at e
     rw [← e, commit_spec params hv gens hh hg _ _ _ (length_h_coordinates hro) hno, headD_eq_getD]
     exact spec_commit_congr _ _ _ _ _ (fun s _ => getD_h_coordinates hro s)
       (fun k _ => getD_n_o params hv rng values blindings hlen k)
   have ecr : c_r = Spec.cR (params.toSpec hv) gens.g Hf Gf w := by
-    have e := Except.ok.inj ((gens_commit_eq gens _ _ _ (by rw [length_h_coordinates hrr, hh])
-      (by rw [hnr_len, hg])).symm.trans hcr)
+    have e := Except.ok.inj ((gens_commit_eq gens _ (by rw [message_opening_l, length_h_coordinates hrr, hh])
+      (by rw [message_opening_n, hnr_len, hg])).symm.trans hcr)
+    rw [message_opening_sigma, message_opening_l, message_opening_n] at e
     rw [← e, commit_spec params hv gens hh hg _ _ _ (length_h_coordinates hrr) hnr_len,
       headD_eq_getD]
     exact spec_commit_congr _ _ _ _ _ (fun s _ => getD_h_coordinates hrr s) (fun k _ => hnr k)
   have ecs : c_s = Spec.cS (params.toSpec hv) gens.g Hf Gf w := by
-    have e := Except.ok.inj ((gens_commit_eq gens _ _ _ (by rw [hhs_len, hh])
+    have e := Except.ok.inj ((gens_commit_eq gens ⟨g_s, h_s, W.n_s⟩ (by rw [hhs_len, hh])
       (by rw [hns, hg])).symm.trans hcs)
     rw [← e, commit_spec params hv gens hh hg _ _ _ hhs_len hns]
     refine spec_commit_congr _ _ _ _ _ (fun s hs => ?_) (fun k hk => ?_)
@@ -216,8 +231,8 @@ lemma prove_view (Gp Hp : E) (gens : Generators E) (t : BpppTranscript F E)
   -- The opening at `τ`.
   obtain ⟨hcongS, hcongℓ⟩ := view_congr (params.toSpec hv) (specCh alpha rho lambda beta delta)
     gens.g Hf Gf τ (specHonest rng values blindings) hrS
-  have hl : List.map (fun k => evalAt τ (((coordinates_without_c_s params C W n_r delta
-      delta⁻¹).2.1 + Laurent.monomial (-1) h_s).toPolys k)) (List.range H_LEN) =
+  have hl : List.map (fun k => evalAt τ ((O.l + Laurent.monomial C_S_POWER h_s).toPolys k))
+      (List.range H_LEN) =
       List.ofFn fun j : Fin 8 => evalAt τ (Spec.ℓ (specCh alpha rho lambda beta delta)
         ((specHonest rng values blindings).opening (params.toSpec hv)
           (specCh alpha rho lambda beta delta)
@@ -225,16 +240,16 @@ lemma prove_view (Gp Hp : E) (gens : Generators E) (t : BpppTranscript F E)
             (specCh alpha rho lambda beta delta))) j) := by
     refine List.ext_getElem (by simp [H_LEN]) fun s h1 h2 => ?_
     simp only [List.getElem_map, List.getElem_range, List.getElem_ofFn]
-    rw [Laurent.toPolys_add hlu (Laurent.uniform_monomial (-1) hhs_len),
-      Laurent.toPolys_monomial, hlp s (by simpa using h1), ← hcongℓ s]
+    rw [Laurent.toPolys_add hOlu (Laurent.uniform_monomial _ hhs_len),
+      Laurent.toPolys_monomial, hOl s, hlp s (by simpa using h1), ← hcongℓ s,
+      show C_S_POWER = -1 from rfl]
     have key : (if s < 7 then rSOf g_s h_s (s + 1) else rng.l_s) = h_s.getD s 0 := by
       have hs : s < 8 := by simpa [H_LEN] using h1
       rcases (show s < 7 ∨ s = 7 by omega) with h7 | rfl
       · rw [if_pos h7]; simp only [rSOf, if_neg (by omega : s + 1 ≠ 0), Nat.add_sub_cancel]
       · rw [if_neg (by omega), hhs7]
     rw [key, sub_add_cancel]
-  have hn : List.map (fun k => evalAt τ ((coordinates_without_c_s params C W n_r delta
-      delta⁻¹).2.2.toPolys k)) (List.range params.nm) =
+  have hn : List.map (fun k => evalAt τ (O.n.toPolys k)) (List.range params.nm) =
       List.ofFn fun k : Fin (params.toSpec hv).nm => evalAt τ (Spec.n (params.toSpec hv)
         (specCh alpha rho lambda beta delta)
         ((specHonest rng values blindings).opening (params.toSpec hv)
@@ -243,7 +258,7 @@ lemma prove_view (Gp Hp : E) (gens : Generators E) (t : BpppTranscript F E)
             (specCh alpha rho lambda beta delta))) k) := by
     refine List.ext_getElem (by simp) fun k h1 h2 => ?_
     simp only [List.getElem_map, List.getElem_range, List.getElem_ofFn]
-    rw [hnp k (by simpa using h1)]
+    rw [hOn k, hnp k (by simpa using h1)]
     rfl
   have hc : List.map (fun k => evalAt τ ((c C beta).toPolys k)) (List.range H_LEN) =
       (List.range H_LEN).map fun j => evalAt τ (Spec.c (params.toSpec hv)
@@ -270,8 +285,8 @@ lemma specHonest_rngOf (x : Spec.Masks F (params.toSpec hv) × (Fin 15 → F)) :
     specHonest (rngOf params hv x) values blindings = Spec.zkHonest (params.toSpec hv)
       (fun i t => values.getD i 0 / 16 ^ t % 16) (fun i => blindings.getD i 0) x.1 x.2 := by
   have hb : ∀ (r : ℕ → F) (zeros : List ℕ), (∀ j ∈ zeros, r j = 0) → (∀ j, 8 ≤ j → r j = 0) →
-      ∀ j, (blinding_vector r zeros).getD j 0 = r j := fun r zeros hz h8 j => by
-    rw [getD_blinding_vector]
+      ∀ j, (masked r zeros).getD j 0 = r j := fun r zeros hz h8 j => by
+    rw [getD_masked]
     split_ifs with hj
     · rfl
     · simp only [not_and_or, not_not] at hj

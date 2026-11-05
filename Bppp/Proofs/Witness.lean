@@ -69,29 +69,44 @@ lemma count_eq_card (a : ℕ) (l : List ℕ) :
 
 namespace Circuit
 
+/-- The vector of length `H_LEN` with `rng j` in slot `j`, except zeros at `zeros`. -/
+def masked (rng : ℕ → F) (zeros : List ℕ) : List F :=
+  (List.range H_LEN).map fun i => if i ∈ zeros then 0 else rng i
+
+/-- `blinding_vector` for `C_O`, `C_L` and `C_R`: the zero patterns of (22). -/
+lemma blinding_vector_O (rng : ℕ → F) : blinding_vector rng C_O_POWER = masked rng [4, 7] := by
+  simp [blinding_vector, masked, CR_POWERS, C_O_POWER, H_LEN, List.range_succ, List.zipIdx]
+
+lemma blinding_vector_L (rng : ℕ → F) : blinding_vector rng C_L_POWER = masked rng [3, 6, 7] := by
+  simp [blinding_vector, masked, CR_POWERS, C_L_POWER, H_LEN, List.range_succ, List.zipIdx]
+
+lemma blinding_vector_R (rng : ℕ → F) :
+    blinding_vector rng C_R_POWER = masked rng [2, 5, 6, 7] := by
+  simp [blinding_vector, masked, CR_POWERS, C_R_POWER, H_LEN, List.range_succ, List.zipIdx]
+
 /-- The honest prover of `Spec` for the inputs and draws of `Witness::new`. -/
 def specHonest (rng : Randomness F) (values : List ℕ) (blindings : List F) : Spec.Honest F where
   d i t := values.getD i 0 / 16 ^ t % 16
   s i := blindings.getD i 0
   nS := rng.n_s
   ℓS := rng.l_s
-  rO j := (blinding_vector rng.r_o [4, 7]).getD j 0
-  rL j := (blinding_vector rng.r_l [3, 6, 7]).getD j 0
-  rR j := (blinding_vector rng.r_r [2, 5, 6, 7]).getD j 0
+  rO j := (masked rng.r_o [4, 7]).getD j 0
+  rL j := (masked rng.r_l [3, 6, 7]).getD j 0
+  rR j := (masked rng.r_r [2, 5, 6, 7]).getD j 0
 
 variable (params : CircuitParams) (hv : params.Valid) (rng : Randomness F) (values : List ℕ)
   (blindings : List F)
 
-lemma getD_blinding_vector (rng' : ℕ → F) (zeros : List ℕ) (j : ℕ) :
-    (blinding_vector rng' zeros).getD j 0 = if j < H_LEN ∧ j ∉ zeros then rng' j else 0 := by
-  unfold blinding_vector
+lemma getD_masked (rng' : ℕ → F) (zeros : List ℕ) (j : ℕ) :
+    (masked rng' zeros).getD j 0 = if j < H_LEN ∧ j ∉ zeros then rng' j else 0 := by
+  unfold masked
   rw [List.getD_eq_getElem?_getD, List.getElem?_map]
   by_cases hj : j < H_LEN
   · rw [List.getElem?_range hj]; by_cases hz : j ∈ zeros <;> simp [hz, hj]
   · rw [List.getElem?_eq_none (by simpa using hj)]; simp [hj]
 
 lemma zero_pattern : (specHonest rng values blindings).ZeroPattern := by
-  constructor <;> (simp only [specHonest]; rw [getD_blinding_vector]; simp [H_LEN])
+  constructor <;> (simp only [specHonest]; rw [getD_masked]; simp [H_LEN])
 
 lemma digits_lt : ∀ i < params.m, ∀ t < params.d,
     (specHonest rng values blindings).d i t < 16 := fun _ _ _ _ => Nat.mod_lt _ (by norm_num)

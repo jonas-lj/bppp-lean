@@ -24,9 +24,16 @@ structure NormLinearProof where
   l_final : F
   n_final : List F
 
+variable (F) in
+/-- `Opening`. -/
+structure Opening where
+  sigma : F
+  l : List F
+  n : List F
+
 /-- `Generators::commit`. -/
-def Generators.commit (self : Generators E) (sigma : F) (l n : List F) : Result E :=
-  self.msm sigma l n [] []
+def Generators.commit (self : Generators E) (opening : Opening F) : Result E :=
+  self.msm opening.sigma opening.l opening.n [] []
 
 namespace NormLinear
 
@@ -215,10 +222,10 @@ decreasing_by
   omega
 
 /-- `norm_linear::prove`. -/
-def prove (gens : Generators E) (c : List F) (rho : F) (l n : List F) :
+def prove (gens : Generators E) (c : List F) (rho : F) (opening : Opening F) :
     TranscriptM F E (NormLinearProof F E) := do
   domain_sep "norm_linear"
-  prove_loop (.new gens) c rho l n
+  prove_loop (.new gens) c rho opening.l opening.n
 
 /-- An iteration of the round loop of `norm_linear::verify`, on the state
 `(c, rho, mu, gammas, w_h, w_g)`. -/

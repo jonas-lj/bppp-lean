@@ -229,6 +229,16 @@ lemma readsOnly_verify (gens : Generators E) (params : CircuitParams) (proof : C
   obtain rfl := liftM_run_eq _ _ h
   refine ReadsOnly.bind (ReadsOnly.liftM _ _) fun _ t17 h => ?_
   obtain rfl := liftM_run_eq _ _ h
+  refine ReadsOnly.bind (ReadsOnly.liftM _ _) fun _ t18 h => ?_
+  obtain rfl := liftM_run_eq _ _ h
+  refine ReadsOnly.bind (ReadsOnly.liftM _ _) fun _ t19 h => ?_
+  obtain rfl := liftM_run_eq _ _ h
+  refine ReadsOnly.bind (ReadsOnly.liftM _ _) fun _ t20 h => ?_
+  obtain rfl := liftM_run_eq _ _ h
+  refine ReadsOnly.bind (ReadsOnly.liftM _ _) fun _ t21 h => ?_
+  obtain rfl := liftM_run_eq _ _ h
+  refine ReadsOnly.bind (ReadsOnly.liftM _ _) fun _ t22 h => ?_
+  obtain rfl := liftM_run_eq _ _ h
   refine NormLinear.readsOnly_verify _ _ _ _ _ _ _ _ fun i hi => ?_
   simp only [challengeLogs, nlLogs, List.mem_append, List.mem_map, List.mem_range]
   right
