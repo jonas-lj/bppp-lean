@@ -1,4 +1,4 @@
-import Bppp.Transcript
+import Bppp.Model.Transcript
 
 /-!
 # Lemmas about `transcript.rs`

@@ -115,7 +115,7 @@ Checking that the mirror matches the Rust code is the part Lean cannot do.
 
 | Files | Contents |
 | --- | --- |
-| `Bppp/Fastcrypto.lean`, `Crs.lean`, `Util.lean`, `Transcript.lean`, `Laurent.lean`, `Constraints.lean`, `NormLinear.lean`, `Circuit.lean`, `RangeProof.lean` | The Rust code, one file per module, with the same names |
+| `Bppp/Model/` | The Rust code, one file per module, with the same names |
 | `Bppp/Proofs/` | Lemmas about each module, and completeness and special soundness of `norm_linear` and `circuit` |
 | `Bppp/Spec/` | The protocol of the paper, used inside the proofs |
 | `Bppp/Correctness.lean`, `Bppp/Soundness.lean`, `Bppp/ZeroKnowledge.lean` | Completeness, special soundness and zero-knowledge of `range_proof` |

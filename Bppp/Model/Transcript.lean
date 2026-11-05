@@ -1,4 +1,4 @@
-import Bppp.Fastcrypto
+import Bppp.Model.Fastcrypto
 
 /-!
 # `transcript.rs`

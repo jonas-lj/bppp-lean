@@ -1,4 +1,4 @@
-import Bppp.Circuit
+import Bppp.Model.Circuit
 import Bppp.Proofs.Constraints
 import Bppp.Spec.Honest
 import Bppp.Proofs.Weights

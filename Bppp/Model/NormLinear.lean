@@ -1,5 +1,5 @@
-import Bppp.Transcript
-import Bppp.Util
+import Bppp.Model.Transcript
+import Bppp.Model.Util
 
 /-!
 # `norm_linear.rs`

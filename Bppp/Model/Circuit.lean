@@ -1,5 +1,5 @@
-import Bppp.Constraints
-import Bppp.NormLinear
+import Bppp.Model.Constraints
+import Bppp.Model.NormLinear
 
 /-!
 # `circuit.rs`

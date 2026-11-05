@@ -1,4 +1,4 @@
-import Bppp.Constraints
+import Bppp.Model.Constraints
 import Bppp.Proofs.Laurent
 import Bppp.Spec.Protocol
 

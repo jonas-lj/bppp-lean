@@ -1,4 +1,4 @@
-import Bppp.Circuit
+import Bppp.Model.Circuit
 
 /-!
 # `range_proof.rs`
