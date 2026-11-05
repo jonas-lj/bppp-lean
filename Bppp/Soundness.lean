@@ -24,16 +24,16 @@ open BpppTranscript Circuit
 /-- An accepting `verify_batch` runs `circuit::verify` on the generators and parameters for the
 batch size, from the transcript `transcript` sets up. -/
 lemma verify_batch_run (rp : RangeProof F E) (oracle : List (Entry F E) → F)
-    (generators : Range → ℕ → Result (Generators E)) (commitments : List (PedersenCommitment E))
+    (generators : ℕ → Result (Generators E)) (commitments : List (PedersenCommitment E))
     (range : Range) (dst : List ℕ) (gens : Generators E) (params : CircuitParams)
-    (hgens : generators range commitments.length = .ok gens)
+    (hgens : generators params.nm = .ok gens)
     (hparams : CircuitParams.new range commitments.length = .ok params)
     (h : rp.verify_batch oracle generators commitments range dst = .ok ()) :
     ∃ t', (Circuit.verify gens params rp.proof commitments).run
       (transcript oracle dst range.bits commitments.length) = .ok ((), t') := by
   have hc : commitments ≠ [] := by
     rintro rfl; simp [verify_batch] at h; cases h
-  simp only [verify_batch, hc, if_false, hgens, hparams, bind, Except.bind, StateT.run'] at h
+  simp only [verify_batch, hc, if_false, setup, hparams, hgens, bind, Except.bind, pure, Except.pure, StateT.run'] at h
   rcases hr : Circuit.verify gens params rp.proof commitments
     (transcript oracle dst range.bits commitments.length) with e | ⟨⟨⟩, t'⟩
   · rw [hr] at h; cases h
@@ -42,7 +42,7 @@ lemma verify_batch_run (rp : RangeProof F E) (oracle : List (Entry F E) → F)
 /-- What a run at a leaf must be: an accepting run of `verify_batch` whose proof has the given
 messages, whose transcript derives the given challenges, and whose norm-linear part is the path
 `p` of the leaf's tree of rounds. -/
-def BatchRun (generators : Range → ℕ → Result (Generators E))
+def BatchRun (generators : ℕ → Result (Generators E))
     (commitments : List (PedersenCommitment E)) (range : Range) (dst : List ℕ) (cS cO cL cR : E)
     (alpha rho lambda beta delta : F) (τ : Fˣ)
     (p : List (E × E) × List F × Spec.NormLinear.Witness F) : Prop :=
@@ -60,9 +60,9 @@ def BatchRun (generators : Range → ℕ → Result (Generators E))
       fun k => rp.proof.nl_proof.n_final.getD k 0⟩ ∧
     rp.verify_batch oracle generators commitments range dst = .ok ()
 
-lemma leafRun_of_batchRun (generators : Range → ℕ → Result (Generators E))
+lemma leafRun_of_batchRun (generators : ℕ → Result (Generators E))
     (commitments : List (PedersenCommitment E)) (range : Range) (dst : List ℕ) (gens : Generators E)
-    (params : CircuitParams) (hgens : generators range commitments.length = .ok gens)
+    (params : CircuitParams) (hgens : generators params.nm = .ok gens)
     (hparams : CircuitParams.new range commitments.length = .ok params) (cS cO cL cR : E)
     (alpha rho lambda beta delta : F) (τ : Fˣ) (p : List (E × E) × List F × Spec.NormLinear.Witness F)
     (h : BatchRun generators commitments range dst cS cO cL cR alpha rho lambda beta delta τ p) :
@@ -77,10 +77,10 @@ fixed `commitments`, `range` and `dst`, each with its own transcript hash, forke
 `Circuit.verify_extract`. If `Generators::new` returns `H_LEN` and `nm` generators with
 `g = pedersen::H` and `h_vec[0] = pedersen::G`, every commitment is a Pedersen commitment to a
 value in `range`, or the generators satisfy a nontrivial linear relation. -/
-theorem verify_extract (generators : Range → ℕ → Result (Generators E))
+theorem verify_extract (generators : ℕ → Result (Generators E))
     (commitments : List (PedersenCommitment E)) (range : Range) (dst : List ℕ)
     (gens : Generators E) (params : CircuitParams)
-    (hgens : generators range commitments.length = .ok gens)
+    (hgens : generators params.nm = .ok gens)
     (hparams : CircuitParams.new range commitments.length = .ok params) (hv : params.Valid)
     (hh : gens.h_vec.length = H_LEN) (hg : gens.g_vec.length = params.nm) (G H : E)
     (hgH : gens.g = H) (hhG : gens.h_vec.getD 0 0 = G) (hc : commitments ≠ [])
@@ -112,7 +112,7 @@ theorem verify_extract (generators : Range → ℕ → Result (Generators E))
     Spec.Relation F (params.toSpec hv) gens.g (fun k => gens.h_vec.getD k 0)
       (fun k => gens.g_vec.getD k 0) := by
   have hm : commitments.length ≠ 0 := by simpa using hc
-  obtain ⟨params', hpn, -, -, hpm, -, h16⟩ := params_new range commitments.length hm
+  obtain ⟨params', hpn, -, -, hpm, h16⟩ := params_new range commitments.length hm
   obtain rfl : params = params' := by rw [hparams] at hpn; exact Except.ok.inj hpn
   rcases Circuit.verify_extract gens params hv hh hg h2 hchar (by omega) commitments hpm.symm cO cL
     cR cS α rho δ β lam τ hα hμ hβ hlam hτ hpole hρ0 hδ0 hτ0 trees d hd hdist hL

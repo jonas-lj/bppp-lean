@@ -229,6 +229,16 @@ lemma readsOnly_verify (gens : Generators E) (params : CircuitParams) (proof : C
   obtain rfl := liftM_run_eq _ _ h
   refine ReadsOnly.bind (ReadsOnly.liftM _ _) fun _ t17 h => ?_
   obtain rfl := liftM_run_eq _ _ h
+  refine ReadsOnly.bind (ReadsOnly.liftM _ _) fun _ t18 h => ?_
+  obtain rfl := liftM_run_eq _ _ h
+  refine ReadsOnly.bind (ReadsOnly.liftM _ _) fun _ t19 h => ?_
+  obtain rfl := liftM_run_eq _ _ h
+  refine ReadsOnly.bind (ReadsOnly.liftM _ _) fun _ t20 h => ?_
+  obtain rfl := liftM_run_eq _ _ h
+  refine ReadsOnly.bind (ReadsOnly.liftM _ _) fun _ t21 h => ?_
+  obtain rfl := liftM_run_eq _ _ h
+  refine ReadsOnly.bind (ReadsOnly.liftM _ _) fun _ t22 h => ?_
+  obtain rfl := liftM_run_eq _ _ h
   refine NormLinear.readsOnly_verify _ _ _ _ _ _ _ _ fun i hi => ?_
   simp only [challengeLogs, nlLogs, List.mem_append, List.mem_map, List.mem_range]
   right
@@ -245,7 +255,7 @@ open Circuit
 `challengeLogs` of the statement and the proof give the same `verify_batch` result, accepting or
 rejecting. -/
 theorem verify_batch_local (rp : RangeProof F E) (o o' : List (Entry F E) → F)
-    (generators : Range → ℕ → Result (Generators E)) (commitments : List (PedersenCommitment E))
+    (generators : ℕ → Result (Generators E)) (commitments : List (PedersenCommitment E))
     (range : Range) (dst : List ℕ)
     (h : ∀ q ∈ challengeLogs (transcript o dst range.bits commitments.length) commitments rp.proof,
       o' q = o q) :
@@ -254,11 +264,13 @@ theorem verify_batch_local (rp : RangeProof F E) (o o' : List (Entry F E) → F)
   simp only [verify_batch]
   split_ifs
   · rfl
-  rcases generators range commitments.length with e | gens
-  · rfl
+  simp only [setup]
   rcases CircuitParams.new range commitments.length with e | params
   · rfl
-  simp only [bind, Except.bind, StateT.run']
+  simp only [bind, Except.bind]
+  rcases generators params.nm with e | gens
+  · rfl
+  simp only [pure, Except.pure, StateT.run']
   have key := (Circuit.readsOnly_verify gens params rp.proof commitments
     (transcript o dst range.bits commitments.length)).swap o' h
   rw [show transcript o' dst range.bits commitments.length =

@@ -6,8 +6,9 @@ import Bppp.Spec.Completeness
 /-!
 # The Laurent polynomials of `circuit.rs`
 
-`coordinates_without_c_s`, `c` and `error_polynomial` compute the Laurent vectors (26) and the
-error polynomial (28) of `Spec`, for the honest prover `specHonest`.
+`opening_without_r_s`, `c` and `f` compute the Laurent vectors (26) and the error polynomial
+(28) of `Spec`, for the honest prover `specHonest`. `coordinates_without_r_s` writes the opening of
+`opening_without_r_s` in the layout of (26), and `opening_without_r_s_spec` shows they agree.
 -/
 
 open Finset LaurentPolynomial
@@ -28,7 +29,43 @@ variable (params : CircuitParams) (hv : params.Valid) (rng : Randomness F) (valu
 /-- The challenges of `Spec`. -/
 def specCh : Spec.Challenges F := ⟨alpha, rho * rho, lambda, beta, delta⟩
 
-/-! ## `h_coordinates` -/
+/-! ## The layout of (26) -/
+
+/-- The `H` coordinates `(r_1, ..., r_7, 0)` of `message_opening r n`. -/
+def h_coordinates (r : List F) : List F := r.drop 1 ++ [0]
+
+lemma message_opening_l (r n : List F) : (message_opening r n).l = h_coordinates r := rfl
+
+lemma message_opening_sigma (r n : List F) : (message_opening r n).sigma = r.headD 0 := rfl
+
+lemma message_opening_n (r n : List F) : (message_opening r n).n = n := rfl
+
+/-- The opening of `opening_without_r_s` as three Laurent polynomials, in the layout of (26). -/
+def coordinates_without_r_s (params : CircuitParams) (constraints : Constraints F)
+    (witness : Witness F) (n_r : List F) (delta delta_inv : F) :
+    Laurent F × Laurent (List F) × Laurent (List F) :=
+  let two : F := 2
+  let weights := (constraints.lambdas.take params.m).map (two * ·)
+  let v_hat := inner_product weights witness.values
+  let (n_v_hat, l_v_hat) := (List.zip witness.off_plane weights).foldl
+    (fun (n_v_hat, l_v_hat) ((n_i, l_i), w) =>
+      (vec_add n_v_hat (vec_scalar_mul w n_i), l_v_hat + w * l_i))
+    (List.replicate params.nm 0, 0)
+  let v_hat_h := ((List.replicate H_LEN 0).set 0 (inner_product weights witness.blindings)).set
+    (H_LEN - 1) l_v_hat
+  let p_n := constraints.p_n delta_inv
+  let n := Laurent.new (-1) [witness.n_s, vec_scalar_mul delta witness.n_o, witness.n_l, n_r,
+    n_v_hat] + p_n
+  let sigma := Laurent.new 0 [delta * witness.r_o.headD 0, witness.r_l.headD 0,
+      witness.r_r.headD 0] + p_n.weighted_inner_product p_n constraints.norm_weights +
+    Laurent.monomial 3 (v_hat + two * (constraints.lambda_al + constraints.mu_am))
+  let l := Laurent.new 0 [vec_scalar_mul delta (h_coordinates witness.r_o),
+    h_coordinates witness.r_l, h_coordinates witness.r_r, v_hat_h]
+  (sigma, l, n)
+
+/-- `f` on the three polynomials of `coordinates_without_r_s`. -/
+def f3 (sigma : Laurent F) (c l n : Laurent (List F)) (norm_weights : List F) : Laurent F :=
+  sigma - c.inner_product l - n.weighted_inner_product n norm_weights
 
 lemma length_h_coordinates {r : List F} (h : r.length = H_LEN) : (h_coordinates r).length = H_LEN := by
   simp [h_coordinates, h, H_LEN]
@@ -42,8 +79,11 @@ lemma getD_h_coordinates {r : List F} (h : r.length = H_LEN) (s : ℕ) :
     · rw [NormLinear.getD_append_ge _ _ (by simp [h, H_LEN])]; simp [h, H_LEN]
     · rw [getD_eq_zero_of_le (by simp [h, H_LEN]; omega)]
 
-lemma length_blinding_vector (rng' : ℕ → F) (zeros : List ℕ) :
-    (blinding_vector rng' zeros).length = H_LEN := by simp [blinding_vector]
+lemma length_blinding_vector (rng' : ℕ → F) (e : ℤ) :
+    (blinding_vector rng' e).length = H_LEN := by simp [blinding_vector, CR_POWERS, H_LEN]
+
+lemma length_masked (rng' : ℕ → F) (zeros : List ℕ) :
+    (masked rng' zeros).length = H_LEN := by simp [masked]
 
 /-! ## The public part `p_n` -/
 
@@ -80,7 +120,7 @@ include hC in
 lemma n_spec (hlen : values.length = params.m) (hnr_len : n_r.length = params.nm)
     (hnr : ∀ k, n_r.getD k 0 =
       (specOpening params hv rng values blindings alpha rho lambda beta delta r).nR k) :
-    let n := (coordinates_without_c_s params C (Witness.new params rng values blindings) n_r delta
+    let n := (coordinates_without_r_s params C (Witness.new params rng values blindings) n_r delta
       delta⁻¹).2.2
     Uniform params.nm n ∧ ∀ k < params.nm, n.toPolys k =
       Spec.n (params.toSpec hv) (specCh alpha rho lambda beta delta)
@@ -123,7 +163,7 @@ lemma getD_lambdas (i : ℕ) (hi : i < params.m) : C.lambdas.getD i 0 = lambda ^
   rw [hC.lambdas, getD_map_range _ (by omega)]
 
 include hC in
-/-- `2 Σ_i λ^i x_i`, the input aggregation of `coordinates_without_c_s`. -/
+/-- `2 Σ_i λ^i x_i`, the input aggregation of `coordinates_without_r_s`. -/
 lemma inner_product_weights (xs : List F) (hxs : xs.length = params.m) :
     inner_product ((C.lambdas.take params.m).map (2 * ·)) xs =
       2 * ∑ i ∈ range params.m, lambda ^ i * xs.getD i 0 := by
@@ -146,20 +186,22 @@ lemma getD_v_hat_h (x y : F) (s : ℕ) :
 include hC in
 /-- `ℓ(T)` without the term `T⁻¹(r_{S,1:7} ‖ ℓ_S)` of `C_S`. -/
 lemma l_base (hb : blindings.length = params.m) :
-    let l := (coordinates_without_c_s params C (Witness.new params rng values blindings) n_r delta
+    let l := (coordinates_without_r_s params C (Witness.new params rng values blindings) n_r delta
       delta⁻¹).2.1
     Uniform H_LEN l ∧ ∀ s < H_LEN, l.toPolys s =
       Spec.ℓ (specCh alpha rho lambda beta delta)
         (specOpening params hv rng values blindings alpha rho lambda beta delta r) s -
       mono (-1) (if s < 7 then r (s + 1) else rng.l_s) := by
   intro l
-  have hr : ∀ zeros : List ℕ, ∀ rng' : ℕ → F, (blinding_vector rng' zeros).length = H_LEN :=
-    fun _ _ => length_blinding_vector _ _
+  have hr : ∀ zeros : List ℕ, ∀ rng' : ℕ → F, (masked rng' zeros).length = H_LEN :=
+    fun _ _ => length_masked _ _
   refine ⟨uniform_new (by simp) fun c hc => ?_, fun s hs => ?_⟩
   · simp only [List.mem_cons, List.not_mem_nil, or_false] at hc
     rcases hc with rfl | rfl | rfl | rfl <;>
-      simp only [Witness.new, length_vec_scalar_mul, length_h_coordinates (hr _ _)] <;> rfl
-  · simp only [l, coordinates_without_c_s, Witness.new, toPolys_new, List.length_cons,
+      simp only [Witness.new, blinding_vector_O, blinding_vector_L, blinding_vector_R,
+        length_vec_scalar_mul, length_h_coordinates (hr _ _)] <;> rfl
+  · simp only [l, coordinates_without_r_s, Witness.new, blinding_vector_O, blinding_vector_L,
+      blinding_vector_R, toPolys_new, List.length_cons,
       List.length_nil, sum_range_succ, sum_range_zero, zero_add, List.getD_cons_zero,
       List.getD_cons_succ, getD_vec_scalar_mul, getD_h_coordinates (hr _ _), getD_v_hat_h,
       List.zip_nil_left, List.foldl_nil,
@@ -188,14 +230,15 @@ lemma headD_eq_getD (v : List F) : v.headD 0 = v.getD 0 0 := by cases v <;> rfl
 include hC in
 /-- `σ(T)` without the term `T⁻¹ r_{S,0}` of `C_S`. -/
 lemma sigma_base (hlen : values.length = params.m) (hrange : ∀ v ∈ values, v < 16 ^ params.d) :
-    (coordinates_without_c_s params C (Witness.new params rng values blindings) n_r delta
+    (coordinates_without_r_s params C (Witness.new params rng values blindings) n_r delta
       delta⁻¹).1.toPoly =
       Spec.σ (params.toSpec hv) (specCh alpha rho lambda beta delta)
         (specOpening params hv rng values blindings alpha rho lambda beta delta r) - mono (-1) (r 0) := by
   have hwip := toPoly_weighted_inner_product (uniform_p_n params hv alpha rho lambda delta C hC)
     (uniform_p_n params hv alpha rho lambda delta C hC) C.norm_weights
-    (by simp [Constraints.norm_weights, hC.bar_mu])
-  simp only [coordinates_without_c_s, Witness.new, toPoly_add, toPoly_new, toPoly_monomial, hwip,
+    (by simp [hC.norm_weights])
+  simp only [coordinates_without_r_s, Witness.new, blinding_vector_O, blinding_vector_L,
+    blinding_vector_R, toPoly_add, toPoly_new, toPoly_monomial, hwip,
     List.length_cons, List.length_nil, sum_range_succ, sum_range_zero, zero_add,
     List.getD_cons_zero, List.getD_cons_succ,
     inner_product_weights params hv alpha rho lambda C hC _ (by rw [length_to_scalars, hlen])]
@@ -207,7 +250,7 @@ lemma sigma_base (hlen : values.length = params.m) (hrange : ∀ v ∈ values, v
         (specCh alpha rho lambda beta delta) k * Spec.pn (params.toSpec hv)
         (specCh alpha rho lambda beta delta) k) := fun k hk => by
     rw [toPolys_p_n params hv alpha rho lambda beta delta C hC k (mem_range.1 hk),
-      Constraints.norm_weights, hC.bar_mu, getD_map_range _ (mem_range.1 hk)]
+      hC.norm_weights, getD_map_range _ (mem_range.1 hk)]
   rw [sum_congr rfl hpn]
   have hv' : ∀ i ∈ range params.m, lambda ^ i * (to_scalars values : List F).getD i 0 =
       lambda ^ i * (specHonest rng values blindings).value (params.toSpec hv) i := fun i hi => by
@@ -258,12 +301,12 @@ lemma rest_eq (hlen : values.length = params.m) (hb : blindings.length = params.
     (hrange : ∀ v ∈ values, v < 16 ^ params.d) (hnr_len : n_r.length = params.nm)
     (hnr : ∀ k, n_r.getD k 0 =
       (specOpening params hv rng values blindings alpha rho lambda beta delta 0).nR k) :
-    (error_polynomial
-      (coordinates_without_c_s params C (Witness.new params rng values blindings) n_r delta delta⁻¹).1
+    (f3
+      (coordinates_without_r_s params C (Witness.new params rng values blindings) n_r delta delta⁻¹).1
       (Circuit.c C beta)
-      (coordinates_without_c_s params C (Witness.new params rng values blindings) n_r delta
+      (coordinates_without_r_s params C (Witness.new params rng values blindings) n_r delta
         delta⁻¹).2.1
-      (coordinates_without_c_s params C (Witness.new params rng values blindings) n_r delta
+      (coordinates_without_r_s params C (Witness.new params rng values blindings) n_r delta
         delta⁻¹).2.2 C.norm_weights).toPoly =
       Spec.f (params.toSpec hv) (specCh alpha rho lambda beta delta)
         (specOpening params hv rng values blindings alpha rho lambda beta delta 0) +
@@ -274,11 +317,11 @@ lemma rest_eq (hlen : values.length = params.m) (hb : blindings.length = params.
     hlen hnr_len hnr
   have hsig := sigma_base params hv rng values blindings alpha rho lambda beta delta C hC 0 n_r hlen
     hrange
-  simp only [error_polynomial, toPoly_sub, toPoly_inner_product hcu hlu,
+  simp only [f3, toPoly_sub, toPoly_inner_product hcu hlu,
     toPoly_weighted_inner_product hnu hnu C.norm_weights
-      (by simp [Constraints.norm_weights, hC.bar_mu])]
+      (by simp [hC.norm_weights])]
   rw [hsig]
-  set p := coordinates_without_c_s params C (Witness.new params rng values blindings) n_r delta
+  set p := coordinates_without_r_s params C (Witness.new params rng values blindings) n_r delta
     delta⁻¹
   have h1 : ∑ s ∈ range H_LEN, (Circuit.c C beta).toPolys s * p.2.1.toPolys s =
       ∑ s ∈ range H_LEN, Spec.c (params.toSpec hv) (specCh alpha rho lambda beta delta) s *
@@ -294,7 +337,7 @@ lemma rest_eq (hlen : values.length = params.m) (hb : blindings.length = params.
          Spec.n (params.toSpec hv) (specCh alpha rho lambda beta delta)
           (specOpening params hv rng values blindings alpha rho lambda beta delta 0) k) :=
     sum_congr rfl fun k hk => by
-      rw [hnp k (mem_range.1 hk), Constraints.norm_weights, hC.bar_mu,
+      rw [hnp k (mem_range.1 hk), hC.norm_weights,
         getD_map_range (fun k => (rho * rho) ^ (k + 1)) (mem_range.1 hk)]
   rw [h1, h2]
   simp only [Pi.zero_apply, mono_zero, sub_zero]
@@ -312,6 +355,115 @@ lemma rest_eq (hlen : values.length = params.m) (hb : blindings.length = params.
     show ¬ (7 : ℕ) < 7 from by norm_num, if_true, if_false, mono_zero, sub_zero]
   simp only [specCh]
   ring
+
+/-! ## `opening_without_r_s` in the layout of (26) -/
+
+include hC in
+/-- `opening_without_r_s` denotes the polynomials of `coordinates_without_r_s`. -/
+lemma opening_without_r_s_spec (hnr_len : n_r.length = params.nm) :
+    (opening_without_r_s params C (Witness.new params rng values blindings) n_r delta
+      delta⁻¹).sigma.toPoly = (coordinates_without_r_s params C
+        (Witness.new params rng values blindings) n_r delta delta⁻¹).1.toPoly ∧
+    (Uniform H_LEN (opening_without_r_s params C (Witness.new params rng values blindings) n_r delta
+      delta⁻¹).l ∧ ∀ s, (opening_without_r_s params C (Witness.new params rng values blindings) n_r
+        delta delta⁻¹).l.toPolys s = (coordinates_without_r_s params C
+          (Witness.new params rng values blindings) n_r delta delta⁻¹).2.1.toPolys s) ∧
+    (Uniform params.nm (opening_without_r_s params C (Witness.new params rng values blindings) n_r
+      delta delta⁻¹).n ∧ ∀ k, (opening_without_r_s params C (Witness.new params rng values blindings)
+        n_r delta delta⁻¹).n.toPolys k = (coordinates_without_r_s params C
+          (Witness.new params rng values blindings) n_r delta delta⁻¹).2.2.toPolys k) := by
+  have hr : ∀ (rng' : ℕ → F) (e : ℤ), (h_coordinates (blinding_vector rng' e)).length = H_LEN :=
+    fun _ _ => length_h_coordinates (length_blinding_vector _ _)
+  have hvl : ∀ x y : F, (((List.replicate H_LEN (0 : F)).set 0 x).set (H_LEN - 1) y).length =
+      H_LEN := fun _ _ => by simp
+  have hlterms : ∀ x ∈ [(C_O_POWER, vec_scalar_mul delta
+        (h_coordinates (Witness.new params rng values blindings : Witness F).r_o)),
+      (C_L_POWER, h_coordinates (Witness.new params rng values blindings : Witness F).r_l),
+      (C_R_POWER, h_coordinates (Witness.new params rng values blindings : Witness F).r_r),
+      (V_HAT_POWER, ((List.replicate H_LEN (0 : F)).set 0
+        (inner_product ((C.lambdas.take params.m).map (2 * ·))
+          (Witness.new params rng values blindings : Witness F).blindings)).set (H_LEN - 1) 0)],
+      x.2.length = H_LEN := by
+    intro x hx
+    simp only [List.mem_cons, List.not_mem_nil, or_false] at hx
+    rcases hx with rfl | rfl | rfl | rfl
+    · simp only [length_vec_scalar_mul]; exact hr _ _
+    · exact hr _ _
+    · exact hr _ _
+    · exact hvl _ _
+  have hnterms : ∀ x ∈ [(C_O_POWER, vec_scalar_mul delta
+        (Witness.new params rng values blindings : Witness F).n_o),
+      (C_L_POWER, (Witness.new params rng values blindings : Witness F).n_l),
+      (C_R_POWER, n_r), (V_HAT_POWER, List.replicate params.nm (0 : F))],
+      x.2.length = params.nm := by
+    intro x hx
+    simp only [List.mem_cons, List.not_mem_nil, or_false] at hx
+    rcases hx with rfl | rfl | rfl | rfl <;>
+      simp [Witness.new, length_vec_scalar_mul, length_pad_to, hnr_len]
+  obtain ⟨hlu, hlp⟩ := from_terms_spec _ _ hlterms
+  obtain ⟨hnu, hnp⟩ := from_terms_spec _ _ hnterms
+  have hpnu := uniform_p_n params hv alpha rho lambda delta C hC
+  have hns : (Witness.new params rng values blindings : Witness F).n_s.length = params.nm := by
+    simp [Witness.new]
+  have hnW : Uniform params.nm (Laurent.new (-1) [(Witness.new params rng values blindings :
+      Witness F).n_s,
+      vec_scalar_mul delta (Witness.new params rng values blindings : Witness F).n_o,
+      (Witness.new params rng values blindings : Witness F).n_l, n_r,
+      List.replicate params.nm 0]) := by
+    refine uniform_new (by simp) fun c hc => ?_
+    simp only [List.mem_cons, List.not_mem_nil, or_false] at hc
+    rcases hc with rfl | rfl | rfl | rfl | rfl <;>
+      simp [Witness.new, length_vec_scalar_mul, length_pad_to, hnr_len]
+  have hoff : (Witness.new params rng values blindings : Witness F).off_plane = [] := rfl
+  refine ⟨?_, ⟨?_, fun s => ?_⟩, ⟨?_, fun k => ?_⟩⟩
+  · simp only [opening_without_r_s, coordinates_without_r_s, CombinedOpening.from_terms,
+      message_opening, Witness.new, List.zip_nil_left, List.foldl_nil, List.map_cons, List.map_nil,
+      toPoly_add, from_terms_toPoly, toPoly_new, toPoly_monomial, List.sum_cons, List.sum_nil,
+      List.length_cons, List.length_nil, sum_range_succ, sum_range_zero, List.getD_cons_zero,
+      List.getD_cons_succ, mono_add', C_O_POWER, C_L_POWER, C_R_POWER, V_HAT_POWER]
+    push_cast
+    abel
+  · simpa only [opening_without_r_s, CombinedOpening.from_terms, message_opening, h_coordinates,
+      hoff, List.zip_nil_left, List.foldl_nil, List.map_cons, List.map_nil] using hlu
+  · simp only [opening_without_r_s, coordinates_without_r_s, CombinedOpening.from_terms,
+      message_opening, h_coordinates, hoff, List.zip_nil_left, List.foldl_nil, List.map_cons,
+      List.map_nil] at hlp ⊢
+    rw [hlp, toPolys_new]
+    simp only [List.map_cons, List.map_nil, List.sum_cons, List.sum_nil, List.length_cons,
+      List.length_nil, sum_range_succ, sum_range_zero, List.getD_cons_zero, List.getD_cons_succ,
+      C_O_POWER, C_L_POWER, C_R_POWER, V_HAT_POWER]
+    push_cast
+    abel
+  · simp only [opening_without_r_s, CombinedOpening.from_terms, hoff, List.zip_nil_left,
+      List.foldl_nil, List.map_cons, List.map_nil, message_opening] at hnu ⊢
+    exact uniform_add (uniform_add hnu (uniform_monomial _ hns)) hpnu
+  · simp only [opening_without_r_s, coordinates_without_r_s, CombinedOpening.from_terms,
+      hoff, List.zip_nil_left, List.foldl_nil, List.map_cons, List.map_nil, message_opening]
+      at hnu hnp ⊢
+    rw [toPolys_add (uniform_add hnu (uniform_monomial _ hns)) hpnu,
+      toPolys_add hnu (uniform_monomial _ hns), hnp, toPolys_monomial, toPolys_add hnW hpnu,
+      toPolys_new]
+    simp only [List.map_cons, List.map_nil, List.sum_cons, List.sum_nil, List.length_cons,
+      List.length_nil, sum_range_succ, sum_range_zero, List.getD_cons_zero, List.getD_cons_succ,
+      C_S_POWER, C_O_POWER, C_L_POWER, C_R_POWER, V_HAT_POWER]
+    push_cast
+    abel
+
+/-- `f` of an opening is `f3` of polynomials with the same denotations. -/
+lemma f_eq_f3 {O : CombinedOpening F} {sigma : Laurent F} {c l n : Laurent (List F)}
+    {w : List F} (hc : Uniform H_LEN c) (hl : Uniform H_LEN l) (hn : Uniform params.nm n)
+    (hw : w.length = params.nm) (hOs : O.sigma.toPoly = sigma.toPoly) (hOlu : Uniform H_LEN O.l)
+    (hOl : ∀ s, O.l.toPolys s = l.toPolys s) (hOnu : Uniform params.nm O.n)
+    (hOn : ∀ k, O.n.toPolys k = n.toPolys k) :
+    (f O c w).toPoly = (f3 sigma c l n w).toPoly := by
+  simp only [f, f3, toPoly_sub, toPoly_inner_product hc hOlu, toPoly_inner_product hc hl,
+    toPoly_weighted_inner_product hOnu hOnu w hw, toPoly_weighted_inner_product hn hn w hw, hOs,
+    hOl, hOn]
+
+/-- `solve_r_s` reads only the denotation of `f_bar`. -/
+lemma solve_r_s_congr (C : Constraints F) {P Q : Laurent F} (h : P.toPoly = Q.toPoly)
+    (l_s beta : F) : solve_r_s C P l_s beta = solve_r_s C Q l_s beta := by
+  simp only [solve_r_s, coeff_eq, h]
 
 /-! ## `solve_r_s` -/
 

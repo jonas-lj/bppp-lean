@@ -52,7 +52,7 @@ def challenges (beta delta : F) : Spec.Challenges F := ⟨alpha, mu, lambda, bet
 
 /-- What `Constraints::new` computes. -/
 structure Correct (C : Constraints F) (hv : params.Valid) : Prop where
-  bar_mu : C.bar_mu = (List.range params.nm).map fun k => mu ^ (k + 1)
+  norm_weights : C.norm_weights = (List.range params.nm).map fun k => mu ^ (k + 1)
   lambdas : C.lambdas = (List.range (params.m + 1)).map (lambda ^ ·)
   cn_l : C.cn_l = (List.range params.nm).map
     (Spec.cnL (params.toSpec hv) (challenges alpha mu lambda 0 0))
@@ -80,7 +80,7 @@ lemma loop_spec (hv : params.Valid) (shape : List F) (K : ℕ) :
     let st := (List.range K).foldl
       (loop_step params alpha mu mu⁻¹ ((List.range (params.m + 1)).map (lambda ^ ·)) shape)
       ⟨[], [], [], [], 0, one, one, one⟩
-    st.bar_mu = (List.range K).map (fun k => mu ^ (k + 1)) ∧
+    st.norm_weights = (List.range K).map (fun k => mu ^ (k + 1)) ∧
     st.cn_l = (List.range K).map (Spec.cnL (params.toSpec hv) (challenges alpha mu lambda 0 0)) ∧
     st.cn_r = (List.range K).map (Spec.cnR (params.toSpec hv) (challenges alpha mu lambda 0 0)) ∧
     st.cn_v = (List.range K).map (fun k => shape.getD k 0 * (mu ^ (k + 1))⁻¹) ∧
@@ -161,10 +161,10 @@ lemma new_correct (hv : params.Valid) (hmu : mu ≠ 0) (halpha : ∀ j : ℕ, j 
     (loop_step params alpha mu mu⁻¹ ((List.range (params.m + 1)).map (lambda ^ ·))
       (List.iterate (· * lambda ^ params.m) (lambda * lambda ^ params.m) (params.nm + H_LEN - 1)))
     ⟨[], [], [], [], 0, one, one, one⟩ with hst
-  have hbar : ∀ k < params.nm, st.bar_mu.getD k 0 = mu ^ (k + 1) := fun k hk => by
+  have hbar : ∀ k < params.nm, st.norm_weights.getD k 0 = mu ^ (k + 1) := fun k hk => by
     rw [h1, List.getD_eq_getElem?_getD, List.getElem?_map, List.getElem?_range hk]; rfl
   have hden : ∀ x ∈ (List.range (BASE - 1)).map (fun k =>
-      alpha * (alpha + ((k + 1 : ℕ) : F)) * st.bar_mu.getD k 0), x ≠ 0 := by
+      alpha * (alpha + ((k + 1 : ℕ) : F)) * st.norm_weights.getD k 0), x ≠ 0 := by
     intro x hx
     simp only [List.mem_map, List.mem_range, BASE] at hx
     obtain ⟨k, hk, rfl⟩ := hx
@@ -175,8 +175,8 @@ lemma new_correct (hv : params.Valid) (hmu : mu ≠ 0) (halpha : ∀ j : ℕ, j 
   set shape := List.iterate (· * lambda ^ params.m) (lambda * lambda ^ params.m)
     (params.nm + H_LEN - 1) with hshape
   set inverses := ((List.range (BASE - 1)).map fun k =>
-    alpha * (alpha + ((k + 1 : ℕ) : F)) * st.bar_mu.getD k 0).map (·⁻¹)
-  refine ⟨⟨st.bar_mu, st.cn_l, st.cn_r,
+    alpha * (alpha + ((k + 1 : ℕ) : F)) * st.norm_weights.getD k 0).map (·⁻¹)
+  refine ⟨⟨st.norm_weights, st.cn_l, st.cn_r,
     pad_to ((List.range (BASE - 1)).map fun k =>
       ((k + 1 : ℕ) : F) * lambda ^ params.m * inverses.getD k 0) params.nm,
     st.cn_v, 0 :: (List.range' 1 (H_LEN - 1)).map fun p => shape.getD (params.nm + p - 1) 0,

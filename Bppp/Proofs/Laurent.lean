@@ -227,6 +227,20 @@ lemma from_terms_spec {L : ℕ} (t : ℤ × List F) (ts : List (ℤ × List F))
     fun y hy => h y (by simp [hy])
   exact ⟨h1, fun k => by rw [from_terms, h2, toPolys_monomial, List.map_cons, List.sum_cons]⟩
 
+lemma from_terms_toPoly (t : ℤ × F) (ts : List (ℤ × F)) :
+    (from_terms (t :: ts)).toPoly = ((t :: ts).map fun x => mono x.1 x.2).sum := by
+  have key : ∀ (ts : List (ℤ × F)) (acc : Laurent F),
+      (ts.foldl (fun acc (p, c) => acc + monomial p c) acc).toPoly =
+        acc.toPoly + (ts.map fun x => mono x.1 x.2).sum := by
+    intro ts
+    induction ts with
+    | nil => intro acc; simp
+    | cons x ts ih =>
+      intro acc
+      rw [List.foldl_cons, ih, toPoly_add, toPoly_monomial, List.map_cons, List.sum_cons, add_assoc]
+  obtain ⟨p, c⟩ := t
+  rw [from_terms, key, toPoly_monomial, List.map_cons, List.sum_cons]
+
 /-! ## `eval` -/
 
 lemma foldl_mul_const (b a : F) (n : ℕ) :
@@ -306,6 +320,31 @@ lemma eval_eq {L : ℕ} {P : Laurent (List F)} (hP : Uniform L P) (τ : Fˣ) :
       rw [show P.low + ((j + 1 : ℕ) : ℤ) = P.low + (j + 1 : ℕ) from rfl, zpow_add₀ hx,
         zpow_natCast]
   · ring
+
+/-- `Laurent::eval` succeeds at a nonzero point. -/
+lemma eval_ok {C : Type} [Inhabited C] [Coefficient F C] (P : Laurent C) (τ : Fˣ) :
+    ∃ x, P.eval (τ : F) = .ok x := by
+  unfold Laurent.eval
+  by_cases hl : P.low < 0
+  · simp only [hl, if_true, inverse, τ.ne_zero, if_false]; exact ⟨_, rfl⟩
+  · simp only [hl, if_false]; exact ⟨_, rfl⟩
+
+/-- `T^p` evaluates to `τ^p`. -/
+lemma eval_monomial_one (p : ℤ) (τ : Fˣ) :
+    (monomial p (one : F)).eval (τ : F) = .ok ((τ : F) ^ p) := by
+  have hx : (τ : F) ≠ 0 := τ.ne_zero
+  unfold Laurent.eval
+  simp only [monomial, new]
+  by_cases hl : p < 0
+  · simp only [hl, if_true, inverse, hx, if_false, bind, Except.bind, pure, Except.pure,
+      List.tail_cons, List.foldl_nil, List.head!_cons, foldl_mul_const]
+    show Except.ok (one * (one * (τ : F)⁻¹ ^ p.natAbs)) = _
+    rw [one, one_mul, one_mul, inv_pow, ← zpow_natCast, ← zpow_neg,
+      show -(p.natAbs : ℤ) = p by omega]
+  · simp only [hl, if_false, bind, Except.bind, pure, Except.pure, List.tail_cons,
+      List.foldl_nil, List.head!_cons, foldl_mul_const]
+    show Except.ok (one * (one * (τ : F) ^ p.natAbs)) = _
+    rw [one, one_mul, one_mul, ← zpow_natCast, show (p.natAbs : ℤ) = p by omega]
 
 /-! ## Inner products -/
 

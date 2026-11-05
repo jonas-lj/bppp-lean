@@ -23,13 +23,15 @@ structure CircuitParams where
 def CircuitParams.new (range : Range) (m : ℕ) : Result CircuitParams :=
   if m = 0 then .error .InvalidInput
   else
-    let (d, n_d, nm) := dims range m
+    let d := range.bits / Nat.log2 BASE
+    let n_d := m * d
+    let nm := next_power_of_two (max n_d BASE)
     .ok { range, m, d, n_d, nm }
 
 variable (F) in
 /-- `Constraints`. -/
 structure Constraints where
-  bar_mu : List F
+  norm_weights : List F
   cn_l : List F
   cn_r : List F
   cn_o : List F
@@ -42,7 +44,7 @@ structure Constraints where
 variable (F) in
 /-- The state of the main loop of `Constraints::new`. -/
 structure Constraints.Loop where
-  bar_mu : List F
+  norm_weights : List F
   cn_l : List F
   cn_r : List F
   cn_v : List F
@@ -60,7 +62,7 @@ def loop_step (params : CircuitParams) (alpha mu mu_inv : F) (lambdas shape : Li
   let base : F := BASE
   let mu_pow := st.mu_pow * mu
   let mu_inv_pow := st.mu_inv_pow * mu_inv
-  let bar_mu := st.bar_mu ++ [mu_pow]
+  let norm_weights := st.norm_weights ++ [mu_pow]
   let (cn_l, cn_r, mu_am, base_pow) :=
     if k < params.n_d then
       let mu_am := st.mu_am + mu_pow
@@ -69,7 +71,7 @@ def loop_step (params : CircuitParams) (alpha mu mu_inv : F) (lambdas shape : Li
         st.cn_r ++ [lam_m * mu_inv_pow + alpha], mu_am, base_pow * base)
     else (st.cn_l ++ [0], st.cn_r ++ [0], st.mu_am, st.base_pow)
   let cn_v := st.cn_v ++ [shape.getD k 0 * mu_inv_pow]
-  { bar_mu, cn_l, cn_r, cn_v, mu_am, mu_pow, mu_inv_pow, base_pow }
+  { norm_weights, cn_l, cn_r, cn_v, mu_am, mu_pow, mu_inv_pow, base_pow }
 
 /-- `Constraints::new`. -/
 def new (params : CircuitParams) (alpha mu lambda : F) : Result (Constraints F) := do
@@ -81,18 +83,15 @@ def new (params : CircuitParams) (alpha mu lambda : F) : Result (Constraints F) 
     ⟨[], [], [], [], 0, one, one, one⟩
   let bm1 := BASE - 1
   let denominators := (List.range bm1).map fun k =>
-    alpha * (alpha + ((k + 1 : ℕ) : F)) * st.bar_mu.getD k 0
+    alpha * (alpha + ((k + 1 : ℕ) : F)) * st.norm_weights.getD k 0
   let inverses ← batch_invert denominators
   let cn_o := pad_to ((List.range bm1).map fun k =>
     ((k + 1 : ℕ) : F) * lam_m * inverses.getD k 0) params.nm
   let lambda_al := (params.n_d : F) * lam_m * (← inverse alpha)
   let cl_v := 0 :: (List.range' 1 (H_LEN - 1)).map fun p => shape.getD (params.nm + p - 1) 0
-  return ⟨st.bar_mu, st.cn_l, st.cn_r, cn_o, st.cn_v, cl_v, lambda_al, st.mu_am, lambdas⟩
+  return ⟨st.norm_weights, st.cn_l, st.cn_r, cn_o, st.cn_v, cl_v, lambda_al, st.mu_am, lambdas⟩
 
 variable (self : Constraints F)
-
-/-- `Constraints::norm_weights`. -/
-def norm_weights : List F := self.bar_mu
 
 /-- `Constraints::p_n`. -/
 def p_n (delta_inv : F) : Laurent (List F) :=

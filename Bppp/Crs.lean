@@ -3,8 +3,8 @@ import Bppp.Fastcrypto
 /-!
 # `crs.rs`
 
-`Generators::new` derives the generators by hash-to-curve and is not modelled: statements take
-the generators as an input.
+`Generators::new` derives `nm` generators by hash-to-curve and is not modelled: statements take
+it as an input function of `nm`.
 -/
 
 namespace Bppp
@@ -17,12 +17,6 @@ def H_LEN : ℕ := 8
 
 /-- `usize::next_power_of_two`: the least power of two `≥ n`. -/
 def next_power_of_two (n : ℕ) : ℕ := 2 ^ Nat.clog 2 n
-
-/-- `dims`. -/
-def dims (range : Range) (k : ℕ) : ℕ × ℕ × ℕ :=
-  let d := range.bits / Nat.log2 BASE
-  let n_d := k * d
-  (d, n_d, next_power_of_two (max n_d BASE))
 
 variable {F E : Type} [Field F] [DecidableEq F] [AddCommGroup E] [Module F E]
 

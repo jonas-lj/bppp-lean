@@ -53,11 +53,11 @@ lemma vInst_fold (C X R : E) (c : List F) (rho gamma : F) (w_h w_g : Weights F)
     (hwh : 0 < w_h.w.length) (hwg : 0 < w_g.w.length)
     (hc : c.length = (contract' w_h.w gens.h_vec).length) :
     vInst gens (C + gamma • X + (gamma ^ 2 - 1) • R)
-        (vec_add (halves c).1 (vec_scalar_mul gamma (halves c).2)) (rho * rho)
+        (vec_add (split_even_odd c).1 (vec_scalar_mul gamma (split_even_odd c).2)) (rho * rho)
         (w_h.tensor_pair one gamma) (w_g.tensor_pair rho gamma) =
       Spec.NormLinear.foldInst (vInst gens C c rho w_h w_g) X R gamma := by
-  have e1 : vec_add (halves c).1 (vec_scalar_mul gamma (halves c).2) =
-      vec_add (vec_scalar_mul 1 (halves c).1) (vec_scalar_mul gamma (halves c).2) := by
+  have e1 : vec_add (split_even_odd c).1 (vec_scalar_mul gamma (split_even_odd c).2) =
+      vec_add (vec_scalar_mul 1 (split_even_odd c).1) (vec_scalar_mul gamma (split_even_odd c).2) := by
     rw [vec_scalar_mul_one]
   rw [e1]
   simp only [vInst, Spec.NormLinear.foldInst, Spec.NormLinear.Instance.mk.injEq, true_and,
@@ -84,10 +84,10 @@ lemma loop_spec : ∀ (rounds : List (E × E)) (C : E) (c : List F) (rho : F) (g
   | (X, R) :: rounds, C, c, rho, gs0, w_h, w_g, T, hwh, hwg, hc => by
     set T1 := T.extend [.point "X" X, .point "R" R, .challenge "gamma"]
     set γ := T1.oracle T1.log
-    have hc' : (vec_add (halves c).1 (vec_scalar_mul γ (halves c).2)).length =
+    have hc' : (vec_add (split_even_odd c).1 (vec_scalar_mul γ (split_even_odd c).2)).length =
         (contract' (w_h.tensor_pair one γ).w gens.h_vec).length := by
       rw [contract'_tensor_pair hwh, length_foldPts, ← hc]
-      simp [length_vec_add, length_vec_scalar_mul, length_halves_fst, length_halves_snd, Spec.NormLinear.half]
+      simp [length_vec_add, length_vec_scalar_mul, length_split_even_odd_fst, length_split_even_odd_snd, Spec.NormLinear.half]
     have hpos : ∀ (W : Weights F) (a b : F), 0 < W.w.length → 0 < (W.tensor_pair a b).w.length :=
       fun W a b h => by rw [length_tensor_pair]; omega
     obtain ⟨cf, rhof, wh', wg', hrun, hwh', hwg', hcf, hfold⟩ := loop_spec rounds

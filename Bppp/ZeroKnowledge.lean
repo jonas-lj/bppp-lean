@@ -53,9 +53,9 @@ with `g = pedersen::H` and `h_vec[0] = pedersen::G`, all in the span of `g`, wit
 and blindings uniform, has the distribution of `simBatch`, which sees only the commitments, `range`,
 `dst`, the generators and the challenges. -/
 lemma zero_knowledge_at [Fintype F] [SampleableType F] (o' : List String → F)
-    (generators : Range → ℕ → Result (Generators E)) (G H : E) (values : List ℕ)
+    (generators : ℕ → Result (Generators E)) (G H : E) (values : List ℕ)
     (blindings : List F) (range : Range) (dst : List ℕ) (gens : Generators E)
-    (params : CircuitParams) (hgens : generators range values.length = .ok gens)
+    (params : CircuitParams) (hgens : generators params.nm = .ok gens)
     (hparams : CircuitParams.new range values.length = .ok params) (hv : params.Valid)
     (hh : gens.h_vec.length = H_LEN) (hg : gens.g_vec.length = params.nm) (hgH : gens.g = H)
     (hhG : gens.h_vec.getD 0 0 = G) (hvals : values ≠ []) (hb : blindings.length = values.length)
@@ -75,7 +75,7 @@ lemma zero_knowledge_at [Fintype F] [SampleableType F] (o' : List String → F)
       simBatch o' gens params hv (commitments G H values blindings) range dst alpha rho lambda
         beta delta τ <$> ($ᵗ (((Fin params.nm → F) × F) × (Fin 10 → F))) := by
   have hm : values.length ≠ 0 := by simpa using hvals
-  obtain ⟨params', hpn, -, hpr, hpm, -, h16⟩ := params_new range values.length hm
+  obtain ⟨params', hpn, -, hpr, hpm, h16⟩ := params_new range values.length hm
   obtain rfl : params = params' := by rw [hparams] at hpn; exact Except.ok.inj hpn
   have hd : ∀ v ∈ values, v < 16 ^ params.d := fun v hv' => by
     have := hrange v hv'
@@ -103,7 +103,7 @@ lemma zero_knowledge_at [Fintype F] [SampleableType F] (o' : List String → F)
       (fun _ => rfl) ht hh hg hpm.symm (by rw [hb, hpm]) (by rw [hpr]; exact hrange) hd
       alpha rho lambda beta delta τ hα hρ hlam hβ hδ hτ halpha hrho0 hbeta0 hdelta0
     rw [specHonest_rngOf params hv values blindings x] at hp
-    simp only [prove_batch, hc, if_false, hgens, hparams, bind, Except.bind, StateT.run']
+    simp only [prove_batch, hc, if_false, setup, hparams, hgens, bind, Except.bind, pure, Except.pure, StateT.run']
     have hp' : (Circuit.prove G H gens params (rngOf params hv x) values blindings).run t =
         finish gens P ch rho τ t (commitments G H values blindings)
           (Spec.realView P ch d sb τ gens.g Hf Gf x) := hp
@@ -179,7 +179,7 @@ variable [Fintype F] [SampleableType F]
 /-- `range_proof` as a VCVio protocol for batches of `m` values: the statement is the
 commitments, the witness the values and blindings, there is no first message, the challenges are
 `Chal`, and the response is the output of `prove_batch` under uniform masks and blindings. -/
-noncomputable def protocol (generators : Range → ℕ → Result (Generators E)) (G H : E)
+noncomputable def protocol (generators : ℕ → Result (Generators E)) (G H : E)
     (range : Range) (dst : List ℕ) (params : CircuitParams) (hv : params.Valid) (m : ℕ) :
     ChallengeVerifyProtocol (List (PedersenCommitment E)) (List ℕ × List F) Unit Unit
       (Chal F (rounds params)) (Result (RangeProof F E))
@@ -314,9 +314,9 @@ lemma pr_bad_le (h : ℕ → F) (g1 r : ℕ) :
 `h_0 ≠ 0`, the transcripts of `prove_batch` against an honest verifier, whose challenges are
 uniform, are within total variation distance `22 / |F|` of `simTranscript`, which sees only the
 commitments, `range`, `dst` and the generators. -/
-theorem zero_knowledge (generators : Range → ℕ → Result (Generators E)) (G H : E) (range : Range)
+theorem zero_knowledge (generators : ℕ → Result (Generators E)) (G H : E) (range : Range)
     (dst : List ℕ) (gens : Generators E) (params : CircuitParams) (hv : params.Valid) (m : ℕ)
-    (hm : m ≠ 0) (hgens : generators range m = .ok gens)
+    (hm : m ≠ 0) (hgens : generators params.nm = .ok gens)
     (hparams : CircuitParams.new range m = .ok params) (hh : gens.h_vec.length = H_LEN)
     (hg : gens.g_vec.length = params.nm) (hgH : gens.g = H) (hhG : gens.h_vec.getD 0 0 = G)
     (h gg : ℕ → F) (hH : ∀ j, gens.h_vec.getD j 0 = h j • gens.g)

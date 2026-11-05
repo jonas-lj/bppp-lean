@@ -23,9 +23,9 @@ grep -rn "^theorem" Bppp/
 It builds with Lean 4.35, Mathlib and VCVio. The Mathlib cache covers Mathlib only, so the first
 build also compiles the VCVio modules the zero-knowledge proof imports.
 
-Most results assume that `Generators::new` returns `H_LEN` and `nm` generators, with
-`g = pedersen::H` and `h_vec[0] = pedersen::G`. This is called *generators of the right shape*
-below.
+`Generators::new` is an input, a function of `nm`. Most results assume that for the batch's `nm`
+it returns `H_LEN` and `nm` generators, with `g = pedersen::H` and `h_vec[0] = pedersen::G`. This
+is called *generators of the right shape* below.
 
 ## Completeness
 
@@ -125,9 +125,11 @@ Checking that the mirror matches the Rust code is the part Lean cannot do.
 - The Merlin transcript is a log of labelled entries and an arbitrary function from logs to
   challenges. `Transcript::new` absorbs its label under `"dom-sep"`, and a `u64` is 8
   little-endian bytes, as in Merlin.
-- The prover's random draws are an input. For zero-knowledge they are sampled uniformly with
-  VCVio's `$ᵗ`, and `protocol` (`ZeroKnowledge.lean`), which casts `range_proof` as a VCVio
-  protocol, is part of the model to check.
+- The prover's random draws are an input, indexed by slot: `blinding_vector` reads the draw of
+  slot `p` where Rust draws the random slots in order. For zero-knowledge they are sampled
+  uniformly with VCVio's `$ᵗ`, and `protocol` (`ZeroKnowledge.lean`), which casts `range_proof` as
+  a VCVio protocol, is part of the model to check.
+- The round loop of `norm_linear::prove` is the recursive `prove_loop`.
 - Not modelled: `Generators::new` (hash-to-curve), the MSM precomputation tables, serialization,
   and test-only code.
 

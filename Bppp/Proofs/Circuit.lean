@@ -17,10 +17,12 @@ set_option linter.unusedSectionVars false
 namespace Circuit
 
 /-- `Generators::commit`, for vectors of the generators' lengths. -/
-lemma gens_commit_eq (gens : Generators E) (sigma : F) (l n : List F)
-    (hl : l.length = gens.h_vec.length) (hn : n.length = gens.g_vec.length) :
-    gens.commit sigma l n = .ok (sigma • gens.g + (List.zipWith (· • ·) l gens.h_vec).sum +
-      (List.zipWith (· • ·) n gens.g_vec).sum) := by
+lemma gens_commit_eq (gens : Generators E) (o : Opening F)
+    (hl : o.l.length = gens.h_vec.length) (hn : o.n.length = gens.g_vec.length) :
+    gens.commit o = .ok (o.sigma • gens.g + (List.zipWith (· • ·) o.l gens.h_vec).sum +
+      (List.zipWith (· • ·) o.n gens.g_vec).sum) := by
+  obtain ⟨sigma, l, n⟩ := o
+  simp only at hl hn ⊢
   simp only [Generators.commit, Generators.msm, mixed_multi_scalar_mul]
   rw [if_neg (by simp [hl, hn])]
   simp only [List.cons_append, List.zipWith_cons_cons, List.zipWith_append hl, List.sum_cons,
@@ -209,10 +211,10 @@ lemma completeness (Gp Hp : E) (gens : Generators E) (t : BpppTranscript F E)
   have hnl : W.n_l.length = params.nm := length_pad_to _ _
   have hno : W.n_o.length = params.nm := length_pad_to _ _
   have hns : W.n_s.length = params.nm := by simp [W, Witness.new]
-  obtain ⟨c_l, hcl⟩ : ∃ c_l, commit gens W.r_l W.n_l = .ok c_l :=
-    ⟨_, gens_commit_eq gens _ _ _ (by rw [length_h_coordinates hrl, hh]) (by rw [hnl, hg])⟩
-  obtain ⟨c_o, hco⟩ : ∃ c_o, commit gens W.r_o W.n_o = .ok c_o :=
-    ⟨_, gens_commit_eq gens _ _ _ (by rw [length_h_coordinates hro, hh]) (by rw [hno, hg])⟩
+  obtain ⟨c_l, hcl⟩ : ∃ c_l, gens.commit (message_opening W.r_l W.n_l) = .ok c_l :=
+    ⟨_, gens_commit_eq gens _ (by rw [message_opening_l, length_h_coordinates hrl, hh]) (by rw [message_opening_n, hnl, hg])⟩
+  obtain ⟨c_o, hco⟩ : ∃ c_o, gens.commit (message_opening W.r_o W.n_o) = .ok c_o :=
+    ⟨_, gens_commit_eq gens _ (by rw [message_opening_l, length_h_coordinates hro, hh]) (by rw [message_opening_n, hno, hg])⟩
   simp only [StateT.run_pure, pure_bind, run_liftM_ok, ok_bind,
     run_domain_sep, run_append_commits, hcl, hco, run_append_point, run_challenge_scalar,
     extend_extend, extend_oracle, extend_log]
@@ -223,8 +225,8 @@ lemma completeness (Gp Hp : E) (gens : Generators E) (t : BpppTranscript F E)
   obtain ⟨n_r, hnr_eq, hnr_len, hnr⟩ := reciprocals_eq params hv rng values blindings hlen alpha
     halpha 0 0 0 0 0
   rw [← hW] at hnr_eq
-  obtain ⟨c_r, hcr⟩ : ∃ c_r, commit gens W.r_r n_r = .ok c_r :=
-    ⟨_, gens_commit_eq gens _ _ _ (by rw [length_h_coordinates hrr, hh]) (by rw [hnr_len, hg])⟩
+  obtain ⟨c_r, hcr⟩ : ∃ c_r, gens.commit (message_opening W.r_r n_r) = .ok c_r :=
+    ⟨_, gens_commit_eq gens _ (by rw [message_opening_l, length_h_coordinates hrr, hh]) (by rw [message_opening_n, hnr_len, hg])⟩
   simp only [hnr_eq, hcr, run_liftM_ok, ok_bind, extend_oracle, extend_log]
   set L1 : List (Entry F E) := [Entry.message "dom-sep" (List.map Char.toNat "bppp_circuit".toList)] ++
     (List.map (fun c => Entry.point "V" c.point) vcs ++
@@ -249,11 +251,20 @@ lemma completeness (Gp Hp : E) (gens : Generators E) (t : BpppTranscript F E)
     hnr_len (fun k => hnr k)
   obtain ⟨g_s, h_s, hsolve, hhs_len, hhs7, hrS⟩ := solve_r_s_eq params hv rng values blindings alpha
     rho lambda beta delta C hC _ hbeta0 hrest
-  rw [← hW] at hsolve
-  obtain ⟨c_s, hcs⟩ : ∃ c_s, gens.commit g_s h_s W.n_s = .ok c_s :=
-    ⟨_, gens_commit_eq gens _ _ _ (by rw [hhs_len, hh]) (by rw [hns, hg])⟩
-  rw [show W.l_s = rng.l_s from rfl]
-  simp only [hsolve, hcs, run_liftM_ok, ok_bind, extend_oracle, extend_log]
+  obtain ⟨hOs, ⟨hOlu, hOl⟩, ⟨hOnu, hOn⟩⟩ := opening_without_r_s_spec params hv rng values blindings
+    alpha rho lambda delta C hC n_r hnr_len
+  have hfbar := f_eq_f3 params (w := C.norm_weights) (c_spec params hv alpha rho lambda beta delta C hC).1
+    (l_base params hv rng values blindings alpha rho lambda beta delta C hC 0 n_r hb).1
+    (n_spec params hv rng values blindings alpha rho lambda beta delta C hC 0 n_r hlen hnr_len
+      (fun k => hnr k)).1 (by simp [hC.norm_weights]) hOs hOlu hOl hOnu hOn
+  rw [← solve_r_s_congr C hfbar] at hsolve
+  rw [← hW] at hsolve hOs hOlu hOl hOnu hOn
+  obtain ⟨c_s, hcs⟩ : ∃ c_s, gens.commit ⟨g_s, h_s, W.n_s⟩ = .ok c_s :=
+    ⟨_, gens_commit_eq gens _ (by rw [hhs_len, hh]) (by rw [hns, hg])⟩
+  have hcommit : commit_c_s gens params C W n_r (Circuit.c C beta) beta delta delta⁻¹ =
+      .ok (c_s, (opening_without_r_s params C W n_r delta delta⁻¹).with_r_s g_s h_s) := by
+    simp only [commit_c_s, show W.l_s = rng.l_s from rfl, hsolve, ok_bind, hcs]; rfl
+  simp only [hcommit, run_liftM_ok, ok_bind, extend_oracle, extend_log]
   set L2 : List (Entry F E) := [Entry.point "C_R" c_r] ++ ([Entry.challenge "rho"] ++
     ([Entry.challenge "lambda"] ++ ([Entry.challenge "beta"] ++ [Entry.challenge "delta"])))
     with hL2
@@ -270,18 +281,20 @@ lemma completeness (Gp Hp : E) (gens : Generators E) (t : BpppTranscript F E)
   obtain ⟨hnu, hnp⟩ := n_spec params hv rng values blindings alpha rho lambda beta delta C hC
     (rSOf g_s h_s) n_r hlen hnr_len (fun k => hnr k)
   rw [← hW] at hlu hlp hnu hnp
-  have hlu' := Laurent.uniform_add hlu (Laurent.uniform_monomial (-1) hhs_len)
+  set O := opening_without_r_s params C W n_r delta delta⁻¹ with hO
+  have hlu' := Laurent.uniform_add hOlu (Laurent.uniform_monomial C_S_POWER hhs_len)
   have hev : ∀ {L : ℕ} {P : Laurent (List F)}, Laurent.Uniform L P →
       P.eval tau = .ok ((List.range L).map fun k => evalAt τu (P.toPolys k)) :=
     fun hP => Laurent.eval_eq hP τu
-  simp only [hev hcu, hev hlu', hev hnu, run_liftM_ok, ok_bind]
+  obtain ⟨sig_tau, hsig⟩ : ∃ x, (O.sigma + Laurent.monomial C_S_POWER g_s).eval tau = .ok x := by
+    simpa [τu] using Laurent.eval_ok (O.sigma + Laurent.monomial C_S_POWER g_s) τu
+  simp only [CombinedOpening.eval, CombinedOpening.with_r_s, hev hcu, hsig, hev hlu', hev hOnu,
+    run_liftM_ok, ok_bind, bind, Except.bind, pure, Except.pure]
   have hpnu := uniform_p_n params hv alpha rho lambda delta C hC
   set c_tau := (List.range H_LEN).map fun k => evalAt τu ((Circuit.c C beta).toPolys k)
   set l_tau := (List.range H_LEN).map fun k =>
-    evalAt τu (((coordinates_without_c_s params C W n_r delta delta⁻¹).2.1 +
-      Laurent.monomial (-1) h_s).toPolys k)
-  set n_tau := (List.range params.nm).map fun k =>
-    evalAt τu ((coordinates_without_c_s params C W n_r delta delta⁻¹).2.2.toPolys k)
+    evalAt τu ((O.l + Laurent.monomial C_S_POWER h_s).toPolys k)
+  set n_tau := (List.range params.nm).map fun k => evalAt τu (O.n.toPolys k)
   set pn_tau := (List.range params.nm).map fun k => evalAt τu ((C.p_n delta⁻¹).toPolys k)
   set ps_tau := weighted_norm pn_tau (rho * rho) + 2 * (C.lambda_al + C.mu_am) * (tau * tau * tau)
   set extra := [(tau⁻¹, c_s), (delta, c_o), (tau, c_l), (tau * tau, c_r)] ++
@@ -296,25 +309,28 @@ lemma completeness (Gp Hp : E) (gens : Generators E) (t : BpppTranscript F E)
     set Gf : ℕ → E := fun k => gens.g_vec.getD k 0 with hGf
     -- The four messages are the commitments of `Spec`.
     have ecl : c_l = Spec.cL (params.toSpec hv) gens.g Hf Gf w := by
-      have e := Except.ok.inj ((gens_commit_eq gens _ _ _ (by rw [length_h_coordinates hrl, hh])
-        (by rw [hnl, hg])).symm.trans hcl)
+      have e := Except.ok.inj ((gens_commit_eq gens _ (by rw [message_opening_l, length_h_coordinates hrl, hh])
+        (by rw [message_opening_n, hnl, hg])).symm.trans hcl)
+      rw [message_opening_sigma, message_opening_l, message_opening_n] at e
       rw [← e, commit_spec params hv gens hh hg _ _ _ (length_h_coordinates hrl) hnl, headD_eq_getD]
       exact spec_commit_congr _ _ _ _ _ (fun s _ => getD_h_coordinates hrl s)
         (fun k _ => getD_n_l params hv rng values blindings hlen k)
     have eco : c_o = Spec.cO (params.toSpec hv) gens.g Hf Gf w := by
-      have e := Except.ok.inj ((gens_commit_eq gens _ _ _ (by rw [length_h_coordinates hro, hh])
-        (by rw [hno, hg])).symm.trans hco)
+      have e := Except.ok.inj ((gens_commit_eq gens _ (by rw [message_opening_l, length_h_coordinates hro, hh])
+        (by rw [message_opening_n, hno, hg])).symm.trans hco)
+      rw [message_opening_sigma, message_opening_l, message_opening_n] at e
       rw [← e, commit_spec params hv gens hh hg _ _ _ (length_h_coordinates hro) hno, headD_eq_getD]
       exact spec_commit_congr _ _ _ _ _ (fun s _ => getD_h_coordinates hro s)
         (fun k _ => getD_n_o params hv rng values blindings hlen k)
     have ecr : c_r = Spec.cR (params.toSpec hv) gens.g Hf Gf w := by
-      have e := Except.ok.inj ((gens_commit_eq gens _ _ _ (by rw [length_h_coordinates hrr, hh])
-        (by rw [hnr_len, hg])).symm.trans hcr)
+      have e := Except.ok.inj ((gens_commit_eq gens _ (by rw [message_opening_l, length_h_coordinates hrr, hh])
+        (by rw [message_opening_n, hnr_len, hg])).symm.trans hcr)
+      rw [message_opening_sigma, message_opening_l, message_opening_n] at e
       rw [← e, commit_spec params hv gens hh hg _ _ _ (length_h_coordinates hrr) hnr_len,
         headD_eq_getD]
       exact spec_commit_congr _ _ _ _ _ (fun s _ => getD_h_coordinates hrr s) (fun k _ => hnr k)
     have ecs : c_s = Spec.cS (params.toSpec hv) gens.g Hf Gf w := by
-      have e := Except.ok.inj ((gens_commit_eq gens _ _ _ (by rw [hhs_len, hh])
+      have e := Except.ok.inj ((gens_commit_eq gens ⟨g_s, h_s, W.n_s⟩ (by rw [hhs_len, hh])
         (by rw [hns, hg])).symm.trans hcs)
       rw [← e, commit_spec params hv gens hh hg _ _ _ hhs_len hns]
       refine spec_commit_congr _ _ _ _ _ (fun s hs => ?_) (fun k hk => ?_)
@@ -371,8 +387,8 @@ lemma completeness (Gp Hp : E) (gens : Generators E) (t : BpppTranscript F E)
     -- The evaluated opening.
     have hl_getD : ∀ s < H_LEN, l_tau.getD s 0 =
         evalAt τu (Spec.ℓ (specCh alpha rho lambda beta delta) w s) := fun s hs => by
-      rw [getD_map_range _ hs, Laurent.toPolys_add hlu (Laurent.uniform_monomial (-1) hhs_len),
-        Laurent.toPolys_monomial, hlp s hs]
+      rw [getD_map_range _ hs, Laurent.toPolys_add hOlu (Laurent.uniform_monomial _ hhs_len),
+        Laurent.toPolys_monomial, hOl s, hlp s hs, show C_S_POWER = -1 from rfl]
       have key : (if s < 7 then rSOf g_s h_s (s + 1) else rng.l_s) = h_s.getD s 0 := by
         simp only [H_LEN] at hs
         rcases (show s < 7 ∨ s = 7 by omega) with h7 | rfl
@@ -381,7 +397,7 @@ lemma completeness (Gp Hp : E) (gens : Generators E) (t : BpppTranscript F E)
       rw [key, sub_add_cancel]
     have hn_getD : ∀ k < params.nm, n_tau.getD k 0 =
         evalAt τu (Spec.n (params.toSpec hv) (specCh alpha rho lambda beta delta) w k) :=
-      fun k hk => by rw [getD_map_range _ hk, hnp k hk]
+      fun k hk => by rw [getD_map_range _ hk, hOn k, hnp k hk]
     have hc_getD : ∀ s < H_LEN, c_tau.getD s 0 =
         evalAt τu (Spec.c (params.toSpec hv) (specCh alpha rho lambda beta delta) s) :=
       fun s hs => by rw [getD_map_range _ hs, hcp s hs]
@@ -413,14 +429,18 @@ lemma completeness (Gp Hp : E) (gens : Generators E) (t : BpppTranscript F E)
       commit_spec params hv gens hh hg _ _ _ (by simp [l_tau]) (by simp [n_tau]), hσ]
     exact spec_commit_congr _ _ _ _ _ (fun s hs => (hl_getD s (by simpa [H_LEN] using hs)).symm)
       (fun k hk => (hn_getD k hk).symm)
-  obtain ⟨nl, t', hnlp, hnlv⟩ := NormLinear.completeness gens T c_tau rho l_tau n_tau ps_tau pn_tau
+  obtain ⟨nl, t', hnlp, hnlv⟩ := NormLinear.completeness gens T c_tau rho sig_tau l_tau n_tau ps_tau
+    pn_tau
     extra (by simp [c_tau, hh]) (by simp [l_tau, hh]) (by simp [n_tau, hg]) (by simp [pn_tau, hg])
     (by rw [hh]; decide) hrho0 hident
   refine ⟨⟨c_l, c_o, c_r, c_s, nl⟩, t', ?_, ?_⟩
-  · rw [hnlp]; rfl
+  · rw [hnlp]
   · have hvcs_len : vcs.length = params.m := by simp [vcs, length_to_scalars, hlen, hb]
     have hver : ¬(vcs.length ≠ params.m ∨ gens.g_vec.length ≠ params.nm) := by simp [hvcs_len, hg]
-    have htinv : inverse tau = .ok tau⁻¹ := by simp [inverse, htau0]
+    have htp : ∀ p : ℤ, (Laurent.monomial p (one : F)).eval tau = .ok (tau ^ p) := fun p => by
+      simpa [τu] using Laurent.eval_monomial_one p τu
+    have e3 : tau ^ (3 : ℤ) = tau * tau * tau := by
+      rw [show (3 : ℤ) = ((3 : ℕ) : ℤ) by norm_num, zpow_natCast]; ring
     simp only [verify, hver, if_false, StateT.run_bind, pure_bind, run_domain_sep,
       ok_bind, run_append_commits, run_append_point, run_challenge_scalar, extend_extend,
       extend_oracle, extend_log]
@@ -431,8 +451,9 @@ lemma completeness (Gp Hp : E) (gens : Generators E) (t : BpppTranscript F E)
     rw [hα, hrho, hlam, hbeta, hdelta, hdinv]
     simp only [run_liftM_ok, ok_bind, extend_extend, extend_oracle, extend_log,
       List.append_assoc, List.cons_append, List.nil_append]
-    rw [htau, htinv, hCnew]
-    simp only [run_liftM_ok, ok_bind, hev hpnu, hev hcu]
+    rw [htau, hCnew]
+    simp only [run_liftM_ok, ok_bind, hev hpnu, hev hcu, htp, C_S_POWER, C_O_POWER, C_L_POWER,
+      C_R_POWER, V_HAT_POWER, zpow_neg_one, zpow_zero, zpow_one, zpow_two, e3, mul_one]
     rw [← hT]
     exact hnlv
 
