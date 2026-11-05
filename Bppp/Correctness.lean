@@ -1,4 +1,4 @@
-import Bppp.RangeProof
+import Bppp.Model.RangeProof
 import Bppp.Proofs.Circuit
 
 /-!

@@ -1,4 +1,4 @@
-import Bppp.Laurent
+import Bppp.Model.Laurent
 import Bppp.Proofs.Util
 import Bppp.Spec.Poly
 

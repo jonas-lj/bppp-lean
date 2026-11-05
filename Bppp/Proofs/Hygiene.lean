@@ -1,5 +1,5 @@
 import Bppp.Proofs.CircuitSoundness
-import Bppp.RangeProof
+import Bppp.Model.RangeProof
 
 /-!
 # Fiat–Shamir hygiene

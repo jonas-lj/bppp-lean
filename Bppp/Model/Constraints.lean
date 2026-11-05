@@ -1,4 +1,4 @@
-import Bppp.Laurent
+import Bppp.Model.Laurent
 
 /-!
 # `constraints.rs`

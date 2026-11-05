@@ -1,4 +1,4 @@
-import Bppp.Util
+import Bppp.Model.Util
 
 /-!
 # Lemmas about `util.rs`

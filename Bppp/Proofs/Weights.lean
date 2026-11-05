@@ -1,4 +1,4 @@
-import Bppp.NormLinear
+import Bppp.Model.NormLinear
 import Bppp.Proofs.Util
 import Bppp.Spec.NormLinearCompleteness
 
