@@ -3,7 +3,7 @@ import Bppp.Proofs.Util
 import Bppp.Spec.NormLinearCompleteness
 
 /-!
-# Lemmas about `Weights`, `halves` and `from_halves`
+# Lemmas about `Weights`, `split_even_odd` and `interleave`
 
 `Weights::contract` with weights `w` maps `P` to `contract' w P`, entry `i` of which is
 `Σ_r w_r P_{i|w|+r}` (`getD_contract'`). Folding the weights folds the contracted points
@@ -254,7 +254,7 @@ lemma contract'_one (P : List E) : contract' [(1 : F)] P = P := by
   rw [this, contractAt]
   simp [List.getD_eq_getElem?_getD, List.getElem?_eq_getElem h2]
 
-/-! ## `halves`, `from_halves`, `from_odd_half` -/
+/-! ## `split_even_odd`, `interleave`, `odd_only` -/
 
 lemma getD_unzip_pairs {α : Type} (d : α) : ∀ (v : List α), v.length % 2 = 0 → ∀ i,
     (unzip_pairs v).1.getD i d = v.getD (2 * i) d ∧ (unzip_pairs v).2.getD i d = v.getD (2 * i + 1) d
@@ -276,36 +276,36 @@ lemma getD_append_zero (v : List F) (k : ℕ) : (v ++ [0]).getD k 0 = v.getD k 0
     · rw [h0]; rfl
     · exact getD_eq_zero_of_le (by simpa using h0)
 
-lemma getD_halves (v : List F) (i : ℕ) :
-    (halves v).1.getD i 0 = v.getD (2 * i) 0 ∧ (halves v).2.getD i 0 = v.getD (2 * i + 1) 0 := by
-  unfold halves
+lemma getD_split_even_odd (v : List F) (i : ℕ) :
+    (split_even_odd v).1.getD i 0 = v.getD (2 * i) 0 ∧ (split_even_odd v).2.getD i 0 = v.getD (2 * i + 1) 0 := by
+  unfold split_even_odd
   split_ifs with h
   · obtain ⟨h1, h2⟩ := getD_unzip_pairs (0 : F) (v ++ [0]) (by simp; omega) i
     rw [h1, h2, getD_append_zero, getD_append_zero]; exact ⟨rfl, rfl⟩
   · exact getD_unzip_pairs (0 : F) v (by omega) i
 
-lemma length_from_halves (a b : List F) : (from_halves a b).length = 2 * min a.length b.length := by
+lemma length_interleave (a b : List F) : (interleave a b).length = 2 * min a.length b.length := by
   induction a generalizing b with
-  | nil => simp [from_halves]
+  | nil => simp [interleave]
   | cons x a ih =>
     cases b with
-    | nil => simp [from_halves]
+    | nil => simp [interleave]
     | cons y b =>
       have := ih b
-      simp only [from_halves, List.zip_cons_cons, List.flatMap_cons] at this ⊢
+      simp only [interleave, List.zip_cons_cons, List.flatMap_cons] at this ⊢
       simp only [List.length_append, this, List.length_cons, List.length_nil]; omega
 
-lemma getD_from_halves (a b : List F) (h : a.length = b.length) (j : ℕ) :
-    (from_halves a b).getD (2 * j) 0 = a.getD j 0 ∧
-      (from_halves a b).getD (2 * j + 1) 0 = b.getD j 0 := by
+lemma getD_interleave (a b : List F) (h : a.length = b.length) (j : ℕ) :
+    (interleave a b).getD (2 * j) 0 = a.getD j 0 ∧
+      (interleave a b).getD (2 * j + 1) 0 = b.getD j 0 := by
   induction a generalizing b j with
-  | nil => cases b <;> simp_all [from_halves]
+  | nil => cases b <;> simp_all [interleave]
   | cons x a ih =>
     cases b with
     | nil => simp at h
     | cons y b =>
-      have hfh : from_halves (x :: a) (y :: b) = x :: y :: from_halves a b := by
-        simp [from_halves]
+      have hfh : interleave (x :: a) (y :: b) = x :: y :: interleave a b := by
+        simp [interleave]
       rw [hfh]
       rcases j with _ | j
       · simp
@@ -313,25 +313,25 @@ lemma getD_from_halves (a b : List F) (h : a.length = b.length) (j : ℕ) :
         simp only [List.getD_cons_succ]
         exact ih b (by simpa using h) j
 
-/-- An MSM with coefficients `from_halves a b` over `Q` pairs `a` with the even points and `b`
+/-- An MSM with coefficients `interleave a b` over `Q` pairs `a` with the even points and `b`
 with the odd ones. -/
-lemma msm_from_halves (a b : List F) (Q : List E) (h : a.length = b.length) :
-    (List.zipWith (· • ·) (from_halves a b) Q).sum =
+lemma msm_interleave (a b : List F) (Q : List E) (h : a.length = b.length) :
+    (List.zipWith (· • ·) (interleave a b) Q).sum =
       ∑ j ∈ range a.length, (a.getD j 0 • Q.getD (2 * j) 0 + b.getD j 0 • Q.getD (2 * j + 1) 0) := by
-  rw [sum_zipWith_ext _ _ _ 0 0 (2 * a.length) (by rw [length_from_halves, h, min_self]; omega)
+  rw [sum_zipWith_ext _ _ _ 0 0 (2 * a.length) (by rw [length_interleave, h, min_self]; omega)
     (fun k hk _ => by
-      rw [getD_eq_zero_of_le (show Q.length ≤ k by rw [length_from_halves] at hk; omega),
+      rw [getD_eq_zero_of_le (show Q.length ≤ k by rw [length_interleave] at hk; omega),
         smul_zero]),
     Spec.NormLinear.sum_range_two_mul]
   refine sum_congr rfl fun j _ => ?_
-  rw [(getD_from_halves a b h j).1, (getD_from_halves a b h j).2]
+  rw [(getD_interleave a b h j).1, (getD_interleave a b h j).2]
 
-lemma from_odd_half_eq (b : List F) : from_odd_half b = from_halves (List.replicate b.length 0) b := by
+lemma odd_only_eq (b : List F) : odd_only b = interleave (List.replicate b.length 0) b := by
   induction b with
-  | nil => simp [from_odd_half, from_halves]
+  | nil => simp [odd_only, interleave]
   | cons y b ih =>
-    simp only [from_odd_half, List.flatMap_cons, List.length_cons, List.replicate_succ,
-      from_halves, List.zip_cons_cons] at ih ⊢
+    simp only [odd_only, List.flatMap_cons, List.length_cons, List.replicate_succ,
+      interleave, List.zip_cons_cons] at ih ⊢
     rw [ih]
 
 end NormLinear

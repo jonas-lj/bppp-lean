@@ -6,7 +6,7 @@ import Bppp.Spec.Completeness
 /-!
 # The Laurent polynomials of `circuit.rs`
 
-`coordinates_without_c_s`, `c` and `error_polynomial` compute the Laurent vectors (26) and the
+`coordinates_without_c_s`, `c` and `f` compute the Laurent vectors (26) and the
 error polynomial (28) of `Spec`, for the honest prover `specHonest`.
 -/
 
@@ -194,7 +194,7 @@ lemma sigma_base (hlen : values.length = params.m) (hrange : ∀ v ∈ values, v
         (specOpening params hv rng values blindings alpha rho lambda beta delta r) - mono (-1) (r 0) := by
   have hwip := toPoly_weighted_inner_product (uniform_p_n params hv alpha rho lambda delta C hC)
     (uniform_p_n params hv alpha rho lambda delta C hC) C.norm_weights
-    (by simp [Constraints.norm_weights, hC.bar_mu])
+    (by simp [hC.norm_weights])
   simp only [coordinates_without_c_s, Witness.new, toPoly_add, toPoly_new, toPoly_monomial, hwip,
     List.length_cons, List.length_nil, sum_range_succ, sum_range_zero, zero_add,
     List.getD_cons_zero, List.getD_cons_succ,
@@ -207,7 +207,7 @@ lemma sigma_base (hlen : values.length = params.m) (hrange : ∀ v ∈ values, v
         (specCh alpha rho lambda beta delta) k * Spec.pn (params.toSpec hv)
         (specCh alpha rho lambda beta delta) k) := fun k hk => by
     rw [toPolys_p_n params hv alpha rho lambda beta delta C hC k (mem_range.1 hk),
-      Constraints.norm_weights, hC.bar_mu, getD_map_range _ (mem_range.1 hk)]
+      hC.norm_weights, getD_map_range _ (mem_range.1 hk)]
   rw [sum_congr rfl hpn]
   have hv' : ∀ i ∈ range params.m, lambda ^ i * (to_scalars values : List F).getD i 0 =
       lambda ^ i * (specHonest rng values blindings).value (params.toSpec hv) i := fun i hi => by
@@ -258,7 +258,7 @@ lemma rest_eq (hlen : values.length = params.m) (hb : blindings.length = params.
     (hrange : ∀ v ∈ values, v < 16 ^ params.d) (hnr_len : n_r.length = params.nm)
     (hnr : ∀ k, n_r.getD k 0 =
       (specOpening params hv rng values blindings alpha rho lambda beta delta 0).nR k) :
-    (error_polynomial
+    (f
       (coordinates_without_c_s params C (Witness.new params rng values blindings) n_r delta delta⁻¹).1
       (Circuit.c C beta)
       (coordinates_without_c_s params C (Witness.new params rng values blindings) n_r delta
@@ -274,9 +274,9 @@ lemma rest_eq (hlen : values.length = params.m) (hb : blindings.length = params.
     hlen hnr_len hnr
   have hsig := sigma_base params hv rng values blindings alpha rho lambda beta delta C hC 0 n_r hlen
     hrange
-  simp only [error_polynomial, toPoly_sub, toPoly_inner_product hcu hlu,
+  simp only [f, toPoly_sub, toPoly_inner_product hcu hlu,
     toPoly_weighted_inner_product hnu hnu C.norm_weights
-      (by simp [Constraints.norm_weights, hC.bar_mu])]
+      (by simp [hC.norm_weights])]
   rw [hsig]
   set p := coordinates_without_c_s params C (Witness.new params rng values blindings) n_r delta
     delta⁻¹
@@ -294,7 +294,7 @@ lemma rest_eq (hlen : values.length = params.m) (hb : blindings.length = params.
          Spec.n (params.toSpec hv) (specCh alpha rho lambda beta delta)
           (specOpening params hv rng values blindings alpha rho lambda beta delta 0) k) :=
     sum_congr rfl fun k hk => by
-      rw [hnp k (mem_range.1 hk), Constraints.norm_weights, hC.bar_mu,
+      rw [hnp k (mem_range.1 hk), hC.norm_weights,
         getD_map_range (fun k => (rho * rho) ^ (k + 1)) (mem_range.1 hk)]
   rw [h1, h2]
   simp only [Pi.zero_apply, mono_zero, sub_zero]

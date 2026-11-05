@@ -100,17 +100,17 @@ def input_commitments (self : Witness F) (G H : E) (gens : Generators E) :
 
 end Witness
 
-/-- `error_polynomial`. -/
-def error_polynomial (sigma : Laurent F) (c l n : Laurent (List F)) (bar_mu : List F) :
+/-- `f`. -/
+def f (sigma : Laurent F) (c l n : Laurent (List F)) (norm_weights : List F) :
     Laurent F :=
-  sigma - c.inner_product l - n.weighted_inner_product n bar_mu
+  sigma - c.inner_product l - n.weighted_inner_product n norm_weights
 
 /-- `solve_r_s`. -/
-def solve_r_s (constraints : Constraints F) (rest : Laurent F) (l_s beta : F) :
+def solve_r_s (constraints : Constraints F) (f_bar : Laurent F) (l_s beta : F) :
     Result (F × List F) := do
   let beta_inv ← inverse beta
-  let h := CR_POWERS.map (fun a => rest.coeff (a - 1) * beta_inv) ++ [l_s]
-  pure (inner_product constraints.cl_v h - rest.coeff (-1), h)
+  let h := CR_POWERS.map (fun a => f_bar.coeff (a - 1) * beta_inv) ++ [l_s]
+  pure (inner_product constraints.cl_v h - f_bar.coeff (-1), h)
 
 /-- `coordinates_without_c_s`. -/
 def coordinates_without_c_s (params : CircuitParams) (constraints : Constraints F)
@@ -165,7 +165,7 @@ def prove_witness (G H : E) (gens : Generators E) (params : CircuitParams)
   -- Step 5
   let (sigma, l, n) := coordinates_without_c_s params constraints witness n_r delta delta_inv
   let c := c constraints beta
-  let rest := error_polynomial sigma c l n constraints.norm_weights
+  let rest := f sigma c l n constraints.norm_weights
   let (g_s, h_s) ← solve_r_s constraints rest witness.l_s beta
   let c_s ← gens.commit g_s h_s witness.n_s
   append_point "C_S" c_s
@@ -212,14 +212,14 @@ def verify (gens : Generators E) (params : CircuitParams) (proof : CircuitProof 
   let t2 := tau * tau
   let t3 := t2 * tau
   let constraints ← Constraints.new params alpha mu lambda
-  let pn_tau ← (constraints.p_n delta_inv).eval tau
-  let ps_tau := weighted_norm pn_tau mu + 2 * (constraints.lambda_al + constraints.mu_am) * t3
+  let p_n_tau ← (constraints.p_n delta_inv).eval tau
+  let p_s_tau := weighted_norm p_n_tau mu + 2 * (constraints.lambda_al + constraints.mu_am) * t3
   let c_tau ← (c constraints beta).eval tau
   let two_t3 := 2 * t3
   let extra := [(tau_inv, proof.c_s), (delta, proof.c_o), (tau, proof.c_l), (t2, proof.c_r)] ++
     v_commitments.zipIdx.map fun (v_i, i) =>
       (two_t3 * constraints.lambdas.getD i 0, v_i.point)
-  NormLinear.verify gens c_tau ps_tau pn_tau extra rho proof.nl_proof
+  NormLinear.verify gens c_tau p_s_tau p_n_tau extra rho proof.nl_proof
 
 end Circuit
 

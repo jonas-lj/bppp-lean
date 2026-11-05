@@ -51,8 +51,8 @@ def unzip_pairs {α : Type} : List α → List α × List α
   | x :: y :: rest => let (a, b) := unzip_pairs rest; (x :: a, y :: b)
   | _ => ([], [])
 
-/-- `halves`. -/
-def halves (v : List F) : List F × List F :=
+/-- `split_even_odd`. -/
+def split_even_odd (v : List F) : List F × List F :=
   unzip_pairs (if v.length % 2 ≠ 0 then v ++ [0] else v)
 
 lemma unzip_pairs_length {α : Type} : ∀ v : List α,
@@ -64,19 +64,19 @@ lemma unzip_pairs_length {α : Type} : ∀ v : List α,
   | [_] => by simp [unzip_pairs]
 
 omit [DecidableEq F] in
-lemma halves_length (v : List F) :
-    (halves v).1.length = (v.length + 1) / 2 ∧ (halves v).2.length = (v.length + 1) / 2 := by
-  unfold halves
+lemma split_even_odd_length (v : List F) :
+    (split_even_odd v).1.length = (v.length + 1) / 2 ∧ (split_even_odd v).2.length = (v.length + 1) / 2 := by
+  unfold split_even_odd
   split_ifs with h
   · have := unzip_pairs_length (v ++ [0])
     simp only [List.length_append, List.length_singleton] at this; omega
   · have := unzip_pairs_length v; omega
 
-/-- `from_halves`. -/
-def from_halves (even odd : List F) : List F := (List.zip even odd).flatMap fun (x, y) => [x, y]
+/-- `interleave`. -/
+def interleave (even odd : List F) : List F := (List.zip even odd).flatMap fun (x, y) => [x, y]
 
-/-- `from_odd_half`. -/
-def from_odd_half (odd : List F) : List F := odd.flatMap fun y => [0, y]
+/-- `odd_only`. -/
+def odd_only (odd : List F) : List F := odd.flatMap fun y => [0, y]
 
 /-- `sparse_mul`. -/
 def sparse_mul (a b : F) : F := if a = 0 then a else a * b
@@ -153,7 +153,7 @@ def len (self : LazyBases F E) : ℕ × ℕ :=
   (h_vec.length, g_vec.length)
 
 /-- `LazyBases::msm`, which takes `&mut self` and so returns the updated bases. -/
-def msm (self : LazyBases F E) (v : F) (h_coeffs g_coeffs : List F) :
+def msm (self : LazyBases F E) (sigma : F) (l n : List F) :
     Result (E × LazyBases F E) := do
   let self ← if self.w_h.len = 2 ^ FOLD_BATCH_ROUNDS then do
       let (g, h_vec, g_vec) := self.points'
@@ -161,12 +161,12 @@ def msm (self : LazyBases F E) (v : F) (h_coeffs g_coeffs : List F) :
       pure { points := .Folded g folded.1 folded.2, w_h := .new, w_g := .new }
     else pure self
   let (h_len, g_len) := self.len
-  let h_scalars := (self.w_h.tensor h_coeffs).take h_len
-  let g_scalars := (self.w_g.tensor g_coeffs).take g_len
+  let h_scalars := (self.w_h.tensor l).take h_len
+  let g_scalars := (self.w_g.tensor n).take g_len
   let point ← match self.points with
-    | .Crs gens => gens.msm v h_scalars g_scalars [] []
+    | .Crs gens => gens.msm sigma h_scalars g_scalars [] []
     | .Folded g h_vec g_vec =>
-      let (sc, pts) := (((v, g) :: List.zip h_scalars h_vec ++ List.zip g_scalars g_vec).filter
+      let (sc, pts) := (((sigma, g) :: List.zip h_scalars h_vec ++ List.zip g_scalars g_vec).filter
         fun (s, _) => s ≠ 0).unzip
       multi_scalar_mul sc pts
   pure (point, self)
@@ -175,20 +175,20 @@ end LazyBases
 
 open BpppTranscript
 
-/-- `prove_rec`. -/
-def prove_rec (bases : LazyBases F E) (c : List F) (rho : F) (l n : List F) :
+/-- The round loop of `norm_linear::prove`: one round per call, until the base case. -/
+def prove_loop (bases : LazyBases F E) (c : List F) (rho : F) (l n : List F) :
     TranscriptM F E (NormLinearProof F E) := do
   if _h : is_base_case l.length n.length then do
     append_scalars "l_final" l
     append_scalars "n_final" n
     return { rounds := [], l_final := l.headD 0, n_final := n }
   else do
-    let l0 := (halves l).1
-    let l1 := (halves l).2
-    let n0 := (halves n).1
-    let n1 := (halves n).2
-    let c0 := (halves c).1
-    let c1 := (halves c).2
+    let l0 := (split_even_odd l).1
+    let l1 := (split_even_odd l).2
+    let n0 := (split_even_odd n).1
+    let n1 := (split_even_odd n).2
+    let c0 := (split_even_odd c).1
+    let c1 := (split_even_odd c).2
     let mu := rho * rho
     let mu2 := mu * mu
     let rho_inv ← inverse rho
@@ -196,21 +196,21 @@ def prove_rec (bases : LazyBases F E) (c : List F) (rho : F) (l n : List F) :
     let vx := two * rho_inv * weighted_inner_product n0 n1 mu2 + inner_product c0 l1 +
       inner_product c1 l0
     let vr := weighted_norm n1 mu2 + inner_product c1 l1
-    let (x_point, bases) ← bases.msm vx (from_halves l1 l0)
-      (from_halves (vec_scalar_mul rho n1) (vec_scalar_mul rho_inv n0))
-    let (r_point, bases) ← bases.msm vr (from_odd_half l1) (from_odd_half n1)
+    let (x_point, bases) ← bases.msm vx (interleave l1 l0)
+      (interleave (vec_scalar_mul rho n1) (vec_scalar_mul rho_inv n0))
+    let (r_point, bases) ← bases.msm vr (odd_only l1) (odd_only n1)
     append_point "X" x_point
     append_point "R" r_point
     let gamma ← challenge_scalar "gamma"
-    let proof ← prove_rec (bases.fold rho gamma) (vec_add c0 (vec_scalar_mul gamma c1)) mu
+    let proof ← prove_loop (bases.fold rho gamma) (vec_add c0 (vec_scalar_mul gamma c1)) mu
       (vec_add l0 (vec_scalar_mul gamma l1))
       (vec_add (vec_scalar_mul rho_inv n0) (vec_scalar_mul gamma n1))
     return { proof with rounds := (x_point, r_point) :: proof.rounds }
 termination_by l.length + n.length
 decreasing_by
   rw [is_base_case_iff] at _h
-  have hl := halves_length l
-  have hn := halves_length n
+  have hl := split_even_odd_length l
+  have hn := split_even_odd_length n
   simp only [vec_add, vec_scalar_mul, List.length_zipWith, List.length_map]
   omega
 
@@ -218,7 +218,7 @@ decreasing_by
 def prove (gens : Generators E) (c : List F) (rho : F) (l n : List F) :
     TranscriptM F E (NormLinearProof F E) := do
   domain_sep "norm_linear"
-  prove_rec (.new gens) c rho l n
+  prove_loop (.new gens) c rho l n
 
 /-- An iteration of the round loop of `norm_linear::verify`, on the state
 `(c, rho, mu, gammas, w_h, w_g)`. -/
@@ -229,15 +229,15 @@ def verify_round (st : List F × F × F × List F × Weights F × Weights F) (ro
   append_point "X" x_point
   append_point "R" r_point
   let gamma ← challenge_scalar "gamma"
-  let c0 := (halves c).1
-  let c1 := (halves c).2
+  let c0 := (split_even_odd c).1
+  let c1 := (split_even_odd c).2
   pure (vec_add c0 (vec_scalar_mul gamma c1), mu, mu * mu, gammas ++ [gamma],
     w_h.tensor_pair one gamma, w_g.tensor_pair rho gamma)
 
 /-- `norm_linear::verify`. -/
-def verify (gens : Generators E) (c : List F) (ps : F) (pn : List F) (extra : List (F × E))
+def verify (gens : Generators E) (c : List F) (p_s : F) (p_n : List F) (extra : List (F × E))
     (rho : F) (proof : NormLinearProof F E) : TranscriptM F E Unit := do
-  if c.length ≠ gens.h_vec.length ∨ pn.length ≠ gens.g_vec.length then
+  if c.length ≠ gens.h_vec.length ∨ p_n.length ≠ gens.g_vec.length then
     throw .InvalidInput
   let (rounds, n_len) := proof_shape gens.h_vec.length gens.g_vec.length
   if proof.rounds.length ≠ rounds ∨ proof.n_final.length ≠ n_len then
@@ -249,11 +249,11 @@ def verify (gens : Generators E) (c : List F) (ps : F) (pn : List F) (extra : Li
   append_scalars "n_final" proof.n_final
   let sigma := c.headD 0 * proof.l_final + weighted_norm proof.n_final mu
   let l := (w_h.scale proof.l_final).take gens.h_vec.length
-  let n := List.zipWith (fun w pn_i => w - pn_i) ((w_g.tensor proof.n_final).take gens.g_vec.length) pn
+  let n := List.zipWith (fun w p_n_i => w - p_n_i) ((w_g.tensor proof.n_final).take gens.g_vec.length) p_n
   let dynamic := extra.map (fun (s, p) => (-s, p)) ++
     (List.zip proof.rounds gammas).flatMap fun ((x_point, r_point), gamma) =>
       [(-gamma, x_point), (one - gamma * gamma, r_point)]
-  let result ← gens.msm (sigma - ps) l n (dynamic.map (·.1)) (dynamic.map (·.2))
+  let result ← gens.msm (sigma - p_s) l n (dynamic.map (·.1)) (dynamic.map (·.2))
   if result = 0 then pure () else throw .InvalidProof
 
 end NormLinear

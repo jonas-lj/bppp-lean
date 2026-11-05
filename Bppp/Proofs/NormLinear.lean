@@ -5,7 +5,7 @@ import Bppp.Proofs.Transcript
 # Completeness of `norm_linear.rs`
 
 A prover state `(bases, c, rho, l, n)` stands for an instance and witness of `Spec.NormLinear`
-(`toInst`, `toWit`). Each round of `prove_rec` sends `Spec.NormLinear.msgX` and `msgR` and folds
+(`toInst`, `toWit`). Each round of `prove_loop` sends `Spec.NormLinear.msgX` and `msgR` and folds
 as `Spec.NormLinear.foldInst`, so the relation (19) carries over (`Spec.NormLinear.fold_rel`), and
 `norm_linear::verify`, which tracks the folds as weights on the original generators, accepts.
 -/
@@ -45,11 +45,11 @@ lemma pad_getD {α : Type} [Zero α] (v : List α) (k : ℕ) :
   · rfl
   · rw [List.getD_eq_getElem?_getD, List.getElem?_eq_none (by omega)]; rfl
 
-lemma ev_getD (v : List F) (j : ℕ) : ev v.length (fun k => v.getD k 0) j = (halves v).1.getD j 0 := by
-  rw [ev, pad_getD, (getD_halves v j).1]
+lemma ev_getD (v : List F) (j : ℕ) : ev v.length (fun k => v.getD k 0) j = (split_even_odd v).1.getD j 0 := by
+  rw [ev, pad_getD, (getD_split_even_odd v j).1]
 
-lemma od_getD (v : List F) (j : ℕ) : od v.length (fun k => v.getD k 0) j = (halves v).2.getD j 0 := by
-  rw [od, pad_getD, (getD_halves v j).2]
+lemma od_getD (v : List F) (j : ℕ) : od v.length (fun k => v.getD k 0) j = (split_even_odd v).2.getD j 0 := by
+  rw [od, pad_getD, (getD_split_even_odd v j).2]
 
 lemma ev_getD_pts {Q : List E} {L : ℕ} (h : Q.length = L) (j : ℕ) :
     ev L (fun k => Q.getD k 0) j = Q.getD (2 * j) 0 := by
@@ -60,18 +60,18 @@ lemma od_getD_pts {Q : List E} {L : ℕ} (h : Q.length = L) (j : ℕ) :
   rw [od, ← h, pad_getD]
 
 lemma ev_fun {v : List F} {L : ℕ} (h : v.length = L) :
-    ev L (fun k => v.getD k 0) = fun j => (halves v).1.getD j 0 := by
+    ev L (fun k => v.getD k 0) = fun j => (split_even_odd v).1.getD j 0 := by
   subst h; funext j; exact ev_getD v j
 
 lemma od_fun {v : List F} {L : ℕ} (h : v.length = L) :
-    od L (fun k => v.getD k 0) = fun j => (halves v).2.getD j 0 := by
+    od L (fun k => v.getD k 0) = fun j => (split_even_odd v).2.getD j 0 := by
   subst h; funext j; exact od_getD v j
 
-lemma length_halves_fst (v : List F) : (halves v).1.length = half v.length :=
-  (halves_length v).1
+lemma length_split_even_odd_fst (v : List F) : (split_even_odd v).1.length = half v.length :=
+  (split_even_odd_length v).1
 
-lemma length_halves_snd (v : List F) : (halves v).2.length = half v.length :=
-  (halves_length v).2
+lemma length_split_even_odd_snd (v : List F) : (split_even_odd v).2.length = half v.length :=
+  (split_even_odd_length v).2
 
 lemma inner_product_ip {u v : List F} {N : ℕ} (h : min u.length v.length = N) :
     inner_product u v = ip N (fun k => u.getD k 0) (fun k => v.getD k 0) := by
@@ -82,13 +82,13 @@ lemma weighted_inner_product_wip {u v : List F} {N : ℕ} (h : min u.length v.le
   rw [weighted_inner_product_eq, h, wip]
   exact sum_congr rfl fun k _ => by ring
 
-/-- An MSM over `Q` with coefficients `from_halves a b`, as a sum over the halves. -/
-lemma sum_from_halves (a b : List F) (h : a.length = b.length) (Q : List E) :
-    ∑ i ∈ range (from_halves a b).length, (from_halves a b).getD i 0 • Q.getD i 0 =
+/-- An MSM over `Q` with coefficients `interleave a b`, as a sum over the halves. -/
+lemma sum_interleave (a b : List F) (h : a.length = b.length) (Q : List E) :
+    ∑ i ∈ range (interleave a b).length, (interleave a b).getD i 0 • Q.getD i 0 =
       ∑ j ∈ range a.length, (a.getD j 0 • Q.getD (2 * j) 0 + b.getD j 0 • Q.getD (2 * j + 1) 0) := by
-  rw [length_from_halves, h, min_self, ← h, Spec.NormLinear.sum_range_two_mul]
+  rw [length_interleave, h, min_self, ← h, Spec.NormLinear.sum_range_two_mul]
   refine sum_congr rfl fun j _ => ?_
-  rw [(getD_from_halves a b h j).1, (getD_from_halves a b h j).2]
+  rw [(getD_interleave a b h j).1, (getD_interleave a b h j).2]
 
 /-! ## One round -/
 
@@ -96,35 +96,35 @@ section Round
 
 variable (C : E) (lb : LazyBases F E) (c : List F) (rho : F) (l n : List F)
 
-lemma msm_halves_eq {a b : List F} (hab : a.length = b.length) {v : List F}
+lemma msm_split_even_odd_eq {a b : List F} (hab : a.length = b.length) {v : List F}
     (ha : a.length = half v.length) {Q : List E} (hQ : Q.length = v.length) :
-    ∑ i ∈ range (from_halves a b).length, (from_halves a b).getD i 0 • Q.getD i 0 =
+    ∑ i ∈ range (interleave a b).length, (interleave a b).getD i 0 • Q.getD i 0 =
       Spec.NormLinear.msm (half v.length) (fun j => a.getD j 0) (ev v.length fun k => Q.getD k 0) +
       Spec.NormLinear.msm (half v.length) (fun j => b.getD j 0) (od v.length fun k => Q.getD k 0) := by
-  rw [sum_from_halves a b hab, Spec.NormLinear.msm, Spec.NormLinear.msm, ← sum_add_distrib, ha]
+  rw [sum_interleave a b hab, Spec.NormLinear.msm, Spec.NormLinear.msm, ← sum_add_distrib, ha]
   refine sum_congr rfl fun j _ => ?_
   rw [ev_getD_pts hQ, od_getD_pts hQ]
 
-/-- `prove_rec`'s first message is `Spec.NormLinear.msgX`. -/
+/-- `prove_loop`'s first message is `Spec.NormLinear.msgX`. -/
 lemma x_point_eq (hc : c.length = l.length) (hh : lb.cur_h.length = l.length)
     (hg : lb.cur_g.length = n.length) :
-    (2 * rho⁻¹ * weighted_inner_product (halves n).1 (halves n).2 (rho * rho * (rho * rho)) +
-        inner_product (halves c).1 (halves l).2 + inner_product (halves c).2 (halves l).1) • lb.g0 +
-      ∑ i ∈ range (from_halves (halves l).2 (halves l).1).length,
-        (from_halves (halves l).2 (halves l).1).getD i 0 • lb.cur_h.getD i 0 +
-      ∑ i ∈ range (from_halves (vec_scalar_mul rho (halves n).2)
-          (vec_scalar_mul rho⁻¹ (halves n).1)).length,
-        (from_halves (vec_scalar_mul rho (halves n).2) (vec_scalar_mul rho⁻¹ (halves n).1)).getD i 0 •
+    (2 * rho⁻¹ * weighted_inner_product (split_even_odd n).1 (split_even_odd n).2 (rho * rho * (rho * rho)) +
+        inner_product (split_even_odd c).1 (split_even_odd l).2 + inner_product (split_even_odd c).2 (split_even_odd l).1) • lb.g0 +
+      ∑ i ∈ range (interleave (split_even_odd l).2 (split_even_odd l).1).length,
+        (interleave (split_even_odd l).2 (split_even_odd l).1).getD i 0 • lb.cur_h.getD i 0 +
+      ∑ i ∈ range (interleave (vec_scalar_mul rho (split_even_odd n).2)
+          (vec_scalar_mul rho⁻¹ (split_even_odd n).1)).length,
+        (interleave (vec_scalar_mul rho (split_even_odd n).2) (vec_scalar_mul rho⁻¹ (split_even_odd n).1)).getD i 0 •
           lb.cur_g.getD i 0 =
     Spec.NormLinear.msgX lb.g0 (toInst C lb c rho l n) (toWit l n) := by
-  have hl1 := length_halves_fst l
-  have hl2 := length_halves_snd l
-  have hn1 := length_halves_fst n
-  have hn2 := length_halves_snd n
-  have hc1 := length_halves_fst c
-  have hc2 := length_halves_snd c
-  rw [msm_halves_eq (by rw [hl1, hl2]) hl2 hh,
-    msm_halves_eq (by simp [length_vec_scalar_mul, hn1, hn2])
+  have hl1 := length_split_even_odd_fst l
+  have hl2 := length_split_even_odd_snd l
+  have hn1 := length_split_even_odd_fst n
+  have hn2 := length_split_even_odd_snd n
+  have hc1 := length_split_even_odd_fst c
+  have hc2 := length_split_even_odd_snd c
+  rw [msm_split_even_odd_eq (by rw [hl1, hl2]) hl2 hh,
+    msm_split_even_odd_eq (by simp [length_vec_scalar_mul, hn1, hn2])
       (by rw [length_vec_scalar_mul, hn2]) hg]
   rw [weighted_inner_product_wip (by rw [hn1, hn2, min_self]),
     inner_product_ip (by rw [hc1, hl2, hc, min_self]),
@@ -133,22 +133,22 @@ lemma x_point_eq (hc : c.length = l.length) (hh : lb.cur_h.length = l.length)
   simp only [Spec.NormLinear.msgX, toInst, toWit, ev_fun hc, od_fun hc, ev_fun rfl, od_fun rfl,
     od_getD, ev_getD, getD_vec_scalar_mul, add_assoc]
 
-/-- `prove_rec`'s second message is `Spec.NormLinear.msgR`. -/
+/-- `prove_loop`'s second message is `Spec.NormLinear.msgR`. -/
 lemma r_point_eq (hc : c.length = l.length) (hh : lb.cur_h.length = l.length)
     (hg : lb.cur_g.length = n.length) :
-    (weighted_norm (halves n).2 (rho * rho * (rho * rho)) +
-        inner_product (halves c).2 (halves l).2) • lb.g0 +
-      ∑ i ∈ range (from_odd_half (halves l).2).length,
-        (from_odd_half (halves l).2).getD i 0 • lb.cur_h.getD i 0 +
-      ∑ i ∈ range (from_odd_half (halves n).2).length,
-        (from_odd_half (halves n).2).getD i 0 • lb.cur_g.getD i 0 =
+    (weighted_norm (split_even_odd n).2 (rho * rho * (rho * rho)) +
+        inner_product (split_even_odd c).2 (split_even_odd l).2) • lb.g0 +
+      ∑ i ∈ range (odd_only (split_even_odd l).2).length,
+        (odd_only (split_even_odd l).2).getD i 0 • lb.cur_h.getD i 0 +
+      ∑ i ∈ range (odd_only (split_even_odd n).2).length,
+        (odd_only (split_even_odd n).2).getD i 0 • lb.cur_g.getD i 0 =
     Spec.NormLinear.msgR lb.g0 (toInst C lb c rho l n) (toWit l n) := by
-  have hl2 := length_halves_snd l
-  have hn2 := length_halves_snd n
-  have hc2 := length_halves_snd c
-  rw [from_odd_half_eq, from_odd_half_eq,
-    msm_halves_eq (by simp) (by rw [List.length_replicate, hl2]) hh,
-    msm_halves_eq (by simp) (by rw [List.length_replicate, hn2]) hg]
+  have hl2 := length_split_even_odd_snd l
+  have hn2 := length_split_even_odd_snd n
+  have hc2 := length_split_even_odd_snd c
+  rw [odd_only_eq, odd_only_eq,
+    msm_split_even_odd_eq (by simp) (by rw [List.length_replicate, hl2]) hh,
+    msm_split_even_odd_eq (by simp) (by rw [List.length_replicate, hn2]) hg]
   rw [weighted_norm, weighted_inner_product_wip (by rw [hn2, min_self]),
     inner_product_ip (by rw [hc2, hl2, hc, min_self]),
     show rho * rho * (rho * rho) = (rho * rho) ^ 2 by ring]
@@ -163,18 +163,18 @@ lemma r_point_eq (hc : c.length = l.length) (hh : lb.cur_h.length = l.length)
     add_assoc]
 
 lemma getD_fold_vec (a : List F) (gamma : F) (s : F) (j : ℕ) :
-    (vec_add (vec_scalar_mul s (halves a).1) (vec_scalar_mul gamma (halves a).2)).getD j 0 =
+    (vec_add (vec_scalar_mul s (split_even_odd a).1) (vec_scalar_mul gamma (split_even_odd a).2)).getD j 0 =
       s * ev a.length (fun k => a.getD k 0) j + gamma * od a.length (fun k => a.getD k 0) j := by
-  rw [getD_vec_add (by simp [length_vec_scalar_mul, length_halves_fst, length_halves_snd]),
+  rw [getD_vec_add (by simp [length_vec_scalar_mul, length_split_even_odd_fst, length_split_even_odd_snd]),
     getD_vec_scalar_mul, getD_vec_scalar_mul, ev_getD, od_getD]
 
 lemma vec_scalar_mul_one (a : List F) : vec_scalar_mul 1 a = a := by
   simp [vec_scalar_mul]
 
 lemma length_fold_vec (a : List F) (gamma s : F) :
-    (vec_add (vec_scalar_mul s (halves a).1) (vec_scalar_mul gamma (halves a).2)).length =
+    (vec_add (vec_scalar_mul s (split_even_odd a).1) (vec_scalar_mul gamma (split_even_odd a).2)).length =
       half a.length := by
-  simp [length_vec_add, length_vec_scalar_mul, length_halves_fst, length_halves_snd]
+  simp [length_vec_add, length_vec_scalar_mul, length_split_even_odd_fst, length_split_even_odd_snd]
 
 lemma getD_foldPts_pts (f0 f1 : F) {Q : List E} {L : ℕ} (h : Q.length = L) (i : ℕ) :
     (foldPts f0 f1 Q).getD i 0 =
@@ -190,15 +190,15 @@ lemma fold_toInst (X R : E) (gamma : F) (lb' : LazyBases F E) (hp : lb'.Pos)
     (hc : c.length = l.length) (hh : lb.cur_h.length = l.length) (hg : lb.cur_g.length = n.length)
     (hh' : lb'.cur_h = lb.cur_h) (hg' : lb'.cur_g = lb.cur_g) :
     toInst (C + gamma • X + (gamma ^ 2 - 1) • R) (lb'.fold rho gamma)
-        (vec_add (halves c).1 (vec_scalar_mul gamma (halves c).2)) (rho * rho)
-        (vec_add (halves l).1 (vec_scalar_mul gamma (halves l).2))
-        (vec_add (vec_scalar_mul rho⁻¹ (halves n).1) (vec_scalar_mul gamma (halves n).2)) =
+        (vec_add (split_even_odd c).1 (vec_scalar_mul gamma (split_even_odd c).2)) (rho * rho)
+        (vec_add (split_even_odd l).1 (vec_scalar_mul gamma (split_even_odd l).2))
+        (vec_add (vec_scalar_mul rho⁻¹ (split_even_odd n).1) (vec_scalar_mul gamma (split_even_odd n).2)) =
       Spec.NormLinear.foldInst (toInst C lb c rho l n) X R gamma ∧
-    toWit (vec_add (halves l).1 (vec_scalar_mul gamma (halves l).2))
-        (vec_add (vec_scalar_mul rho⁻¹ (halves n).1) (vec_scalar_mul gamma (halves n).2)) =
+    toWit (vec_add (split_even_odd l).1 (vec_scalar_mul gamma (split_even_odd l).2))
+        (vec_add (vec_scalar_mul rho⁻¹ (split_even_odd n).1) (vec_scalar_mul gamma (split_even_odd n).2)) =
       Spec.NormLinear.foldWit (toInst C lb c rho l n) (toWit l n) gamma := by
-  have e1 : ∀ a : List F, vec_add (halves a).1 (vec_scalar_mul gamma (halves a).2) =
-      vec_add (vec_scalar_mul 1 (halves a).1) (vec_scalar_mul gamma (halves a).2) := fun a => by
+  have e1 : ∀ a : List F, vec_add (split_even_odd a).1 (vec_scalar_mul gamma (split_even_odd a).2) =
+      vec_add (vec_scalar_mul 1 (split_even_odd a).1) (vec_scalar_mul gamma (split_even_odd a).2) := fun a => by
     rw [vec_scalar_mul_one]
   rw [e1 c, e1 l]
   constructor
@@ -233,9 +233,9 @@ lemma proof_shape_step {a b : ℕ} (h : ¬ is_base_case a b) :
       (proof_shape ((a + 1) / 2) ((b + 1) / 2)).2) := by
   rw [proof_shape, dif_neg h]
 
-/-- `prove_rec` and the round loop of `norm_linear::verify` agree, and the final opening satisfies
+/-- `prove_loop` and the round loop of `norm_linear::verify` agree, and the final opening satisfies
 the relation on the commitment folded by the rounds, over the bases the verifier's weights give. -/
-lemma prove_rec_spec (gens : Generators E) :
+lemma prove_loop_spec (gens : Generators E) :
     ∀ (N : ℕ) (lb : LazyBases F E) (c : List F) (rho : F) (l n : List F) (C : E)
       (t : BpppTranscript F E) (W_h W_g : Weights F) (gammas : List F),
     l.length + n.length = N → lb.Pos → 0 < W_h.w.length → 0 < W_g.w.length →
@@ -245,7 +245,7 @@ lemma prove_rec_spec (gens : Generators E) :
     Rel gens.g (toInst C lb c rho l n) (toWit l n) →
     ∃ (proof : NormLinearProof F E) (t' : BpppTranscript F E) (cf : List F) (rhof muf : F)
       (gs : List F) (Wh' Wg' : Weights F),
-      (prove_rec lb c rho l n).run t = .ok (proof, t'.extend (finalEntries proof)) ∧
+      (prove_loop lb c rho l n).run t = .ok (proof, t'.extend (finalEntries proof)) ∧
       proof.rounds.length = (proof_shape l.length n.length).1 ∧
       proof.n_final.length = (proof_shape l.length n.length).2 ∧
       (proof.rounds.foldlM verify_round (c, rho, rho * rho, gammas, W_h, W_g)).run t =
@@ -262,7 +262,7 @@ lemma prove_rec_spec (gens : Generators E) :
   induction N using Nat.strong_induction_on with
   | _ N ih =>
   intro lb c rho l n C t W_h W_g gammas hN hp hWh hWg hcur_h hcur_g hg0 hc hh hg hl hrho hrel
-  rw [prove_rec]
+  rw [prove_loop]
   by_cases hb : is_base_case l.length n.length
   · -- The opening is sent in the clear.
     have hl1 : l.length = 1 := by
@@ -289,22 +289,22 @@ lemma prove_rec_spec (gens : Generators E) :
       rw [hc0]
       exact congrArg _ (sum_congr rfl fun k _ => by ring)
   · -- One round.
-    have hlen := halves_length l
-    have hnlen := halves_length n
-    have hclen := halves_length c
+    have hlen := split_even_odd_length l
+    have hnlen := split_even_odd_length n
+    have hclen := split_even_odd_length c
     have hrinv : inverse rho = .ok rho⁻¹ := by simp [inverse, hrho]
     obtain ⟨lb1, hX, hp1, hh1, hg1, hg01⟩ := LazyBases.msm_eq lb hp
-      (2 * rho⁻¹ * weighted_inner_product (halves n).1 (halves n).2 (rho * rho * (rho * rho)) +
-        inner_product (halves c).1 (halves l).2 + inner_product (halves c).2 (halves l).1)
-      (from_halves (halves l).2 (halves l).1)
-      (from_halves (vec_scalar_mul rho (halves n).2) (vec_scalar_mul rho⁻¹ (halves n).1))
-      (by rw [length_from_halves, hh]; omega)
-      (by rw [length_from_halves, length_vec_scalar_mul, length_vec_scalar_mul, hg]; omega)
+      (2 * rho⁻¹ * weighted_inner_product (split_even_odd n).1 (split_even_odd n).2 (rho * rho * (rho * rho)) +
+        inner_product (split_even_odd c).1 (split_even_odd l).2 + inner_product (split_even_odd c).2 (split_even_odd l).1)
+      (interleave (split_even_odd l).2 (split_even_odd l).1)
+      (interleave (vec_scalar_mul rho (split_even_odd n).2) (vec_scalar_mul rho⁻¹ (split_even_odd n).1))
+      (by rw [length_interleave, hh]; omega)
+      (by rw [length_interleave, length_vec_scalar_mul, length_vec_scalar_mul, hg]; omega)
     obtain ⟨lb2, hR, hp2, hh2, hg2, hg02⟩ := LazyBases.msm_eq lb1 hp1
-      (weighted_norm (halves n).2 (rho * rho * (rho * rho)) + inner_product (halves c).2 (halves l).2)
-      (from_odd_half (halves l).2) (from_odd_half (halves n).2)
-      (by rw [from_odd_half_eq, length_from_halves, hh1, hh]; simp; omega)
-      (by rw [from_odd_half_eq, length_from_halves, hg1, hg]; simp; omega)
+      (weighted_norm (split_even_odd n).2 (rho * rho * (rho * rho)) + inner_product (split_even_odd c).2 (split_even_odd l).2)
+      (odd_only (split_even_odd l).2) (odd_only (split_even_odd n).2)
+      (by rw [odd_only_eq, length_interleave, hh1, hh]; simp; omega)
+      (by rw [odd_only_eq, length_interleave, hg1, hg]; simp; omega)
     rw [hh1, hg1, hg01] at hR
     rw [x_point_eq C lb c rho l n hc hh hg, hg0] at hX
     rw [r_point_eq C lb c rho l n hc hh hg, hg0] at hR
@@ -321,12 +321,12 @@ lemma prove_rec_spec (gens : Generators E) :
     rw [is_base_case_iff] at hb
     obtain ⟨proof', t', cf, rhof, muf, gs, Wh', Wg', hrun, hr1, hn1, hv, hgs, hcf, hWh', hWg', hch,
       hcg, hfin⟩ := ih _ (by
-        simp only [length_vec_add, length_vec_scalar_mul, length_halves_fst,
-          length_halves_snd, half] at *
+        simp only [length_vec_add, length_vec_scalar_mul, length_split_even_odd_fst,
+          length_split_even_odd_snd, half] at *
         omega)
-      (lb2.fold rho gamma) (vec_add (halves c).1 (vec_scalar_mul gamma (halves c).2)) (rho * rho)
-      (vec_add (halves l).1 (vec_scalar_mul gamma (halves l).2))
-      (vec_add (vec_scalar_mul rho⁻¹ (halves n).1) (vec_scalar_mul gamma (halves n).2))
+      (lb2.fold rho gamma) (vec_add (split_even_odd c).1 (vec_scalar_mul gamma (split_even_odd c).2)) (rho * rho)
+      (vec_add (split_even_odd l).1 (vec_scalar_mul gamma (split_even_odd l).2))
+      (vec_add (vec_scalar_mul rho⁻¹ (split_even_odd n).1) (vec_scalar_mul gamma (split_even_odd n).2))
       (C + gamma • X + (gamma ^ 2 - 1) • R)
       (t.extend [.point "X" X, .point "R" R, .challenge "gamma"])
       (W_h.tensor_pair one gamma) (W_g.tensor_pair rho gamma) (gammas ++ [gamma]) rfl
@@ -447,7 +447,7 @@ lemma completeness (gens : Generators E) (t : BpppTranscript F E) (c : List F) (
       ← hn, min_self, min_self]
     rfl
   obtain ⟨proof, t', cf, rhof, muf, gs, Wh', Wg', hrun, hr1, hn1, hv, hgs, hcf, hWh', hWg', hch,
-    hcg, hfin⟩ := prove_rec_spec gens _ (LazyBases.new gens) c rho l n C
+    hcg, hfin⟩ := prove_loop_spec gens _ (LazyBases.new gens) c rho l n C
       (t.extend [.message "dom-sep" ("norm_linear".toList.map Char.toNat)]) .new .new [] rfl hp0
       (by simp [LazyBases.new_w]) (by simp [LazyBases.new_w]) hcur_h hcur_g rfl (hc.trans hl.symm)
       (by rw [hcur_h, hH', hl]) (by rw [hcur_g, hG', hn]) (by omega) hrho hrel
