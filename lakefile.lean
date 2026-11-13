@@ -11,3 +11,5 @@ package «bppp» where
   leanOptions := #[⟨`autoImplicit, false⟩, ⟨`relaxedAutoImplicit, false⟩]
 
 @[default_target] lean_lib «Bppp» {}
+
+lean_lib «Audit» {}
