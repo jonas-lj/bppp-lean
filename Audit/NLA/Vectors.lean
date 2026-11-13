@@ -33,13 +33,41 @@ def wip (μ : F) (a b : Fin m → F) : F := ∑ i : Fin m, μ ^ (i.val + 1) * (a
 /-- The multi-scalar multiplication `⟨a, G⟩ = Σᵢ aᵢ • Gᵢ`. -/
 def msm (a : Fin m → F) (G : Fin m → E) : E := ∑ i, a i • G i
 
-/-- The even slots `v₀, v₂, v₄, …` of a vector of length `2m`. -/
-def evens {α : Type} (v : Fin (2 * m) → α) : Fin m → α :=
-  fun i => v ⟨2 * i.val, by have := i.isLt; omega⟩
+/-- `⌈m/2⌉`, the length of each half of a vector of length `m`. -/
+def half (m : ℕ) : ℕ := (m + 1) / 2
 
-/-- The odd slots `v₁, v₃, v₅, …` of a vector of length `2m`. -/
-def odds {α : Type} (v : Fin (2 * m) → α) : Fin m → α :=
-  fun i => v ⟨2 * i.val + 1, by have := i.isLt; omega⟩
+/-! Tests: `half` rounds up. -/
+example : half 0 = 0 := rfl
+example : half 1 = 1 := rfl
+example : half 2 = 1 := rfl
+example : half 3 = 2 := rfl
+example : half 8 = 4 := rfl
+example : half 9 = 5 := rfl
+
+/-- The even slots `v₀, v₂, v₄, …` of `v`. -/
+def evens {α : Type} (v : Fin m → α) : Fin (half m) → α :=
+  fun i => v ⟨2 * i.val, by have := i.isLt; unfold half at this; omega⟩
+
+/-- The odd slots `v₁, v₃, v₅, …` of `v`. If `m` is odd, the last slot is 0, as in the Rust
+`halves`. For points, 0 is the identity. -/
+def odds {α : Type} [Zero α] (v : Fin m → α) : Fin (half m) → α :=
+  fun i => if h : 2 * i.val + 1 < m then v ⟨2 * i.val + 1, h⟩ else 0
+
+/-! Tests: `evens` and `odds` on an even length, an odd length, and length 1. -/
+example : evens (![1, 2, 3, 4] : Fin 4 → ℕ) = ![1, 3] := by ext i; fin_cases i <;> rfl
+example : odds (![1, 2, 3, 4] : Fin 4 → ℕ) = ![2, 4] := by ext i; fin_cases i <;> rfl
+example : evens (![1, 2, 3, 4, 5] : Fin 5 → ℕ) = ![1, 3, 5] := by ext i; fin_cases i <;> rfl
+example : odds (![1, 2, 3, 4, 5] : Fin 5 → ℕ) = ![2, 4, 0] := by ext i; fin_cases i <;> rfl
+example : evens (![7] : Fin 1 → ℕ) = ![7] := by ext i; fin_cases i; rfl
+example : odds (![7] : Fin 1 → ℕ) = ![0] := by ext i; fin_cases i; rfl
+
+/-- `v` with a 0 at the end if `m` is odd. The proofs use it. -/
+def pad {α : Type} [Zero α] (v : Fin m → α) : Fin (2 * half m) → α :=
+  fun j => if h : j.val < m then v ⟨j.val, h⟩ else 0
+
+/-- The first `m` slots of `v`. It removes the slot that `pad` adds. -/
+def unpad {α : Type} (v : Fin (2 * half m) → α) : Fin m → α :=
+  fun i => v ⟨i.val, by have := i.isLt; unfold half; omega⟩
 
 end Vectors
 

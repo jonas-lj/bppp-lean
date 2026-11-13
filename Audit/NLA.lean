@@ -24,8 +24,9 @@ How it works:
 Assumptions:
 - Scalars are a field `F`. Points are a module `E` over `F`, as in `bppp-lean`.
 - A vector of length `m` is a function `Fin m → F`, so the type fixes its length.
-- A fold maps length `2m` to length `m`. Odd lengths do not occur in the Rust code: the norm
-  length `nm` is a power of two, and the linear length starts at `H_LEN = 8`.
+- A fold maps each length `m` to `half m = ⌈m/2⌉`.
+- `odds` pads an odd length with 0, as the Rust code does. In the Rust code, this occurs only
+  when the linear part has length 1 and the norm part is still long.
 - Slots count from 0. Slot `i` of a weighted norm has the weight `μ^(i+1)`.
 - `μ = ρ²`. A fold replaces `ρ` with `μ`. An `Instance` carries a proof that `ρ ≠ 0`.
 - The guide's value base `G` is `g` here. The guide's bold `𝐆` is `G` here.
@@ -78,7 +79,7 @@ def Rel {m k : ℕ} (x : Instance F E m k) (w : Witness F m k) : Prop :=
 
 /-- The prover's first message `X` of a round: the `γ¹` coefficient of the fold.
 With `a = ρ⁻¹ n₀` and `b = n₁`, its `g`-part is `2⟨a, b⟩_{μ²} + ⟨c₀, ℓ₁⟩ + ⟨c₁, ℓ₀⟩`. -/
-def msgX {m k : ℕ} (x : Instance F E (2 * m) (2 * k)) (w : Witness F (2 * m) (2 * k)) : E :=
+def msgX {m k : ℕ} (x : Instance F E m k) (w : Witness F m k) : E :=
   let ρ := x.ρ
   let μ := ρ ^ 2
   let ℓ₀ := evens w.ℓ
@@ -92,16 +93,17 @@ def msgX {m k : ℕ} (x : Instance F E (2 * m) (2 * k)) (w : Witness F (2 * m) (
 
 /-- The prover's second message `R` of a round: the `γ²` coefficient of the fold.
 With `b = n₁`, its `g`-part is `‖b‖²_{μ²} + ⟨c₁, ℓ₁⟩`. -/
-def msgR {m k : ℕ} (x : Instance F E (2 * m) (2 * k)) (w : Witness F (2 * m) (2 * k)) : E :=
+def msgR {m k : ℕ} (x : Instance F E m k) (w : Witness F m k) : E :=
   let μ := x.ρ ^ 2
   let ℓ₁ := odds w.ℓ
   let n₁ := odds w.n
   let vR := wip (μ ^ 2) n₁ n₁ + ip (odds x.c) ℓ₁
   vR • x.g + msm ℓ₁ (odds x.H) + msm n₁ (odds x.G)
 
-/-- The verifier's fold: the next instance from `X`, `R` and the challenge `γ`. -/
-def foldInst {m k : ℕ} (x : Instance F E (2 * m) (2 * k)) (X R : E) (γ : F) :
-    Instance F E m k where
+/-- The verifier's fold: the next instance from `X`, `R` and the challenge `γ`. A padded slot
+is the identity, so it adds nothing. -/
+def foldInst {m k : ℕ} (x : Instance F E m k) (X R : E) (γ : F) :
+    Instance F E (half m) (half k) where
   C := x.C + γ • X + (γ ^ 2 - 1) • R
   g := x.g
   c := evens x.c + γ • odds x.c
@@ -111,14 +113,15 @@ def foldInst {m k : ℕ} (x : Instance F E (2 * m) (2 * k)) (X R : E) (γ : F) :
   hρ := pow_ne_zero 2 x.hρ
 
 /-- The prover's fold of the witness, with the challenge `γ` and the weight `x.ρ`. -/
-def foldWit {m k : ℕ} (x : Instance F E (2 * m) (2 * k)) (γ : F)
-    (w : Witness F (2 * m) (2 * k)) : Witness F m k where
+def foldWit {m k : ℕ} (x : Instance F E m k) (γ : F)
+    (w : Witness F m k) : Witness F (half m) (half k) where
   ℓ := evens w.ℓ + γ • odds w.ℓ
   n := x.ρ⁻¹ • evens w.n + γ • odds w.n
 
 /-! ## Step 2: one round as a VCVio protocol
 
-1. `commit`: the prover sends the honest `(X, R)`. It keeps the witness as its state.
+1. `commit`: the prover sends the honest `(X, R)`. It needs no state, because `respond` gets
+   the witness.
 2. The verifier sends a uniform challenge `γ`.
 3. `respond`: the prover sends the folded witness.
 4. `verify`: `Rel` holds for the folded instance and the response.
@@ -127,12 +130,13 @@ def foldWit {m k : ℕ} (x : Instance F E (2 * m) (2 * k)) (γ : F)
 The fold uses `x.ρ⁻¹`. The field `Instance.hρ` makes sure that `x.ρ ≠ 0`, so the protocol
 relation is `Rel` itself. -/
 
-/-- One NLA round as a VCVio `ChallengeVerifyProtocol`. It maps length `2m` to length `m`. -/
+/-- One NLA round as a VCVio `ChallengeVerifyProtocol`. It maps the lengths `(m, k)` to
+`(half m, half k)`. -/
 noncomputable def roundProtocol (m k : ℕ) :
-    ChallengeVerifyProtocol (Instance F E (2 * m) (2 * k)) (Witness F (2 * m) (2 * k)) (E × E)
-      (Witness F (2 * m) (2 * k)) F (Witness F m k)
+    ChallengeVerifyProtocol (Instance F E m k) (Witness F m k) (E × E)
+      Unit F (Witness F (half m) (half k))
       (fun x w => by classical exact decide (Rel x w)) where
-  commit x w := pure ((msgX x w, msgR x w), w)
+  commit x w := pure ((msgX x w, msgR x w), ())
   respond x w _ γ := pure (foldWit x γ w)
   verify x XR γ w' := by
     classical exact decide (Rel (foldInst x XR.1 XR.2 γ) w')
@@ -188,26 +192,27 @@ def interleave {α : Type} {m : ℕ} (a b : Fin m → α) : Fin (2 * m) → α :
 
 /-- The extractor. Each accepted response is the honest fold `[v]₀ + γ [v]₁` (with `ρ⁻¹` on
 `[n]₀`). So a line through the responses at `γ_vec 0` and `γ_vec 1` gives both halves. -/
-def extractWit {m k : ℕ} (x : Instance F E (2 * m) (2 * k)) (γ_vec : Fin 4 → F)
-    (w_vec : Fin 4 → Witness F m k) : Witness F (2 * m) (2 * k) :=
+def extractWit {m k : ℕ} (x : Instance F E m k) (γ_vec : Fin 4 → F)
+    (w_vec : Fin 4 → Witness F (half m) (half k)) : Witness F m k :=
   let d := (γ_vec 0 - γ_vec 1)⁻¹
   let ℓ₁ := d • ((w_vec 0).ℓ - (w_vec 1).ℓ)
   let ℓ₀ := (w_vec 0).ℓ - γ_vec 0 • ℓ₁
   let n₁ := d • ((w_vec 0).n - (w_vec 1).n)
   let n₀ := x.ρ • ((w_vec 0).n - γ_vec 0 • n₁)
-  { ℓ := interleave ℓ₀ ℓ₁, n := interleave n₀ n₁ }
+  { ℓ := unpad (interleave ℓ₀ ℓ₁), n := unpad (interleave n₀ n₁) }
 
 /-- 4 accepted responses with one commitment and distinct challenges give a generator
-relation, or `extractWit` computes a witness for `x`. -/
-theorem round_sound {m k : ℕ} (x : Instance F E (2 * m) (2 * k)) (X R : E)
-    (γ_vec : Fin 4 → F) (hγ : Function.Injective γ_vec) (w_vec : Fin 4 → Witness F m k)
+relation, or `extractWit` computes a witness for `x`. The norm length `k` must be even. -/
+theorem round_sound {m k : ℕ} (x : Instance F E m k) (hk : k % 2 = 0) (X R : E)
+    (γ_vec : Fin 4 → F) (hγ : Function.Injective γ_vec)
+    (w_vec : Fin 4 → Witness F (half m) (half k))
     (hacc : ∀ i, (roundProtocol m k).verify x (X, R) (γ_vec i) (w_vec i) = true) :
     GenRelation x ∨ Rel x (extractWit x γ_vec w_vec) := by
   -- TODO: port the proof of `extract_round` to `Fin` vectors when we replace Jonas's Spec.
   sorry
 
 /-- The bad challenges of a commitment `(X, R)`: the `γ` at which some response accepts. -/
-def badSet {m k : ℕ} (x : Instance F E (2 * m) (2 * k)) (X R : E) : Set F :=
+def badSet {m k : ℕ} (x : Instance F E m k) (X R : E) : Set F :=
   {γ | ∃ w', (roundProtocol m k).verify x (X, R) γ w' = true}
 
 /-- On an instance with no witness and no generator relation, each commitment has no more than
@@ -215,7 +220,7 @@ def badSet {m k : ℕ} (x : Instance F E (2 * m) (2 * k)) (X R : E) : Set F :=
 
 TODO (soundness error): turn this count into a bound of about `3r/|F|` for `r` rounds, by
 round-by-round soundness. The paper states only an asymptotic bound (Theorem 2). -/
-theorem badSet_encard_le {m k : ℕ} (x : Instance F E (2 * m) (2 * k))
+theorem badSet_encard_le {m k : ℕ} (x : Instance F E m k) (hk : k % 2 = 0)
     (hgen : ¬ GenRelation x) (hwit : ∀ w, ¬ Rel x w) (X R : E) :
     (badSet x X R).encard ≤ 3 := by
   by_contra h
@@ -233,7 +238,7 @@ theorem badSet_encard_le {m k : ℕ} (x : Instance F E (2 * m) (2 * k))
   have hbad (i : Fin 4) : γ_vec i ∈ badSet x X R :=
     hts ((Set.Finite.mem_toFinset htf).mp (e.symm (Fin.cast hcard.symm i)).2)
   choose w_vec hacc using hbad
-  rcases round_sound x X R γ_vec hγ w_vec hacc with h | h
+  rcases round_sound x hk X R γ_vec hγ w_vec hacc with h | h
   · exact hgen h
   · exact hwit _ h
 
