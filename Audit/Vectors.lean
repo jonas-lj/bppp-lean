@@ -6,7 +6,8 @@ import Mathlib
 This file defines the vector operations that `Audit/NLA.lean` uses.
 
 Why it exists:
-- `Rel`, `msgX` and `msgR` use these operations, so they are part of the specification.
+- `Rel`, `msgX`, `msgR` and the fold use these operations, so they are part of the
+  specification. Review this file with `Audit/NLA.lean`.
 - A separate file keeps `Audit/NLA.lean` short.
 
 Assumptions:
@@ -60,14 +61,6 @@ example : evens (![1, 2, 3, 4, 5] : Fin 5 → ℕ) = ![1, 3, 5] := by ext i; fin
 example : odds (![1, 2, 3, 4, 5] : Fin 5 → ℕ) = ![2, 4, 0] := by ext i; fin_cases i <;> rfl
 example : evens (![7] : Fin 1 → ℕ) = ![7] := by ext i; fin_cases i; rfl
 example : odds (![7] : Fin 1 → ℕ) = ![0] := by ext i; fin_cases i; rfl
-
-/-- `v` with a 0 at the end if `m` is odd. The proofs use it. -/
-def pad {α : Type} [Zero α] (v : Fin m → α) : Fin (2 * half m) → α :=
-  fun j => if h : j.val < m then v ⟨j.val, h⟩ else 0
-
-/-- The first `m` slots of `v`. It removes the slot that `pad` adds. -/
-def unpad {α : Type} (v : Fin (2 * half m) → α) : Fin m → α :=
-  fun i => v ⟨i.val, by have := i.isLt; unfold half; omega⟩
 
 end Vectors
 

@@ -1,4 +1,4 @@
-import Audit.NLA.Vectors
+import Audit.Vectors
 
 /-!
 # Fold lemmas for the NLA audit
@@ -7,7 +7,8 @@ This file proves how each term of `Rel` changes under one fold.
 
 Why it exists:
 - The proof of `roundProtocol_complete` in `Audit/NLA.lean` uses these lemmas.
-- Only proofs live here. The statements that we audit stay in `Audit/NLA.lean`.
+- Only proofs and the helper `pad` live here. The statements that we audit stay in
+  `Audit/NLA.lean`.
 
 How it works:
 1. `sum_split` writes a sum over length `2m` as even and odd slots over length `m`.
@@ -22,6 +23,10 @@ Assumptions:
 namespace Audit.NLA
 
 variable {F E : Type} [Field F] [AddCommGroup E] [Module F E]
+
+/-- `v` with a 0 at the end if `m` is odd. The proofs use it. -/
+def pad {α : Type} [Zero α] {m : ℕ} (v : Fin m → α) : Fin (2 * half m) → α :=
+  fun j => if h : j.val < m then v ⟨j.val, h⟩ else 0
 
 /-- Part 1a: a sum over length `2m` is a sum of even and odd slots over length `m`. -/
 theorem sum_split {M : Type} [AddCommMonoid M] {m : ℕ} (f : Fin (2 * m) → M) :

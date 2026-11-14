@@ -1,4 +1,4 @@
-import Audit.NLA.FoldLemmas
+import Audit.NLA.Extract
 import VCVio.CryptoFoundations.SigmaProtocol
 
 /-!
@@ -17,9 +17,14 @@ How it works:
 2. Step 2 casts one round as a `ChallengeVerifyProtocol`.
 3. Step 3 proves `PerfectlyComplete (roundProtocol m k)`. The fold lemmas are in
    `Audit/NLA/FoldLemmas.lean`.
-4. Step 4 (to do) proves soundness from 4 accepting transcripts of `roundProtocol`.
-5. Each section names the Spec file to compare with.
-- The vector operations are in `Audit/NLA/Vectors.lean`.
+4. Step 4 proves soundness from 4 accepting transcripts of `roundProtocol`. The extraction
+   proof and the extractor's formula are in `Audit/NLA/Extract.lean`.
+5. `Audit/NLA/BadChallenges.lean` derives a corollary: each commitment has no more than 3 bad
+   challenges.
+6. Each section names the Spec file to compare with.
+- The vector operations are in `Audit/Vectors.lean`.
+- `Audit/NLA.lean` and `Audit/Vectors.lean` hold everything to review. The folder `Audit/NLA/`
+  holds only proofs, the extractor's formula, and corollaries.
 
 Assumptions:
 - Scalars are a field `F`. Points are a module `E` over `F`, as in `bppp-lean`.
@@ -72,10 +77,33 @@ structure Witness (m k : ℕ) where
   /-- The norm part. -/
   n : Fin k → F
 
-/-- The relation (paper eq. 19): `w` opens `x.C` over `x.g`, `x.H` and `x.G`. -/
+variable (F) in
+/-- The coefficients of a point over the generators `g`, `H` and `G`. -/
+@[ext]
+structure Opening (m k : ℕ) where
+  /-- The coefficient on `g`. -/
+  σ : F
+  /-- The coefficients on `H`. -/
+  ℓ : Fin m → F
+  /-- The coefficients on `G`. -/
+  n : Fin k → F
+
+instance {m k : ℕ} : Zero (Opening F m k) := ⟨⟨0, 0, 0⟩⟩
+
+/-- The point that `o` opens over the generators of `x`. -/
+def Instance.point {m k : ℕ} (x : Instance F E m k) (o : Opening F m k) : E :=
+  o.σ • x.g + msm o.ℓ x.H + msm o.n x.G
+
+/-- The opening that a witness gives: `w.ℓ` and `w.n`, with `σ = ⟨c, ℓ⟩ + ‖n‖²_μ` on `g`. -/
+def Instance.opening {m k : ℕ} (x : Instance F E m k) (w : Witness F m k) : Opening F m k where
+  σ := ip x.c w.ℓ + wip (x.ρ ^ 2) w.n w.n
+  ℓ := w.ℓ
+  n := w.n
+
+/-- The relation (paper eq. 19): `C = σ•g + ⟨ℓ, H⟩ + ⟨n, G⟩` with `σ = ⟨c, ℓ⟩ + ‖n‖²_μ`.
+That is, the opening that `w` gives opens `x.C`. -/
 def Rel {m k : ℕ} (x : Instance F E m k) (w : Witness F m k) : Prop :=
-  let σ := ip x.c w.ℓ + wip (x.ρ ^ 2) w.n w.n
-  x.C = σ • x.g + msm w.ℓ x.H + msm w.n x.G
+  x.C = x.point (x.opening w)
 
 /-- The prover's first message `X` of a round: the `γ¹` coefficient of the fold.
 With `a = ρ⁻¹ n₀` and `b = n₁`, its `g`-part is `2⟨a, b⟩_{μ²} + ⟨c₀, ℓ₁⟩ + ⟨c₁, ℓ₀⟩`. -/
@@ -154,7 +182,7 @@ theorem roundProtocol_complete [SampleableType F] (m k : ℕ) :
   intro x w hw
   have hfold (γ : F) : Rel (foldInst x (msgX x w) (msgR x w) γ) (foldWit x γ w) := by
     have h : Rel x w := of_decide_eq_true hw
-    simp only [Rel, foldInst, foldWit, msgX, msgR] at h ⊢
+    simp only [Rel, Instance.point, Instance.opening, foldInst, foldWit, msgX, msgR] at h ⊢
     rw [ip_fold, wip_fold _ _ x.hρ, msm_fold_H, msm_fold_G _ _ x.hρ, h]
     module
   simp [roundProtocol, hfold]
@@ -167,8 +195,8 @@ for `x`, or a nontrivial relation among the generators of `x`.
 Why 4 challenges and not 3:
 1. 3 challenges give openings of `C`, `X` and `R`, because `1`, `γ` and `γ² - 1` are linearly
    independent. The opening of `C` gives the candidate `(ℓ, n)`.
-2. The 4th challenge makes a cubic in `γ` vanish. This forces each response to be the honest
-   fold of `(ℓ, n)`, and then `σ = ⟨c, ℓ⟩ + ‖n‖²_μ`.
+2. The 4th challenge makes a cubic in `γ` vanish for each pair of slots. This forces the
+   pairs to fold honestly, and then `σ = ⟨c, ℓ⟩ + ‖n‖²_μ`.
 
 Notes:
 - VCVio's `SpeciallySound` takes exactly 2 transcripts and has no escape, so it does not fit.
@@ -183,63 +211,32 @@ rounds. Its `mkWitness` is our `extractWit`. ArkLib pins a different VCVio commi
 
 /-- A nontrivial linear relation among the generators `g`, `H` and `G` of `x`. -/
 def GenRelation {m k : ℕ} (x : Instance F E m k) : Prop :=
-  ∃ (s : F) (a : Fin m → F) (b : Fin k → F),
-    (s ≠ 0 ∨ a ≠ 0 ∨ b ≠ 0) ∧ s • x.g + msm a x.H + msm b x.G = 0
+  ∃ o : Opening F m k, o ≠ 0 ∧ x.point o = 0
 
-/-- The vector of length `2m` with the even slots `a` and the odd slots `b`. -/
-def interleave {α : Type} {m : ℕ} (a b : Fin m → α) : Fin (2 * m) → α :=
-  fun j => if j.val % 2 = 0 then a ⟨j.val / 2, by omega⟩ else b ⟨j.val / 2, by omega⟩
-
-/-- The extractor. Each accepted response is the honest fold `[v]₀ + γ [v]₁` (with `ρ⁻¹` on
-`[n]₀`). So a line through the responses at `γ_vec 0` and `γ_vec 1` gives both halves. -/
+/-- The extractor. Its formula `extractVec` is in `Audit/NLA/Extract.lean`. -/
 def extractWit {m k : ℕ} (x : Instance F E m k) (γ_vec : Fin 4 → F)
-    (w_vec : Fin 4 → Witness F (half m) (half k)) : Witness F m k :=
-  let d := (γ_vec 0 - γ_vec 1)⁻¹
-  let ℓ₁ := d • ((w_vec 0).ℓ - (w_vec 1).ℓ)
-  let ℓ₀ := (w_vec 0).ℓ - γ_vec 0 • ℓ₁
-  let n₁ := d • ((w_vec 0).n - (w_vec 1).n)
-  let n₀ := x.ρ • ((w_vec 0).n - γ_vec 0 • n₁)
-  { ℓ := unpad (interleave ℓ₀ ℓ₁), n := unpad (interleave n₀ n₁) }
+    (w_vec : Fin 4 → Witness F (half m) (half k)) : Witness F m k where
+  ℓ := extractVec 1 γ_vec (fun i => (w_vec i).ℓ)
+  n := extractVec x.ρ γ_vec (fun i => (w_vec i).n)
 
 /-- 4 accepted responses with one commitment and distinct challenges give a generator
-relation, or `extractWit` computes a witness for `x`. The norm length `k` must be even. -/
+relation, or `extractWit` computes a witness for `x`. The norm length `k` must be even.
+
+Note for reviewers: Lean does not check that `extractWit` is efficient. Check that `extractVec`
+in `Audit/NLA/Extract.lean` uses only field operations, and no choice. -/
 theorem round_sound {m k : ℕ} (x : Instance F E m k) (hk : k % 2 = 0) (X R : E)
     (γ_vec : Fin 4 → F) (hγ : Function.Injective γ_vec)
     (w_vec : Fin 4 → Witness F (half m) (half k))
     (hacc : ∀ i, (roundProtocol m k).verify x (X, R) (γ_vec i) (w_vec i) = true) :
     GenRelation x ∨ Rel x (extractWit x γ_vec w_vec) := by
-  -- TODO: port the proof of `extract_round` to `Fin` vectors when we replace Jonas's Spec.
-  sorry
-
-/-- The bad challenges of a commitment `(X, R)`: the `γ` at which some response accepts. -/
-def badSet {m k : ℕ} (x : Instance F E m k) (X R : E) : Set F :=
-  {γ | ∃ w', (roundProtocol m k).verify x (X, R) γ w' = true}
-
-/-- On an instance with no witness and no generator relation, each commitment has no more than
-3 bad challenges. The counterexample in our notes shows that 3 can occur.
-
-TODO (soundness error): turn this count into a bound of about `3r/|F|` for `r` rounds, by
-round-by-round soundness. The paper states only an asymptotic bound (Theorem 2). -/
-theorem badSet_encard_le {m k : ℕ} (x : Instance F E m k) (hk : k % 2 = 0)
-    (hgen : ¬ GenRelation x) (hwit : ∀ w, ¬ Rel x w) (X R : E) :
-    (badSet x X R).encard ≤ 3 := by
-  by_contra h
-  have h4 : (4 : ℕ∞) ≤ (badSet x X R).encard := Order.add_one_le_of_lt (not_le.mp h)
-  obtain ⟨t, hts, ht⟩ := Set.exists_subset_encard_eq h4
-  have htf : t.Finite := Set.finite_of_encard_eq_coe ht
-  have hcard : htf.toFinset.card = 4 := by
-    have := Set.encard_coe_eq_coe_finsetCard htf.toFinset
-    rw [Set.Finite.coe_toFinset, ht] at this
-    exact_mod_cast this.symm
-  let e := htf.toFinset.equivFin
-  let γ_vec : Fin 4 → F := fun i => (e.symm (Fin.cast hcard.symm i)).1
-  have hγ : Function.Injective γ_vec := fun i j hij =>
-    Fin.cast_injective _ (e.symm.injective (Subtype.ext hij))
-  have hbad (i : Fin 4) : γ_vec i ∈ badSet x X R :=
-    hts ((Set.Finite.mem_toFinset htf).mp (e.symm (Fin.cast hcard.symm i)).2)
-  choose w_vec hacc using hbad
-  rcases round_sound x hk X R γ_vec hγ w_vec hacc with h | h
-  · exact hgen h
-  · exact hwit _ h
+  classical
+  have hrel (i : Fin 4) : Rel (foldInst x X R (γ_vec i)) (w_vec i) := by
+    simpa [roundProtocol] using hacc i
+  rcases extract_core x.g x.c x.H x.G x.ρ x.hρ hk x.C X R γ_vec hγ (fun i => (w_vec i).ℓ)
+    (fun i => (w_vec i).n) hrel with ⟨s, a, b, hne, h0⟩ | h
+  · refine Or.inl ⟨⟨s, a, b⟩, fun ho => ?_, h0⟩
+    simp only [Opening.ext_iff] at ho
+    tauto
+  · exact Or.inr h
 
 end Audit.NLA
