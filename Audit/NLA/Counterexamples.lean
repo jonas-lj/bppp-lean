@@ -52,12 +52,12 @@ def cexWit (γ : ℚ) : Witness ℚ (half 0) (half 1) where
   n := fun _ => γ ^ 2 - 5 * γ
 
 /-- Without `hk`, `round_sound` is false: 4 responses are accepted on an instance with no
-witness and no generator relation. -/
+witness and with independent generators. -/
 theorem round_not_sound_odd :
     Function.Injective cexγ ∧
     (∀ i, (roundProtocol 0 1).verify cexInst (![50, -5], ![-10, 1]) (cexγ i)
       (cexWit (cexγ i)) = true) ∧
-    ¬ GenRelation cexInst ∧ ∀ w, ¬ Rel cexInst w := by
+    cexInst.Independent ∧ ∀ w, ¬ Rel cexInst w := by
   refine ⟨?_, ?_, ?_, ?_⟩
   · intro i j h
     fin_cases i <;> fin_cases j <;> simp_all [cexγ]
@@ -68,8 +68,7 @@ theorem round_not_sound_odd :
       simp [Instance.point, Instance.opening, foldInst, cexInst, cexWit, cexγ, cexG, cexG₀,
         ip, wip, msm, evens, odds, sum_half_zero] <;>
       rw [show half 1 = 1 from rfl] <;> norm_num
-  · rintro ⟨o, hne, h0⟩
-    apply hne
+  · intro o h0
     have h1 := congrFun h0 0
     have h2 := congrFun h0 1
     simp [Instance.point, cexInst, cexG, cexG₀, msm] at h1 h2

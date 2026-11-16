@@ -194,8 +194,8 @@ Why 4 challenges and not 3:
 
 Notes:
 - VCVio's `SpeciallySound` takes exactly 2 transcripts and has no escape, so it does not fit.
-- `GenRelation` is a trusted part of the statement. A weak escape makes `round_sound` empty.
-  So it reads only the generators of `x`, and it needs a nonzero coefficient.
+- `Instance.Independent` is a trusted part of the statement. A strong assumption makes
+  `RoundSoundness` empty. So it reads only the generators of `x`.
 - Compare with `extract_round` and `Relation` in `Bppp/Spec/NormLinearSoundness.lean`.
 
 TODO (ArkLib): decide if we use ArkLib's coordinate-wise special soundness. Its theorem
@@ -203,9 +203,10 @@ TODO (ArkLib): decide if we use ArkLib's coordinate-wise special soundness. Its 
 turns a statement of this shape into tree special soundness, and `Composition.lean` chains the
 rounds. Its `mkWitness` is our `extractWit`. ArkLib pins a different VCVio commit. -/
 
-/-- A nontrivial linear relation among the generators `g`, `H` and `G` of `x`. -/
-def GenRelation {m k : ℕ} (x : Instance F E m k) : Prop :=
-  ∃ o : Opening F m k, o ≠ 0 ∧ x.point o = 0
+/-- The generators `g`, `H` and `G` of `x` are linearly independent: only the zero opening
+opens the zero point. The discrete-log assumption makes this hold for a prover. -/
+def Instance.Independent {m k : ℕ} (x : Instance F E m k) : Prop :=
+  ∀ o : Opening F m k, x.point o = 0 → o = 0
 
 /-- The extractor. Its formula `extractVec` is in `Audit/NLA/Extract.lean`. -/
 def extractWit {m k : ℕ} (x : Instance F E m k) (γ_vec : Fin 4 → F)
@@ -230,14 +231,14 @@ structure Fork {m k : ℕ} (x : Instance F E m k) where
   accepted : ∀ i, (roundProtocol m k).verify x (X, R) (γ i) (w i) = true
 
 variable (F E) in
-/-- Soundness: a fork gives a generator relation, or `extractWit` computes a witness for `x`.
-`round_sound` in `Audit/NLA/Proofs.lean` proves it. The norm length `k` must be even:
+/-- Soundness: if the generators of `x` are independent, then `extractWit` computes a witness
+from a fork. `round_sound` in `Audit/NLA/Proofs.lean` proves it. The norm length `k` must be even:
 `round_not_sound_odd` in `Audit/NLA/Counterexamples.lean` shows that this is necessary.
 
 Note for reviewers: Lean does not check that `extractWit` is efficient. Check that `extractVec`
 in `Audit/NLA/Extract.lean` uses only field operations, and no choice. -/
 def RoundSoundness : Prop :=
-  ∀ {m k : ℕ} (x : Instance F E m k) (f : Fork x), k % 2 = 0 →
-    GenRelation x ∨ Rel x (extractWit x f.γ f.w)
+  ∀ {m k : ℕ} (x : Instance F E m k) (f : Fork x), x.Independent → k % 2 = 0 →
+    Rel x (extractWit x f.γ f.w)
 
 end Audit.NLA
