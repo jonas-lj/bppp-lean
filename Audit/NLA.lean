@@ -220,7 +220,8 @@ def extractWit {m k : ℕ} (x : Instance F E m k) (γ_vec : Fin 4 → F)
   n := extractVec x.ρ γ_vec (fun i => (w_vec i).n)
 
 /-- 4 accepted responses with one commitment and distinct challenges give a generator
-relation, or `extractWit` computes a witness for `x`. The norm length `k` must be even.
+relation, or `extractWit` computes a witness for `x`. The norm length `k` must be even:
+`round_not_sound_odd` in `Audit/NLA/Counterexamples.lean` shows that `hk` is necessary.
 
 Note for reviewers: Lean does not check that `extractWit` is efficient. Check that `extractVec`
 in `Audit/NLA/Extract.lean` uses only field operations, and no choice. -/
