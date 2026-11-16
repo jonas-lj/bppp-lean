@@ -1,4 +1,4 @@
-import Audit.NLA
+import Audit.NLA.Proofs
 
 /-!
 # Counterexamples for one NLA round

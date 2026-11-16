@@ -15,10 +15,11 @@ Why it exists:
 How it works:
 1. Step 1 defines the relation and one round, from the paper (Section 4.9, eq. (19)).
 2. Step 2 casts one round as a `ChallengeVerifyProtocol`.
-3. Step 3 proves `PerfectlyComplete (roundProtocol m k)`. The fold lemmas are in
-   `Audit/NLA/FoldLemmas.lean`.
-4. Step 4 proves soundness from 4 accepting transcripts of `roundProtocol`. The extraction
-   proof and the extractor's formula are in `Audit/NLA/Extract.lean`.
+3. Step 3 states completeness, `RoundCompleteness`.
+4. Step 4 states soundness from 4 accepting transcripts, `RoundSoundness`. The extractor's
+   formula is in `Audit/NLA/Extract.lean`.
+- This file only states 3 and 4. `Audit/NLA/Proofs.lean` proves them as
+  `roundProtocol_complete` and `round_sound`, and `Audit.lean` imports it.
 5. `Audit/NLA/BadChallenges.lean` derives a corollary: each commitment has no more than 3 bad
    challenges.
 6. Each section names the Spec file to compare with.
@@ -171,21 +172,14 @@ noncomputable def roundProtocol (m k : ℕ) :
 
 /-! ## Step 3: completeness
 
-The honest prover always convinces the verifier. The proof uses the fold lemmas in
-`Audit/NLA/FoldLemmas.lean`. Compare with `fold_rel` in
+The honest prover always convinces the verifier. Compare with `fold_rel` in
 `Bppp/Spec/NormLinearCompleteness.lean`. -/
 
-/-- The honest prover always convinces the verifier. -/
-theorem roundProtocol_complete [SampleableType F] (m k : ℕ) :
-    PerfectlyComplete (roundProtocol (F := F) (E := E) m k) := by
-  classical
-  intro x w hw
-  have hfold (γ : F) : Rel (foldInst x (msgX x w) (msgR x w) γ) (foldWit x γ w) := by
-    have h : Rel x w := of_decide_eq_true hw
-    simp only [Rel, Instance.point, Instance.opening, foldInst, foldWit, msgX, msgR] at h ⊢
-    rw [ip_fold, wip_fold _ _ x.hρ, msm_fold_H, msm_fold_G _ _ x.hρ, h]
-    module
-  simp [roundProtocol, hfold]
+variable (F E) in
+/-- Completeness: the honest prover always convinces the verifier. `roundProtocol_complete` in
+`Audit/NLA/Proofs.lean` proves it. -/
+def RoundCompleteness [SampleableType F] : Prop :=
+  ∀ m k : ℕ, PerfectlyComplete (roundProtocol (F := F) (E := E) m k)
 
 /-! ## Step 4: soundness
 
@@ -219,25 +213,31 @@ def extractWit {m k : ℕ} (x : Instance F E m k) (γ_vec : Fin 4 → F)
   ℓ := extractVec 1 γ_vec (fun i => (w_vec i).ℓ)
   n := extractVec x.ρ γ_vec (fun i => (w_vec i).n)
 
-/-- 4 accepted responses with one commitment and distinct challenges give a generator
-relation, or `extractWit` computes a witness for `x`. The norm length `k` must be even:
-`round_not_sound_odd` in `Audit/NLA/Counterexamples.lean` shows that `hk` is necessary.
+/-- 4 accepted transcripts of one round: one commitment `(X, R)`, 4 distinct challenges, and
+4 responses. -/
+structure Fork {m k : ℕ} (x : Instance F E m k) where
+  /-- The prover's first message. -/
+  X : E
+  /-- The prover's second message. -/
+  R : E
+  /-- The 4 challenges. -/
+  γ : Fin 4 → F
+  /-- The 4 responses. -/
+  w : Fin 4 → Witness F (half m) (half k)
+  /-- The challenges are distinct. -/
+  distinct : ∀ i j, i ≠ j → γ i ≠ γ j
+  /-- The verifier accepts each response. -/
+  accepted : ∀ i, (roundProtocol m k).verify x (X, R) (γ i) (w i) = true
+
+variable (F E) in
+/-- Soundness: a fork gives a generator relation, or `extractWit` computes a witness for `x`.
+`round_sound` in `Audit/NLA/Proofs.lean` proves it. The norm length `k` must be even:
+`round_not_sound_odd` in `Audit/NLA/Counterexamples.lean` shows that this is necessary.
 
 Note for reviewers: Lean does not check that `extractWit` is efficient. Check that `extractVec`
 in `Audit/NLA/Extract.lean` uses only field operations, and no choice. -/
-theorem round_sound {m k : ℕ} (x : Instance F E m k) (hk : k % 2 = 0) (X R : E)
-    (γ_vec : Fin 4 → F) (hγ : Function.Injective γ_vec)
-    (w_vec : Fin 4 → Witness F (half m) (half k))
-    (hacc : ∀ i, (roundProtocol m k).verify x (X, R) (γ_vec i) (w_vec i) = true) :
-    GenRelation x ∨ Rel x (extractWit x γ_vec w_vec) := by
-  classical
-  have hrel (i : Fin 4) : Rel (foldInst x X R (γ_vec i)) (w_vec i) := by
-    simpa [roundProtocol] using hacc i
-  rcases extract_core x.g x.c x.H x.G x.ρ x.hρ hk x.C X R γ_vec hγ (fun i => (w_vec i).ℓ)
-    (fun i => (w_vec i).n) hrel with ⟨s, a, b, hne, h0⟩ | h
-  · refine Or.inl ⟨⟨s, a, b⟩, fun ho => ?_, h0⟩
-    simp only [Opening.ext_iff] at ho
-    tauto
-  · exact Or.inr h
+def RoundSoundness : Prop :=
+  ∀ {m k : ℕ} (x : Instance F E m k) (f : Fork x), k % 2 = 0 →
+    GenRelation x ∨ Rel x (extractWit x f.γ f.w)
 
 end Audit.NLA

@@ -7,7 +7,7 @@ This file proves `extract_core`: 4 accepted responses give a witness, or a relat
 generators.
 
 Why it exists:
-- `round_sound` in `Audit/NLA.lean` applies `extract_core`.
+- `round_sound` in `Audit/NLA/Proofs.lean` applies `extract_core`.
 - `extractVec` is the extractor's formula. `extractWit` in `Audit/NLA.lean` uses it. It needs
   `expand` and the weights `cWeight`. Reviewers check only that it is efficient.
 - Otherwise, only proofs live here. The statements that we audit stay in `Audit/NLA.lean`.

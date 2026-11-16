@@ -6,7 +6,7 @@ import Audit.Vectors
 This file proves how each term of `Rel` changes under one fold.
 
 Why it exists:
-- The proof of `roundProtocol_complete` in `Audit/NLA.lean` uses these lemmas.
+- The proof of `roundProtocol_complete` in `Audit/NLA/Proofs.lean` uses these lemmas.
 - Only proofs and the helper `pad` live here. The statements that we audit stay in
   `Audit/NLA.lean`.
 

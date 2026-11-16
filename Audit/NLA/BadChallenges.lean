@@ -1,4 +1,4 @@
-import Audit.NLA
+import Audit.NLA.Proofs
 
 /-!
 # Bad challenges of one NLA round
@@ -48,7 +48,7 @@ theorem badSet_encard_le {m k : ℕ} (x : Instance F E m k) (hk : k % 2 = 0)
   have hbad (i : Fin 4) : γ_vec i ∈ badSet x X R :=
     hts ((Set.Finite.mem_toFinset htf).mp (e.symm (Fin.cast hcard.symm i)).2)
   choose w_vec hacc using hbad
-  rcases round_sound x hk X R γ_vec hγ w_vec hacc with h | h
+  rcases round_sound x ⟨X, R, γ_vec, w_vec, fun i j hij e => hij (hγ e), hacc⟩ hk with h | h
   · exact hgen h
   · exact hwit _ h
 
