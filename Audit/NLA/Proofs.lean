@@ -42,8 +42,8 @@ theorem round_sound : RoundSoundness F E := by
   classical
   intro m k x f hind hk
   have hrel (i : Fin 4) : Rel (foldInst x f.X f.R (f.γ i)) (f.w i) := by
-    simpa [roundProtocol] using f.accepted i
-  have hγ : Function.Injective f.γ := fun i j h => by_contra fun hij => f.distinct i j hij h
+    simpa [roundProtocol] using f.hAccepted i
+  have hγ : Function.Injective f.γ := fun i j h => by_contra fun hij => f.hDistinct i j hij h
   rcases extract_core x.g x.c x.H x.G x.ρ x.hρ hk x.C f.X f.R f.γ hγ
     (fun i => (f.w i).ℓ) (fun i => (f.w i).n) hrel with ⟨s, a, b, hne, h0⟩ | h
   · have ho := hind ⟨s, a, b⟩ h0

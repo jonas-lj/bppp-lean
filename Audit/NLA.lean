@@ -214,21 +214,24 @@ def extractWit {m k : ℕ} (x : Instance F E m k) (γ_vec : Fin 4 → F)
   ℓ := extractVec 1 γ_vec (fun i => (w_vec i).ℓ)
   n := extractVec x.ρ γ_vec (fun i => (w_vec i).n)
 
-/-- 4 accepted transcripts of one round: one commitment `(X, R)`, 4 distinct challenges, and
-4 responses. -/
-structure Fork {m k : ℕ} (x : Instance F E m k) where
+variable (F E) in
+/-- The top of a fork: one commitment `(X, R)` and 4 distinct challenges. -/
+structure ForkHead where
   /-- The prover's first message. -/
   X : E
   /-- The prover's second message. -/
   R : E
   /-- The 4 challenges. -/
   γ : Fin 4 → F
+  /-- The challenges are distinct. -/
+  hDistinct : ∀ i j, i ≠ j → γ i ≠ γ j
+
+/-- 4 accepted transcripts of one round: a fork head and 4 accepted responses. -/
+structure Fork {m k : ℕ} (x : Instance F E m k) extends ForkHead F E where
   /-- The 4 responses. -/
   w : Fin 4 → Witness F (half m) (half k)
-  /-- The challenges are distinct. -/
-  distinct : ∀ i j, i ≠ j → γ i ≠ γ j
   /-- The verifier accepts each response. -/
-  accepted : ∀ i, (roundProtocol m k).verify x (X, R) (γ i) (w i) = true
+  hAccepted : ∀ i, (roundProtocol m k).verify x (X, R) (γ i) (w i) = true
 
 variable (F E) in
 /-- Soundness: if the generators of `x` are independent, then `extractWit` computes a witness

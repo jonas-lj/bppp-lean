@@ -49,6 +49,6 @@ theorem badSet_encard_le {m k : ℕ} (x : Instance F E m k) (hk : k % 2 = 0)
   have hbad (i : Fin 4) : γ_vec i ∈ badSet x X R :=
     hts ((Set.Finite.mem_toFinset htf).mp (e.symm (Fin.cast hcard.symm i)).2)
   choose w_vec hacc using hbad
-  exact hwit _ (round_sound x ⟨X, R, γ_vec, w_vec, fun i j hij e => hij (hγ e), hacc⟩ hind hk)
+  exact hwit _ (round_sound x ⟨⟨X, R, γ_vec, fun i j hij e => hij (hγ e)⟩, w_vec, hacc⟩ hind hk)
 
 end Audit.NLA
