@@ -1,5 +1,6 @@
 import Bppp.Proofs.NormLinear
 import Bppp.Spec.NormLinearSoundness
+import Audit.NLAFull.Bridge
 
 /-!
 # Accepting runs of `norm_linear::verify`
@@ -79,7 +80,7 @@ lemma loop_spec : ∀ (rounds : List (E × E)) (C : E) (c : List F) (rho : F) (g
           γ • X + (γ ^ 2 - 1) • R).sum) cf rhof wh' wg' =
         Spec.NormLinear.foldPath (vInst gens C c rho w_h w_g) rounds (gammasOf T rounds)
   | [], C, c, rho, gs0, w_h, w_g, T, hwh, hwg, hc => ⟨c, rho, w_h, w_g, by
-      simp [gammasOf, roundEntries]; rfl, hwh, hwg, hc,
+      simp [gammasOf, roundEntries]; try rfl, hwh, hwg, hc,
       by simp [gammasOf, Spec.NormLinear.foldPath]⟩
   | (X, R) :: rounds, C, c, rho, gs0, w_h, w_g, T, hwh, hwg, hc => by
     set T1 := T.extend [.point "X" X, .point "R" R, .challenge "gamma"]
@@ -257,6 +258,22 @@ lemma verify_accepts (t t' : BpppTranscript F E) (c : List F) (ps : F) (pn : Lis
   rw [hw, headD_eq_getD' cf]
   linear_combination (norm := module) -hz
 
+/-- An accepting run has the round count of `proof_shape`, and `c` has the length of `h_vec`. -/
+lemma verify_shape (t t' : BpppTranscript F E) (c : List F) (ps : F) (pn : List F)
+    (extra : List (F × E)) (rho : F) (proof : NormLinearProof F E)
+    (h : (verify gens c ps pn extra rho proof).run t = .ok ((), t')) :
+    c.length = gens.h_vec.length ∧
+      proof.rounds.length = (proof_shape gens.h_vec.length gens.g_vec.length).1 := by
+  by_cases hc1 : c.length ≠ gens.h_vec.length ∨ pn.length ≠ gens.g_vec.length
+  · simp [verify, hc1, StateT.run, throw, throwThe, MonadExceptOf.throw, StateT.lift,
+      bind, StateT.bind, Except.bind] at h
+  by_cases hc2 : proof.rounds.length ≠ (proof_shape gens.h_vec.length gens.g_vec.length).1 ∨
+      proof.n_final.length ≠ (proof_shape gens.h_vec.length gens.g_vec.length).2
+  · simp [verify, hc1, hc2, StateT.run, throw, throwThe, MonadExceptOf.throw, StateT.lift,
+      bind, StateT.bind, Except.bind, pure, StateT.pure, Except.pure] at h
+  push Not at hc1 hc2
+  exact ⟨hc1.1, hc2.1⟩
+
 /-- **Special soundness of `norm_linear::verify`.** Take a tree of transcripts with four distinct
 challenges per round, each of whose paths is an accepting run of `verify` on its own transcript,
 with the path's challenges derived by that transcript. Then the commitment
@@ -275,12 +292,21 @@ lemma verify_extract (c : List F) (ps : F) (pn : List F) (extra : List (F × E))
       (extra.map fun (s, p) => s • p).sum) c rho .new .new
     (∃ w, Spec.NormLinear.Rel gens.g x w) ∨ Spec.NormLinear.Relation gens.g x := by
   intro x
-  refine Spec.NormLinear.extract gens.g tree d x hd ?_ hρ (by simp [x, vInst, sq]) ?_
-  · simpa [x, vInst, LazyBases.new_w, contract'_one] using hL
-  · refine Spec.NormLinear.accepts_of_paths gens.g tree x hdist fun p hp => ?_
-    obtain ⟨proof, t, t', h1, h2, h3, hv⟩ := hruns p hp
-    rw [h1, h2, h3]
-    exact verify_accepts gens t t' c ps pn extra rho proof hH hv
+  have hLn : x.Ln = gens.g_vec.length := by simp [x, vInst, LazyBases.new_w, contract'_one]
+  -- The Rust verifier fixes the round count, so `d` is `numRounds`.
+  have hr : d = Audit.NLA.numRounds x.Lℓ x.Ln := by
+    obtain ⟨p, hp⟩ := List.exists_mem_of_ne_nil _ (Audit.NLA.Bridge.paths_ne_nil tree)
+    obtain ⟨proof, t, t', h1, -, -, hv⟩ := hruns p hp
+    obtain ⟨hc, hrounds⟩ := verify_shape gens t t' c ps pn extra rho proof hv
+    rw [← Audit.NLA.Bridge.length_of_mem_paths tree d hd p hp, h1, hrounds, hLn,
+      Audit.NLA.numRounds_eq_proof_shape]
+    simp [x, vInst, hc]
+  refine Audit.NLA.Bridge.extract gens.g tree d x hd hr (hLn ▸ hL) hρ
+    (by simp [x, vInst, sq]) ?_
+  refine Spec.NormLinear.accepts_of_paths gens.g tree x hdist fun p hp => ?_
+  obtain ⟨proof, t, t', h1, h2, h3, hv⟩ := hruns p hp
+  rw [h1, h2, h3]
+  exact verify_accepts gens t t' c ps pn extra rho proof hH hv
 
 end NormLinear
 

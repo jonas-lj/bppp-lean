@@ -5,3 +5,4 @@ import Audit.NLA.Counterexamples
 import Audit.NLAFull
 import Audit.NLAFull.Proofs
 import Audit.NLAFull.Rust
+import Audit.NLAFull.Bridge
