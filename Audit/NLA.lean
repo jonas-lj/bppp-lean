@@ -97,7 +97,7 @@ def Instance.point {m k : ℕ} (x : Instance F E m k) (o : Opening F m k) : E :=
 
 /-- The opening that a witness gives: `w.ℓ` and `w.n`, with `σ = ⟨c, ℓ⟩ + ‖n‖²_μ` on `g`. -/
 def Instance.opening {m k : ℕ} (x : Instance F E m k) (w : Witness F m k) : Opening F m k where
-  σ := ip x.c w.ℓ + wip (x.ρ ^ 2) w.n w.n
+  σ := ⟪x.c, w.ℓ⟫ + ‖w.n‖²_(x.ρ²)
   ℓ := w.ℓ
   n := w.n
 
@@ -110,12 +110,12 @@ def Rel {m k : ℕ} (x : Instance F E m k) (w : Witness F m k) : Prop :=
 With `a = ρ⁻¹ n₀` and `b = n₁`, its `g`-part is `2⟨a, b⟩_{μ²} + ⟨c₀, ℓ₁⟩ + ⟨c₁, ℓ₀⟩`. -/
 def msgX {m k : ℕ} (x : Instance F E m k) (w : Witness F m k) : E :=
   let ρ := x.ρ
-  let μ := ρ ^ 2
+  let μ := ρ²
   let ℓ₀ := evens w.ℓ
   let ℓ₁ := odds w.ℓ
   let n₀ := evens w.n
   let n₁ := odds w.n
-  let vX := 2 * ρ⁻¹ * wip (μ ^ 2) n₀ n₁ + ip (evens x.c) ℓ₁ + ip (odds x.c) ℓ₀
+  let vX := 2 * ρ⁻¹ * ⟪n₀, n₁⟫_(μ²) + ⟪evens x.c, ℓ₁⟫ + ⟪odds x.c, ℓ₀⟫
   vX • x.g
     + msm ℓ₁ (evens x.H) + msm ℓ₀ (odds x.H)
     + msm (ρ • n₁) (evens x.G) + msm (ρ⁻¹ • n₀) (odds x.G)
@@ -123,22 +123,22 @@ def msgX {m k : ℕ} (x : Instance F E m k) (w : Witness F m k) : E :=
 /-- The prover's second message `R` of a round: the `γ²` coefficient of the fold.
 With `b = n₁`, its `g`-part is `‖b‖²_{μ²} + ⟨c₁, ℓ₁⟩`. -/
 def msgR {m k : ℕ} (x : Instance F E m k) (w : Witness F m k) : E :=
-  let μ := x.ρ ^ 2
+  let μ := x.ρ²
   let ℓ₁ := odds w.ℓ
   let n₁ := odds w.n
-  let vR := wip (μ ^ 2) n₁ n₁ + ip (odds x.c) ℓ₁
+  let vR := ‖n₁‖²_(μ²) + ⟪odds x.c, ℓ₁⟫
   vR • x.g + msm ℓ₁ (odds x.H) + msm n₁ (odds x.G)
 
 /-- The verifier's fold: the next instance from `X`, `R` and the challenge `γ`. A padded slot
 is the identity, so it adds nothing. -/
 def foldInst {m k : ℕ} (x : Instance F E m k) (X R : E) (γ : F) :
     Instance F E (half m) (half k) where
-  C := x.C + γ • X + (γ ^ 2 - 1) • R
+  C := x.C + γ • X + (γ² - 1) • R
   g := x.g
   c := evens x.c + γ • odds x.c
   H := evens x.H + γ • odds x.H
   G := x.ρ • evens x.G + γ • odds x.G
-  ρ := x.ρ ^ 2
+  ρ := x.ρ²
   hρ := pow_ne_zero 2 x.hρ
 
 /-- The prover's fold of the witness, with the challenge `γ` and the weight `x.ρ`. -/

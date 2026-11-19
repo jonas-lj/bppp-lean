@@ -34,6 +34,25 @@ def wip (μ : F) (a b : Fin m → F) : F := ∑ i : Fin m, μ ^ (i.val + 1) * (a
 /-- The multi-scalar multiplication `⟨a, G⟩ = Σᵢ aᵢ • Gᵢ`. -/
 def msm (a : Fin m → F) (G : Fin m → E) : E := ∑ i, a i • G i
 
+/-! Notation, as in the paper. Write `⟪a, b⟫` for `⟨a, b⟩`, because Lean uses `⟨a, b⟩` to build
+structures. The notation is scoped: it works in the namespace `Audit.NLA` and after
+`open Audit.NLA`. -/
+
+/-- `⟪a, b⟫` is the inner product `ip a b`. -/
+scoped notation "⟪" a ", " b "⟫" => ip a b
+
+/-- `⟪a, b⟫_μ` is the weighted inner product `wip μ a b`. -/
+scoped notation "⟪" a ", " b "⟫_" μ:max => wip μ a b
+
+/-- `‖a‖²_μ` is the weighted norm `wip μ a a`. -/
+scoped notation "‖" a "‖²_" μ:max => wip μ a a
+
+/-- `x²` is `x ^ 2`. -/
+scoped notation:max x:max "²" => x ^ 2
+
+/-- `x³` is `x ^ 3`. -/
+scoped notation:max x:max "³" => x ^ 3
+
 /-- `⌈m/2⌉`, the length of each half of a vector of length `m`. -/
 def half (m : ℕ) : ℕ := (m + 1) / 2
 
