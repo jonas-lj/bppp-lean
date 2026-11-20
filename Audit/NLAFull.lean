@@ -16,8 +16,9 @@ How it works:
    witness in the clear. Its type allows no other number of rounds.
 3. `verify` folds the instance along the transcript and checks `Rel` at the end.
 4. `NLACompleteness`: the honest transcript is accepted for every sequence of challenges.
-5. `NLASoundness`: on independent generators, a `ForkTree` of accepted transcripts, with 4 distinct
-   challenges per round, gives a witness. `treeExtract` computes it.
+5. `NLASoundness`: from a `ForkTree` of accepted transcripts, with 4 distinct challenges per
+   round, `treeExtractWitness` gives a witness, or `treeExtractGeneratorLink` gives a link
+   between the generators.
 - This file only states 4 and 5. `Audit/NLAFull/Proofs.lean` proves them as `nla_complete` and
   `nla_sound`, and `Audit.lean` imports it, so the build checks the proofs.
 
@@ -27,6 +28,11 @@ Assumptions:
 - Every round needs an even norm length, `EvenNorms`. The Rust parameters satisfy it, for
   example `(8, 16)` and `(8, 64)`.
 - The definitions of one round are in `Audit/NLA.lean`.
+- In a real group, links always exist. So "a link exists" has no content. The extractors work
+  for every `F` and `E` and are computable, so they cannot find a link by themselves. A link
+  that they output comes from the prover. It solves discrete log.
+- Lean does not check that the extractors are fast. They use the round extractors of
+  `Audit/NLA.lean` and `liftLink` (`Audit/NLAFull/Lemmas.lean`), so their time is polynomial.
 
 TODO (comparison): compare with `Tree`, `foldPath` and `extract` in
 `Bppp/Spec/NormLinearSoundness.lean`.
@@ -131,21 +137,36 @@ def ForkTree.transcripts {m k : ℕ} : ForkTree F E m k → List (Transcript F E
       (List.finRange 4).flatMap fun i =>
         (child i).transcripts.map fun t => .round head.X head.R (head.γ i) t
 
-/-- The extractor: `extractWit` at each round, from the leaves up. -/
-def treeExtract {m k : ℕ} : Instance F E m k → ForkTree F E m k → Witness F m k
+/-- The extractor: `extractWitness` at each round, from the leaves up. -/
+def treeExtractWitness {m k : ℕ} : Instance F E m k → ForkTree F E m k → Witness F m k
   | _, .leaf w _ => w
   | x, .node head child _ =>
-      extractWit x head.γ fun i => treeExtract (foldInst x head.X head.R (head.γ i)) (child i)
+      extractWitness x head.γ fun i =>
+        treeExtractWitness (foldInst x head.X head.R (head.γ i)) (child i)
+
+/-- Openings with scalars in `F` have decidable equality. -/
+instance Opening.decEq [DecidableEq F] {m k : ℕ} : DecidableEq (Opening F m k) := fun _ _ =>
+  decidable_of_iff _ Opening.ext_iff.symm
+
+/-- The candidate link: the first nonzero link of a child, lifted by `liftLink`. If all are 0,
+then `extractGeneratorLink` at this node. -/
+def treeExtractGeneratorLink [DecidableEq F] {m k : ℕ} :
+    Instance F E m k → ForkTree F E m k → Opening F m k
+  | _, .leaf _ _ => 0
+  | x, .node head child _ =>
+      let xᵢ := fun i => foldInst x head.X head.R (head.γ i)
+      let l := fun i => liftLink x.ρ (head.γ i) (treeExtractGeneratorLink (xᵢ i) (child i))
+      match (List.finRange 4).find? (fun i => l i ≠ 0) with
+      | some i => l i
+      | none => extractGeneratorLink x head.γ fun i => treeExtractWitness (xᵢ i) (child i)
 
 variable (F E) in
-/-- Soundness: if the generators of `x` are independent, then `treeExtract` computes a witness
-from a `ForkTree` of accepted transcripts. Every round needs an even norm length. `nla_sound`
-in `Audit/NLAFull/Proofs.lean` proves it.
-
-Note for reviewers: Lean does not check that `treeExtract` is efficient. It calls `extractWit`
-once per node. See the note at `RoundSoundness`. -/
-def NLASoundness : Prop :=
-  ∀ {m k : ℕ} (x : Instance F E m k) (t : ForkTree F E m k), x.Independent →
-    EvenNorms m k → (∀ p ∈ t.transcripts, verify x p) → Rel x (treeExtract x t)
+/-- Soundness: from a `ForkTree` of accepted transcripts, `treeExtractWitness` gives a witness,
+or `treeExtractGeneratorLink` gives a link. Every round needs an even norm length. `nla_sound`
+proves it. -/
+def NLASoundness [DecidableEq F] : Prop :=
+  ∀ {m k : ℕ} (x : Instance F E m k) (t : ForkTree F E m k),
+    EvenNorms m k → (∀ p ∈ t.transcripts, verify x p) →
+    Rel x (treeExtractWitness x t) ∨ x.IsGeneratorLink (treeExtractGeneratorLink x t)
 
 end Audit.NLA

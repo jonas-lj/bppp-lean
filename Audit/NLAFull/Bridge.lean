@@ -4,11 +4,12 @@ import Bppp.Spec.NormLinearSoundness
 /-!
 # Bridge from Jonas's NLA to ours
 
-This file proves Jonas's NLA extraction from our `nla_sound`.
+This file proves Jonas's NLA extraction from our `nla_sound_of_independent`.
 
 Why it exists:
 - His circuit proofs use his NLA types (`ℕ → F` vectors with explicit lengths, and `Tree`).
-- With this file, those proofs use our `nla_sound` in place of his own NLA soundness proof.
+- With this file, those proofs use our `nla_sound_of_independent` in place of his own NLA
+  soundness proof.
 
 How it works:
 1. `toInst` and `toWit` turn his instance and witness into ours. `ofWit` turns our witness into
@@ -16,7 +17,7 @@ How it works:
 2. `rel_iff`, `independent_of` and `fold_toInst` show that his `Rel`, `Relation` and `foldInst`
    agree with ours.
 3. `exists_forkTree` turns his accepting tree into our `ForkTree` with accepted transcripts.
-4. `extract` applies `nla_sound` to that tree.
+4. `extract` applies `nla_sound_of_independent` to that tree.
 
 Assumptions:
 - His tree has `numRounds` rounds, which is the round count of the Rust verifier.
@@ -127,8 +128,8 @@ theorem exists_forkTree (g : E) : ∀ (t : NormLinear.Tree F E) (d : ℕ)
     rw [fold_toInst g x hρ hμ]
     exact hft i t ht
 
-/-- Jonas's NLA extraction, proved with `nla_sound`: with `numRounds` rounds, an accepting tree
-gives a witness, or a relation among the generators. -/
+/-- Jonas's NLA extraction, proved with `nla_sound_of_independent`: with `numRounds` rounds, an
+accepting tree gives a witness, or a relation among the generators. -/
 theorem extract (g : E) (t : NormLinear.Tree F E) (d : ℕ) (x : NormLinear.Instance F E)
     (hd : t.Depth d) (hr : d = numRounds x.Lℓ x.Ln) (hL : 2 ^ d ∣ x.Ln) (hρ : x.ρ ≠ 0)
     (hμ : x.μ = x.ρ ^ 2) (hacc : NormLinear.Accepts g x t) :
@@ -137,10 +138,10 @@ theorem extract (g : E) (t : NormLinear.Tree F E) (d : ℕ) (x : NormLinear.Inst
   · exact Or.inr hrel
   obtain ⟨ft, hft⟩ := exists_forkTree g t d x hρ hμ hd hr hacc
   have hev : EvenNorms x.Lℓ x.Ln := evenNorms_of_two_pow_dvd (hr ▸ hL)
-  have hrel' := nla_sound (toInst g x hρ) ft (independent_of g x hρ hrel) hev hft
-  refine Or.inl ⟨ofWit (treeExtract (toInst g x hρ) ft), ?_⟩
+  obtain ⟨w, hw⟩ := nla_sound_of_independent (toInst g x hρ) ft (independent_of g x hρ hrel) hev hft
+  refine Or.inl ⟨ofWit w, ?_⟩
   rw [rel_iff g x hρ hμ, toWit_ofWit]
-  exact hrel'
+  exact hw
 
 omit [Field F] [AddCommGroup E] [Module F E] in
 /-- Every path of a tree with `d` rounds has `d` messages. -/

@@ -6,12 +6,12 @@ import Audit.NLA.Proofs
 This file proves the facts about one round that the full NLA chains together.
 
 Why it exists:
-- `nla_complete` and `nla_sound` in `Audit/NLAFull.lean` use these lemmas.
+- `nla_complete` and `nla_sound` in `Audit/NLAFull/Proofs.lean` use these lemmas.
 - Only proofs live here. The statements that we audit stay in `Audit/NLAFull.lean`.
 
 How it works:
-1. `independent_fold`: if the generators are independent, then the folded generators are
-   independent.
+1. `point_liftLink` and `eq_zero_of_liftLink_eq_zero`: a link on the folded generators lifts to
+   a link on the generators before the fold.
 2. `even_of_two_pow_dvd`: if `2^(r+1)` divides `k`, then `k` is even and `2^r` divides `half k`.
 
 Assumptions:
@@ -22,18 +22,23 @@ namespace Audit.NLA
 
 variable {F E : Type} [Field F] [AddCommGroup E] [Module F E]
 
-/-- If the generators of `x` are independent, then the folded generators are independent. -/
-theorem independent_fold {m k : ℕ} (x : Instance F E m k) (hind : x.Independent) (X R : E)
-    (γ : F) : (foldInst x X R γ).Independent := by
-  intro o h0
-  have h1 : x.point ⟨o.σ, expand 1 γ o.ℓ, expand x.ρ γ o.n⟩ = 0 := by
-    have hH : evens x.H + γ • odds x.H = (1 : F) • evens x.H + γ • odds x.H := by rw [one_smul]
-    simp only [Instance.point, foldInst] at h0
-    rw [hH, msm_expand, msm_expand] at h0
-    exact h0
-  have ho := hind _ h1
-  simp only [Opening.ext_iff] at ho
-  obtain ⟨hσ, hℓ, hn⟩ := ho
+/-- A link on the folded generators, as a link on the generators before the fold. -/
+def liftLink {m k : ℕ} (ρ γ : F) (o : Opening F (half m) (half k)) : Opening F m k :=
+  ⟨o.σ, expand 1 γ o.ℓ, expand ρ γ o.n⟩
+
+/-- The lift opens the same point. -/
+theorem point_liftLink {m k : ℕ} (x : Instance F E m k) (X R : E) (γ : F)
+    (o : Opening F (half m) (half k)) :
+    x.point (liftLink x.ρ γ o) = (foldInst x X R γ).point o := by
+  have hH : evens x.H + γ • odds x.H = (1 : F) • evens x.H + γ • odds x.H := by rw [one_smul]
+  simp only [Instance.point, foldInst, liftLink]
+  rw [hH, msm_expand, msm_expand]
+
+/-- The lift of a nonzero link is nonzero. -/
+theorem eq_zero_of_liftLink_eq_zero {m k : ℕ} {ρ : F} (hρ : ρ ≠ 0) (γ : F)
+    (o : Opening F (half m) (half k)) (h : liftLink ρ γ o = 0) : o = 0 := by
+  simp only [liftLink, Opening.ext_iff] at h
+  obtain ⟨hσ, hℓ, hn⟩ := h
   ext i
   · exact hσ
   · have hi : 2 * i.val < m := by have := i.isLt; unfold half at this; omega
@@ -43,7 +48,7 @@ theorem independent_fold {m k : ℕ} (x : Instance F E m k) (hind : x.Independen
   · have hi : 2 * i.val < k := by have := i.isLt; unfold half at this; omega
     have := congrFun hn ⟨2 * i.val, hi⟩
     rw [expand_even _ _ _ _ hi] at this
-    exact (mul_eq_zero.mp this).resolve_left x.hρ
+    exact (mul_eq_zero.mp this).resolve_left hρ
 
 /-- If `2^(r+1)` divides `k`, then `k` is even, and `2^r` divides `half k`. -/
 theorem even_of_two_pow_dvd {k r : ℕ} (h : 2 ^ (r + 1) ∣ k) : k % 2 = 0 ∧ 2 ^ r ∣ half k := by

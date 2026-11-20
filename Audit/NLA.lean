@@ -16,8 +16,9 @@ How it works:
 1. Step 1 defines the relation and one round, from the paper (Section 4.9, eq. (19)).
 2. Step 2 casts one round as a `ChallengeVerifyProtocol`.
 3. Step 3 states completeness, `RoundCompleteness`.
-4. Step 4 states soundness from 4 accepting transcripts, `RoundSoundness`. The extractor's
-   formula is in `Audit/NLA/Extract.lean`.
+4. Step 4 states soundness from 4 accepting transcripts, `RoundSoundness`: `extractWitness`
+   gives a witness, or `extractGeneratorLink` gives a link between the generators. Their
+   formulas are in `Audit/NLA/Extract.lean`.
 - This file only states 3 and 4. `Audit/NLA/Proofs.lean` proves them as
   `roundProtocol_complete` and `round_sound`, and `Audit.lean` imports it.
 5. `Audit/NLA/BadChallenges.lean` derives a corollary: each commitment has no more than 3 bad
@@ -184,7 +185,7 @@ def RoundCompleteness [SampleableType F] : Prop :=
 /-! ## Step 4: soundness
 
 From one commitment `(X, R)` and 4 accepted responses at distinct challenges, get a witness
-for `x`, or a nontrivial relation among the generators of `x`.
+for `x`, or a link between the generators of `x`.
 
 Why 4 challenges and not 3:
 1. 3 challenges give openings of `C`, `X` and `R`, because `1`, `γ` and `γ² - 1` are linearly
@@ -194,22 +195,16 @@ Why 4 challenges and not 3:
 
 Notes:
 - VCVio's `SpeciallySound` takes exactly 2 transcripts and has no escape, so it does not fit.
-- `Instance.Independent` is a trusted part of the statement. A strong assumption makes
-  `RoundSoundness` empty. So it reads only the generators of `x`.
-- Compare with `extract_round` and `Relation` in `Bppp/Spec/NormLinearSoundness.lean`.
-
-TODO (ArkLib): decide if we use ArkLib's coordinate-wise special soundness. Its theorem
-`coordinateWiseSpecialSoundWithEscape_of_mkWitness_scalar` (`ScalarRound.lean`, at `c488a3a`)
-turns a statement of this shape into tree special soundness, and `Composition.lean` chains the
-rounds. Its `mkWitness` is our `extractWit`. ArkLib pins a different VCVio commit. -/
-
-/-- The generators `g`, `H` and `G` of `x` are linearly independent: only the zero opening
-opens the zero point. The discrete-log assumption makes this hold for a prover. -/
-def Instance.Independent {m k : ℕ} (x : Instance F E m k) : Prop :=
-  ∀ o : Opening F m k, x.point o = 0 → o = 0
+- In a real group, links always exist. So "a link exists" has no content. The extractors work
+  for every `F` and `E` and are computable, so they cannot find a link by themselves. A link
+  that they output comes from the prover. It solves discrete log.
+- `Audit/NLAFull/Tests.lean` runs the extractors on small examples.
+- Lean does not check that the extractors are fast. Check that `extractVec` and `roundLink` in
+  `Audit/NLA/Extract.lean` use only field operations, and no choice.
+- Compare with `extract_round` and `Relation` in `Bppp/Spec/NormLinearSoundness.lean`. -/
 
 /-- The extractor. Its formula `extractVec` is in `Audit/NLA/Extract.lean`. -/
-def extractWit {m k : ℕ} (x : Instance F E m k) (γ_vec : Fin 4 → F)
+def extractWitness {m k : ℕ} (x : Instance F E m k) (γ_vec : Fin 4 → F)
     (w_vec : Fin 4 → Witness F (half m) (half k)) : Witness F m k where
   ℓ := extractVec 1 γ_vec (fun i => (w_vec i).ℓ)
   n := extractVec x.ρ γ_vec (fun i => (w_vec i).n)
@@ -233,15 +228,23 @@ structure Fork {m k : ℕ} (x : Instance F E m k) extends ForkHead F E where
   /-- The verifier accepts each response. -/
   hAccepted : ∀ i, (roundProtocol m k).verify x (X, R) (γ i) (w i) = true
 
-variable (F E) in
-/-- Soundness: if the generators of `x` are independent, then `extractWit` computes a witness
-from a fork. `round_sound` in `Audit/NLA/Proofs.lean` proves it. The norm length `k` must be even:
-`round_not_sound_odd` in `Audit/NLA/Counterexamples.lean` shows that this is necessary.
+/-- `o` is a link between the generators of `x`: a nonzero opening of the zero point. -/
+def Instance.IsGeneratorLink {m k : ℕ} (x : Instance F E m k) (o : Opening F m k) : Prop :=
+  o ≠ 0 ∧ x.point o = 0
 
-Note for reviewers: Lean does not check that `extractWit` is efficient. Check that `extractVec`
-in `Audit/NLA/Extract.lean` uses only field operations, and no choice. -/
+/-- The candidate link from the 4 responses: `roundLink`, the curve through 3 openings at `γ 3`,
+minus the 4th opening. Its formula is in `Audit/NLA/Extract.lean`. -/
+def extractGeneratorLink {m k : ℕ} (x : Instance F E m k) (γ_vec : Fin 4 → F)
+    (w_vec : Fin 4 → Witness F (half m) (half k)) : Opening F m k :=
+  let d := roundLink x.c x.ρ γ_vec (fun i => (w_vec i).ℓ) (fun i => (w_vec i).n)
+  ⟨d.1, d.2.1, d.2.2⟩
+
+variable (F E) in
+/-- Soundness: from a fork, `extractWitness` gives a witness, or `extractGeneratorLink` gives a
+link. `round_sound` proves it. `k` must be even: `round_not_sound_odd` in
+`Audit/NLA/Counterexamples.lean` shows that this is necessary. -/
 def RoundSoundness : Prop :=
-  ∀ {m k : ℕ} (x : Instance F E m k) (f : Fork x), x.Independent → k % 2 = 0 →
-    Rel x (extractWit x f.γ f.w)
+  ∀ {m k : ℕ} (x : Instance F E m k) (f : Fork x), k % 2 = 0 →
+    Rel x (extractWitness x f.γ f.w) ∨ x.IsGeneratorLink (extractGeneratorLink x f.γ f.w)
 
 end Audit.NLA

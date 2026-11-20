@@ -13,6 +13,8 @@ How it works:
    `Audit/NLA/FoldLemmas.lean`.
 2. `roundProtocol_complete` follows from `rel_fold` for every challenge.
 3. `round_sound` applies `extract_core` from `Audit/NLA/Extract.lean`.
+4. `Instance.Independent` and `round_sound_of_independent` serve the corollaries and the bridge
+   to Jonas's types. In a real group, `Independent` is false.
 
 Assumptions:
 - `ρ ≠ 0`, as each `Instance` carries.
@@ -40,15 +42,28 @@ theorem roundProtocol_complete [SampleableType F] : RoundCompleteness F E := by
 /-- The soundness of one round. -/
 theorem round_sound : RoundSoundness F E := by
   classical
-  intro m k x f hind hk
+  intro m k x f hk
   have hrel (i : Fin 4) : Rel (foldInst x f.X f.R (f.γ i)) (f.w i) := by
     simpa [roundProtocol] using f.hAccepted i
   have hγ : Function.Injective f.γ := fun i j h => by_contra fun hij => f.hDistinct i j hij h
-  rcases extract_core x.g x.c x.H x.G x.ρ x.hρ hk x.C f.X f.R f.γ hγ
-    (fun i => (f.w i).ℓ) (fun i => (f.w i).n) hrel with ⟨s, a, b, hne, h0⟩ | h
-  · have ho := hind ⟨s, a, b⟩ h0
-    simp only [Opening.ext_iff] at ho
-    tauto
-  · exact h
+  obtain ⟨hp, himp⟩ := extract_core x.g x.c x.H x.G x.ρ x.hρ hk x.C f.X f.R f.γ hγ
+    (fun i => (f.w i).ℓ) (fun i => (f.w i).n) hrel
+  by_cases h : extractGeneratorLink x f.γ f.w = 0
+  · refine Or.inl (himp ?_)
+    simp only [extractGeneratorLink, Opening.ext_iff] at h
+    exact Prod.ext h.1 (Prod.ext h.2.1 h.2.2)
+  · exact Or.inr ⟨h, hp⟩
+
+/-- The generators of `x` are linearly independent: only the zero opening opens the zero point.
+This is false in a real group with 2 or more generators. Only proof-side corollaries use it. -/
+def Instance.Independent {m k : ℕ} (x : Instance F E m k) : Prop :=
+  ∀ o : Opening F m k, x.point o = 0 → o = 0
+
+/-- On independent generators, a fork gives a witness. -/
+theorem round_sound_of_independent {m k : ℕ} (x : Instance F E m k) (f : Fork x)
+    (hind : x.Independent) (hk : k % 2 = 0) : ∃ w, Rel x w := by
+  rcases round_sound x f hk with h | ⟨hne, hp⟩
+  · exact ⟨_, h⟩
+  · exact absurd (hind _ hp) hne
 
 end Audit.NLA

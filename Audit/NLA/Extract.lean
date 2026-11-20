@@ -3,12 +3,12 @@ import Audit.NLA.FoldLemmas
 /-!
 # The extraction proof for one NLA round
 
-This file proves `extract_core`: 4 accepted responses give a witness, or a relation among the
-generators.
+This file proves `extract_core`: 4 accepted responses give a link `roundLink` that opens the
+zero point. If the link is 0, they also give a witness.
 
 Why it exists:
 - `round_sound` in `Audit/NLA/Proofs.lean` applies `extract_core`.
-- `extractVec` is the extractor's formula. `extractWit` in `Audit/NLA.lean` uses it. It needs
+- `extractVec` is the extractor's formula. `extractWitness` in `Audit/NLA.lean` uses it. It needs
   `expand` and the weights `cWeight`. Reviewers check only that it is efficient.
 - Otherwise, only proofs live here. The statements that we audit stay in `Audit/NLA.lean`.
 
@@ -16,8 +16,9 @@ How it works:
 1. Each accepted response gives an opening of `C + γX + (γ² - 1)R` (`msm_expand`).
 2. The openings at 3 challenges define a curve `A + tB + t²D`. It opens
    `C + tX + (t² - 1)R` at every `t`, so `A + D` opens `C`.
-3. If the opening at the 4th challenge is not on the curve, the difference is a relation.
-4. Else each pair of slots gives a cubic with 4 roots (`cubic_zero`). So the pairs fold honestly.
+3. `roundLink` is the curve at the 4th challenge, minus the opening there. It opens 0.
+4. If it is 0, each pair of slots gives a cubic with 4 roots (`cubic_zero`). So the pairs fold
+   honestly.
 5. Then `σ` gives a quadratic with 4 roots, and `A + D` satisfies the relation.
 
 Assumptions:
@@ -147,6 +148,31 @@ def extractVec {m : ℕ} (a : F) (γ : Fin 4 → F) (v : Fin 4 → Fin (half m) 
     + cWeight (γ 1) (γ 0) (γ 2) • expand a (γ 1) (v 1)
     + cWeight (γ 2) (γ 0) (γ 1) • expand a (γ 2) (v 2)
 
+/-- The opening at `γ i` that a response `(ℓ' i, n' i)` gives, over the generators before the
+fold. -/
+def roundOpening {m k : ℕ} (c : Fin m → F) (ρ : F) (γ : Fin 4 → F)
+    (ℓ' : Fin 4 → Fin (half m) → F) (n' : Fin 4 → Fin (half k) → F) (i : Fin 4) :
+    F × (Fin m → F) × (Fin k → F) :=
+  (ip (evens c + γ i • odds c) (ℓ' i) + wip ((ρ ^ 2) ^ 2) (n' i) (n' i),
+    expand 1 (γ i) (ℓ' i), expand ρ (γ i) (n' i))
+
+/-- The link of a round: the curve through the openings at `γ 0`, `γ 1` and `γ 2`, at `γ 3`,
+minus the opening at `γ 3`. It uses only field operations. -/
+def roundLink {m k : ℕ} (c : Fin m → F) (ρ : F) (γ : Fin 4 → F)
+    (ℓ' : Fin 4 → Fin (half m) → F) (n' : Fin 4 → Fin (half k) → F) :
+    F × (Fin m → F) × (Fin k → F) :=
+  let o := roundOpening c ρ γ ℓ' n'
+  let A := (γ 1 * γ 2 / ((γ 0 - γ 1) * (γ 0 - γ 2))) • o 0
+    + (γ 0 * γ 2 / ((γ 1 - γ 0) * (γ 1 - γ 2))) • o 1
+    + (γ 0 * γ 1 / ((γ 2 - γ 0) * (γ 2 - γ 1))) • o 2
+  let B := (-(γ 1 + γ 2) / ((γ 0 - γ 1) * (γ 0 - γ 2))) • o 0
+    + (-(γ 0 + γ 2) / ((γ 1 - γ 0) * (γ 1 - γ 2))) • o 1
+    + (-(γ 0 + γ 1) / ((γ 2 - γ 0) * (γ 2 - γ 1))) • o 2
+  let D := (1 / ((γ 0 - γ 1) * (γ 0 - γ 2))) • o 0
+    + (1 / ((γ 1 - γ 0) * (γ 1 - γ 2))) • o 1
+    + (1 / ((γ 2 - γ 0) * (γ 2 - γ 1))) • o 2
+  A + γ 3 • B + γ 3 ^ 2 • D - o 3
+
 /-- The core of `round_sound`, on the components of the instance. `hacc` is the verifier's check
 for the response `(ℓ' i, n' i)` at the challenge `γ i`. -/
 theorem extract_core {m k : ℕ} (g : E) (c : Fin m → F) (H : Fin m → E) (G : Fin k → E)
@@ -156,10 +182,9 @@ theorem extract_core {m k : ℕ} (g : E) (c : Fin m → F) (H : Fin m → E) (G 
     (hacc : ∀ i, C + γ i • X + (γ i ^ 2 - 1) • R =
       (ip (evens c + γ i • odds c) (ℓ' i) + wip ((ρ ^ 2) ^ 2) (n' i) (n' i)) • g
         + msm (ℓ' i) (evens H + γ i • odds H) + msm (n' i) (ρ • evens G + γ i • odds G)) :
-    (∃ (s : F) (a : Fin m → F) (b : Fin k → F),
-      (s ≠ 0 ∨ a ≠ 0 ∨ b ≠ 0) ∧ s • g + msm a H + msm b G = 0) ∨
-    C = (ip c (extractVec 1 γ ℓ') + wip (ρ ^ 2) (extractVec ρ γ n') (extractVec ρ γ n')) • g
-      + msm (extractVec 1 γ ℓ') H + msm (extractVec ρ γ n') G := by
+    pt g H G (roundLink c ρ γ ℓ' n') = 0 ∧ (roundLink c ρ γ ℓ' n' = 0 →
+      C = (ip c (extractVec 1 γ ℓ') + wip (ρ ^ 2) (extractVec ρ γ n') (extractVec ρ γ n')) • g
+        + msm (extractVec 1 γ ℓ') H + msm (extractVec ρ γ n') G) := by
   unfold extractVec
   classical
   have hne : ∀ i j : Fin 4, i ≠ j → γ i - γ j ≠ 0 := fun i j hij =>
@@ -205,21 +230,14 @@ theorem extract_core {m k : ℕ} (g : E) (c : Fin m → F) (H : Fin m → E) (G 
     rw [hB]; simp only [pt_add, pt_smul, hV]; match_scalars <;> field_simp <;> ring
   have hptD : pt g H G D = R := by
     rw [hD]; simp only [pt_add, pt_smul, hV]; match_scalars <;> field_simp <;> ring
-  -- Step 3: the opening at `γ 3` is on the curve, or the difference is a relation.
-  by_cases h3 : o 3 = A + γ 3 • B + γ 3 ^ 2 • D
-  swap
-  · left
-    refine ⟨(A + γ 3 • B + γ 3 ^ 2 • D - o 3).1, (A + γ 3 • B + γ 3 ^ 2 • D - o 3).2.1,
-      (A + γ 3 • B + γ 3 ^ 2 • D - o 3).2.2, ?_, ?_⟩
-    · by_contra hc
-      push Not at hc
-      apply h3
-      have h0 : A + γ 3 • B + γ 3 ^ 2 • D - o 3 = 0 := Prod.ext hc.1 (Prod.ext hc.2.1 hc.2.2)
-      exact (sub_eq_zero.mp h0).symm
-    · change pt g H G _ = 0
-      rw [pt_sub, pt_add, pt_add, pt_smul, pt_smul, hptA, hptB, hptD, hV]
-      module
-  right
+  -- Step 3: the link opens 0. If it is 0, the opening at `γ 3` is on the curve.
+  have hlink : roundLink c ρ γ ℓ' n' = A + γ 3 • B + γ 3 ^ 2 • D - o 3 := by
+    subst ho hA hB hD
+    rfl
+  refine ⟨?_, fun h0 => ?_⟩
+  · rw [hlink, pt_sub, pt_add, pt_add, pt_smul, pt_smul, hptA, hptB, hptD, hV]
+    module
+  have h3 : o 3 = A + γ 3 • B + γ 3 ^ 2 • D := (sub_eq_zero.mp (hlink ▸ h0)).symm
   have hall : ∀ i, o i = A + γ i • B + γ i ^ 2 • D := by
     intro i
     fin_cases i

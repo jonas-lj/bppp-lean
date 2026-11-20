@@ -10,7 +10,8 @@ Why it exists:
 
 How it works:
 1. A challenge is bad if some response makes the commitment accept.
-2. On independent generators, 4 distinct bad challenges and `round_sound` give a witness.
+2. On independent generators, 4 distinct bad challenges and `round_sound_of_independent` give a
+   witness.
 3. So, on an instance with independent generators and no witness, no more than 3 challenges
    are bad.
 
@@ -49,6 +50,8 @@ theorem badSet_encard_le {m k : ℕ} (x : Instance F E m k) (hk : k % 2 = 0)
   have hbad (i : Fin 4) : γ_vec i ∈ badSet x X R :=
     hts ((Set.Finite.mem_toFinset htf).mp (e.symm (Fin.cast hcard.symm i)).2)
   choose w_vec hacc using hbad
-  exact hwit _ (round_sound x ⟨⟨X, R, γ_vec, fun i j hij e => hij (hγ e)⟩, w_vec, hacc⟩ hind hk)
+  obtain ⟨w, hw⟩ := round_sound_of_independent x
+    ⟨⟨X, R, γ_vec, fun i j hij e => hij (hγ e)⟩, w_vec, hacc⟩ hind hk
+  exact hwit w hw
 
 end Audit.NLA
