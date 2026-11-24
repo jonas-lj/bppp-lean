@@ -14,24 +14,16 @@ Why it exists:
 - `Audit/05-RangeProof.lean` uses it for the Bulletproofs++ range proof.
 
 How it works:
-1. A `Relation` is a relation `Rel` between statements and witnesses, and a relaxed form
-   `RelaxedRel`. Completeness uses `Rel`. Soundness uses `RelaxedRel`.
-2. `RoundTypes` lists the rounds of a protocol, with the types of their messages. In each
-   round, the prover sends a commitment, and the verifier answers with a random challenge. The
-   challenge type of a round is the set from which the verifier samples. It excludes the
-   challenges for which the verifier cannot compute, for example a division by zero.
-3. A `RoundTypes.Transcript` is one run: the commitments and the challenges in order, then one
-   last value. For a proof system, the last value is the response of the prover.
-4. A `RoundTypes.Tree` is a fork tree. In each round, a node has one commitment and several
-   children, each with its own challenge. So all transcripts below a node share the commitments
-   above it. A `ForkRule` gives the number of children in each round, and a rule for the
-   challenges of two different children.
-5. A `ProofSystem` for a relation has round types, a response type and a verifier `Verify`.
-   `ProofSystem.SpecialSound`: from every statement `x` and every fork tree in which the verifier
-   accepts every transcript, the extractor computes a witness `w` with `RelaxedRel x w`.
-6. The honest prover gives a strategy (`RoundTypes.Strategy`): a commitment, then a strategy for
-   the rest for each challenge. `ProofSystem.Complete`: for a witness `w` with `Rel x w`, the
-   verifier accepts each transcript of the honest prover. Soundness does not use the prover.
+1. `Relation`: statements, witnesses, the relation `Rel` for completeness, and the relaxed
+   relation `RelaxedRel` for soundness.
+2. `RoundTypes`: the message types of a protocol, round by round.
+3. `RoundTypes.Transcript`: the messages of one run.
+4. `RoundTypes.ForkTree`: a fork tree, with one `ForkRule` for each round.
+   `RoundTypes.ForkTree.AllPaths` says that a check holds on every path of a tree.
+5. `ProofSystem`: the rounds, the response and the verifier. `ProofSystem.SpecialSound` is tree
+   special soundness with a named extractor.
+6. `RoundTypes.Strategy` and `ProofSystem.Complete`: the honest prover and completeness.
+   Soundness does not use them.
 7. Sizes, such as the length of a vector, are fixed outside. So there is one system for each
    size.
 
@@ -71,66 +63,68 @@ structure Relation where
 
 /-! ## Rounds, transcripts and fork trees -/
 
-/-- The types of the messages of a public-coin protocol, round by round. In each round, the
-prover sends a commitment of type `Commitment`, and the verifier answers with a random challenge
-of type `Challenge`. A Σ-protocol has one round: `.round Commitment Challenge .done`. -/
+/-- The types of the messages of a public-coin protocol, round by round. In each round, the prover
+sends a `Commitment`, and the verifier answers with a random `Challenge`. It has no type for the
+response. A Σ-protocol has one round: `.round Commitment Challenge .done`. -/
 inductive RoundTypes : Type 1
   /-- No more rounds. -/
   | done
   /-- The prover sends a commitment, the verifier sends a challenge, and `rest` follows. -/
   | round (Commitment Challenge : Type) (rest : RoundTypes)
 
-/-- One run: the commitments and the challenges in order, then one last value of type `Last`. -/
-@[reducible] def RoundTypes.Transcript : RoundTypes → Type → Type
-  | .done, Last => Last
-  | .round Commitment Challenge rest, Last => Commitment × Challenge × rest.Transcript Last
-
-/-- The commitments and the challenges of a transcript, without its last value. -/
-def RoundTypes.Transcript.messages : {p : RoundTypes} → {Last : Type} → p.Transcript Last →
-    p.Transcript Unit
-  | .done, _, _ => ()
-  | .round _ _ _, _, (a, c, rest) => (a, c, messages rest)
-
-/-- The last value of a transcript. -/
-def RoundTypes.Transcript.last : {p : RoundTypes} → {Last : Type} → p.Transcript Last → Last
-  | .done, _, z => z
-  | .round _ _ _, _, (_, _, rest) => last rest
+/-- The messages of one run: the commitments and the challenges in order. It ends with `()`. -/
+@[reducible] def RoundTypes.Transcript : RoundTypes → Type
+  | .done => Unit
+  | .round Commitment Challenge rest => Commitment × Challenge × rest.Transcript
 
 /-- The rules for one round of a fork tree: the number of children, and a rule for the
-challenges of each pair of different children. With `Apart = (· ≠ ·)` in each round, this is the
-`(k₁, …, k_μ)`-special soundness of Attema, Cramer and Kohl. -/
+challenges of each pair of different children. -/
 structure ForkRule (Challenge : Type) where
   /-- The number of children of each node in this round, each with its own challenge. -/
   arity : ℕ
   /-- A rule for the challenges of two different children. -/
   Apart : Challenge → Challenge → Prop
 
-/-- The challenges `c` of the children of one node follow the rule `f`. -/
-def ForkRule.Allowed {Challenge : Type} (f : ForkRule Challenge) (c : Fin f.arity → Challenge) :
-    Prop :=
-  ∀ i j, i ≠ j → f.Apart (c i) (c j)
+/-- The challenges of the `f.arity` children of one node: each pair of different children has
+challenges that are `Apart`. -/
+abbrev ForkRule.AllowedChallenges {Challenge : Type} (f : ForkRule Challenge) : Type :=
+  {c : Fin f.arity → Challenge // ∀ i j, i ≠ j → f.Apart (c i) (c j)}
 
 /-- One `ForkRule` for each round of a protocol, for the challenge type of that round. -/
 @[reducible] def RoundTypes.ForkRules : RoundTypes → Type
   | .done => Unit
   | .round _ Challenge rest => ForkRule Challenge × rest.ForkRules
 
-/-- A fork tree of a protocol. In each round: one commitment, then the challenges of the
-`arity` children (they follow the rule), then the subtrees of the children. At each leaf: one
-value of type `Leaf`. -/
-@[reducible] def RoundTypes.Tree : (p : RoundTypes) → p.ForkRules → Type → Type
-  | .done, _, Leaf => Leaf
-  | .round Commitment Challenge rest, (f, fs), Leaf =>
-      Commitment × {c : Fin f.arity → Challenge // f.Allowed c} × (Fin f.arity → rest.Tree fs Leaf)
+/-- One node of a fork tree, in a round with the rule `f`: a commitment, then one challenge and
+one subtree for each of the `f.arity` children. -/
+structure ForkNode (Commitment Challenge : Type) (f : ForkRule Challenge) (Child : Type) where
+  /-- The commitment of the prover at this node. -/
+  commitment : Commitment
+  /-- The challenge of each child. They follow the rule `f`. -/
+  challenges : f.AllowedChallenges
+  /-- The subtree of each child. In the last round, it is a leaf value. -/
+  children : Fin f.arity → Child
 
-/-- The transcripts of a tree: one for each path from the root to a leaf. -/
-def RoundTypes.Tree.transcripts : {p : RoundTypes} → {fs : p.ForkRules} → {Leaf : Type} →
-    p.Tree fs Leaf → List (p.Transcript Leaf)
-  | .done, _, _, z => [z]
-  | .round _ _ _, _, _, (a, ⟨c, _⟩, sub) =>
-      -- For each child `i`: put `a` and its challenge `c i` in front of each transcript of its
-      -- subtree `sub i`. Then join the lists of all children.
-      (List.finRange _).flatMap fun i => (transcripts (sub i)).map fun tr => (a, c i, tr)
+/-- A fork tree of a protocol: one `ForkNode` in each round, and one value of type `Leaf` at
+each leaf. -/
+@[reducible] def RoundTypes.ForkTree (p : RoundTypes) (rules : p.ForkRules) (Leaf : Type) :
+    Type :=
+  match p with
+  | .done => Leaf
+  | .round Commitment Challenge rest =>
+      let (f, restRules) := rules
+      ForkNode Commitment Challenge f (rest.ForkTree restRules Leaf)
+
+/-- `check` holds on every path of the tree: on the transcript of the path and its leaf value. -/
+def RoundTypes.ForkTree.AllPaths {Leaf : Type} {p : RoundTypes} {rules : p.ForkRules}
+    (t : p.ForkTree rules Leaf) (check : p.Transcript → Leaf → Prop) : Prop :=
+  match p with
+  -- No rounds left: the tree is one leaf value, and the transcript is `()`.
+  | .done => check () t
+  -- One round: in each child `i`, the check holds with the commitment and `i`'s challenge first.
+  | .round _ _ _ =>
+      ∀ i, (t.children i).AllPaths fun trRest z =>
+        check (t.commitment, t.challenges.val i, trRest) z
 
 /-! ## Proof systems -/
 
@@ -140,14 +134,20 @@ structure ProofSystem (R : Relation) where
   roundTypes : RoundTypes
   /-- The type of the last message of the prover. -/
   ResponseType : Type
-  /-- The verifier: it accepts or rejects one transcript for the statement `x`. -/
-  Verify : R.StatementType → roundTypes.Transcript ResponseType → Prop
+  /-- The verifier: it accepts or rejects a transcript and a response for a statement. -/
+  Verify : R.StatementType → roundTypes.Transcript → ResponseType → Prop
 
-/-- Tree special soundness with the fork rules `fs`: from every statement `x` and every fork tree
-in which `Verify` accepts every transcript, `extract` computes a witness for `x`. -/
-def ProofSystem.SpecialSound {R : Relation} (S : ProofSystem R) (fs : S.roundTypes.ForkRules)
-    (extract : R.StatementType → S.roundTypes.Tree fs S.ResponseType → R.WitnessType) : Prop :=
-  ∀ x t, (∀ tr ∈ t.transcripts, S.Verify x tr) → R.RelaxedRel x (extract x t)
+/-- A fork tree of a proof system with the fork rules `rules`: a response at each leaf. -/
+abbrev ProofSystem.ForkTree {R : Relation} (S : ProofSystem R) (rules : S.roundTypes.ForkRules) :
+    Type :=
+  S.roundTypes.ForkTree rules S.ResponseType
+
+/-- Tree special soundness with the fork rules `rules`: from every statement `x` and every fork
+tree in which `Verify` accepts every path, `extract` computes a witness for `x`. -/
+def ProofSystem.SpecialSound {R : Relation} (S : ProofSystem R) (rules : S.roundTypes.ForkRules)
+    (extract : R.StatementType → S.ForkTree rules → R.WitnessType) : Prop :=
+  ∀ (x : R.StatementType) (t : S.ForkTree rules), t.AllPaths (S.Verify x) →
+    R.RelaxedRel x (extract x t)
 
 /-! ## The honest prover
 
@@ -155,20 +155,28 @@ Soundness does not use it. Completeness does. -/
 
 /-- A prover strategy: a commitment, then a strategy for the rest for each challenge. At the end:
 a value of type `Last`. -/
-@[reducible] def RoundTypes.Strategy : RoundTypes → Type → Type
-  | .done, Last => Last
-  | .round Commitment Challenge rest, Last => Commitment × (Challenge → rest.Strategy Last)
+@[reducible] def RoundTypes.Strategy (p : RoundTypes) (Last : Type) : Type :=
+  match p with
+  | .done => Last
+  | .round Commitment Challenge rest => Commitment × (Challenge → rest.Strategy Last)
 
 /-- One challenge for each round, as a tuple. -/
 @[reducible] def RoundTypes.Challenges : RoundTypes → Type
   | .done => Unit
   | .round _ Challenge rest => Challenge × rest.Challenges
 
-/-- The transcript of a strategy on the challenges `cs`. -/
-def RoundTypes.run : {p : RoundTypes} → {Last : Type} → p.Strategy Last → p.Challenges →
-    p.Transcript Last
-  | .done, _, z, _ => z
-  | .round _ _ _, _, (a, next), (c, cs) => (a, c, run (next c) cs)
+/-- The transcript and the end value of a strategy on the challenges `cs`. -/
+def RoundTypes.run {p : RoundTypes} {Last : Type} (s : p.Strategy Last) (cs : p.Challenges) :
+    p.Transcript × Last :=
+  match p with
+  -- No rounds left: the strategy is the end value.
+  | .done => ((), s)
+  -- One round: send the commitment `a`, read the challenge `c`, then run the rest.
+  | .round _ _ _ =>
+      let (a, next) := s
+      let (c, csRest) := cs
+      let (tr, z) := run (next c) csRest
+      ((a, c, tr), z)
 
 /-- An honest prover: from the statement, the witness and its random coins, a strategy. -/
 structure ProofSystem.HonestProver {R : Relation} (S : ProofSystem R) where
@@ -178,9 +186,12 @@ structure ProofSystem.HonestProver {R : Relation} (S : ProofSystem R) where
   prove : R.StatementType → R.WitnessType → CoinsType → S.roundTypes.Strategy S.ResponseType
 
 /-- Completeness: for every witness `w` with `Rel x w`, every choice of coins and every tuple of
-challenges, the verifier accepts the transcript of the honest prover. -/
+challenges, the verifier accepts the transcript and the response of the honest prover. -/
 def ProofSystem.Complete {R : Relation} (S : ProofSystem R) (P : S.HonestProver) : Prop :=
-  ∀ x w, R.Rel x w → ∀ coins cs, S.Verify x (S.roundTypes.run (P.prove x w coins) cs)
+  ∀ (x : R.StatementType) (w : R.WitnessType), R.Rel x w →
+    ∀ (coins : P.CoinsType) (cs : S.roundTypes.Challenges),
+      let (tr, z) := S.roundTypes.run (P.prove x w coins) cs
+      S.Verify x tr z
 
 /-! ### Example: a Σ-protocol with 3 challenges
 
@@ -192,30 +203,32 @@ namespace SigmaExample
 /-- One round. -/
 def sigma : RoundTypes := .round ℕ ℕ .done
 
-/-- One run with the response in `ℕ` is `(commitment, challenge, response)`. -/
-example : sigma.Transcript ℕ = (ℕ × ℕ × ℕ) := rfl
+/-- The messages of one run are `(commitment, challenge, ())`. -/
+example : sigma.Transcript = (ℕ × ℕ × Unit) := rfl
 
 /-- One rule: 3 distinct challenges. -/
-def rules : sigma.ForkRules := (⟨3, (· ≠ ·)⟩, ())
+def sigmaRules : sigma.ForkRules := (⟨3, (· ≠ ·)⟩, ())
 
-/-- A tree is one commitment, then the 3 distinct challenges, then the 3 responses. -/
-example : sigma.Tree rules ℕ =
-    (ℕ × {c : Fin 3 → ℕ // rules.1.Allowed c} × (Fin 3 → ℕ)) := rfl
+/-- A tree is one node: a commitment, 3 distinct challenges, and 3 responses as its children. -/
+example : sigma.ForkTree (rules := sigmaRules) (Leaf := ℕ) = ForkNode ℕ ℕ sigmaRules.1 ℕ := rfl
 
 /-- The tree with the commitment 7, the challenges 10, 11, 12 and the responses 100, 101, 102. -/
-def tree : sigma.Tree rules ℕ :=
-  (7, ⟨fun i => 10 + (i : ℕ), by unfold ForkRule.Allowed; decide⟩, fun i => 100 + (i : ℕ))
+def tree : sigma.ForkTree sigmaRules ℕ where
+  commitment := 7
+  challenges := ⟨fun i => 10 + (i : ℕ), by decide⟩
+  children i := 100 + (i : ℕ)
 
-/-- It has 3 transcripts, which share the commitment 7. -/
-example : tree.transcripts = [(7, 10, 100), (7, 11, 101), (7, 12, 102)] := rfl
+/-- On each of its 3 paths, the response is the challenge plus 90. -/
+example : tree.AllPaths (fun (_, c, ()) z => z = c + 90) := by
+  intro i; fin_cases i <;> rfl
 
 end SigmaExample
 
 /-! ### Example: Schnorr as a proof system
 
 Schnorr proves knowledge of `w` with `X = w • G`. The prover sends `R`, the verifier sends `c`,
-and the prover sends `z`. The verifier checks `z • G = R + c • X`. Two accepted transcripts with
-the same `R` and different `c` give `w = (z₀ - z₁) / (c₀ - c₁)`. -/
+and the prover sends `z`. The verifier checks `z • G = R + c • X`. Two accepted paths with the
+same `R` and different `c` give `w = (z₀ - z₁) / (c₀ - c₁)`. -/
 
 namespace SchnorrExample
 
@@ -239,27 +252,24 @@ variable (F E) in
 @[reducible] def schnorrSystem : ProofSystem (dlog F E) where
   roundTypes := schnorrRounds F E
   ResponseType := F
-  Verify := fun (G, X) (R, c, z) => z • G = R + c • X
+  Verify := fun (G, X) (R, c, ()) z => z • G = R + c • X
 
 /-! #### Soundness -/
 
 variable (F E) in
 /-- The fork rule: 2 distinct challenges. -/
-def rules : (schnorrRounds F E).ForkRules := (⟨2, (· ≠ ·)⟩, ())
+def schnorrRules : (schnorrRounds F E).ForkRules := (⟨2, (· ≠ ·)⟩, ())
 
 /-- The extractor: `w = (z₀ - z₁) / (c₀ - c₁)`. -/
-def extract (_ : E × E) (t : (schnorrRounds F E).Tree (rules F E) F) : F :=
-  let (_, ⟨c, _⟩, z) := t
-  (z 0 - z 1) / (c 0 - c 1)
+def extract (_ : E × E) (t : (schnorrSystem F E).ForkTree (schnorrRules F E)) : F :=
+  (t.children 0 - t.children 1) / (t.challenges.val 0 - t.challenges.val 1)
 
 /-- Schnorr is special sound with 2 challenges. -/
-theorem schnorr_sound : (schnorrSystem F E).SpecialSound (rules F E) extract := by
+theorem schnorr_sound : (schnorrSystem F E).SpecialSound (schnorrRules F E) extract := by
   rintro ⟨G, X⟩ ⟨R, ⟨c, hc⟩, z⟩ hacc
-  -- The tree has 2 transcripts, and the verifier accepts both.
-  have ht : ∀ i, (R, c i, z i) ∈ [(R, c 0, z 0), (R, c 1, z 1)] := by
-    intro i; fin_cases i <;> simp
-  have h0 : z 0 • G = R + c 0 • X := hacc _ (ht 0)
-  have h1 : z 1 • G = R + c 1 • X := hacc _ (ht 1)
+  -- The tree has 2 paths, and the verifier accepts both.
+  have h0 : z 0 • G = R + c 0 • X := hacc (0 : Fin 2)
+  have h1 : z 1 • G = R + c 1 • X := hacc (1 : Fin 2)
   -- Subtract the two checks.
   have key : (z 0 - z 1) • G = (c 0 - c 1) • X := by
     rw [sub_smul, sub_smul, h0, h1]; abel

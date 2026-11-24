@@ -45,42 +45,56 @@ structure Reduction (In Out : Relation) where
   /-- The rounds of the protocol. -/
   roundTypes : RoundTypes
   /-- The verifier: the new statement, from the old statement and the transcript. -/
-  reduce : In.StatementType → roundTypes.Transcript Unit → Out.StatementType
+  reduce : In.StatementType → roundTypes.Transcript → Out.StatementType
 
-/-- Tree special soundness of a reduction with the fork rules `fs`. Each leaf of the tree has a
-witness for the new statement of its transcript. From every statement `x` and every such tree,
-`extract` computes a witness for `x`. -/
+/-- A fork tree of a reduction with the fork rules `rules`. Each leaf holds a witness for the
+new statement of its path. The prover does not send it. -/
+abbrev Reduction.ForkTree {In Out : Relation} (red : Reduction In Out)
+    (rules : red.roundTypes.ForkRules) : Type :=
+  red.roundTypes.ForkTree rules Out.WitnessType
+
+/-- Tree special soundness of a reduction with the fork rules `rules`: from every statement `x`
+and every fork tree whose leaves hold relaxed witnesses for the new statements, `extract`
+computes a witness for `x`. -/
 def Reduction.SpecialSound {In Out : Relation} (red : Reduction In Out)
-    (fs : red.roundTypes.ForkRules)
-    (extract : In.StatementType → red.roundTypes.Tree fs Out.WitnessType → In.WitnessType) :
+    (rules : red.roundTypes.ForkRules)
+    (extract : In.StatementType → red.ForkTree rules → In.WitnessType) :
     Prop :=
-  ∀ x t, (∀ tr ∈ t.transcripts, Out.RelaxedRel (red.reduce x tr.messages) tr.last) →
+  ∀ (x : In.StatementType) (t : red.ForkTree rules),
+    t.AllPaths (fun tr w => Out.RelaxedRel (red.reduce x tr) w) →
     In.RelaxedRel x (extract x t)
 
 /-- The rounds of `p`, then the rounds of `q`. -/
-@[reducible] def RoundTypes.append : RoundTypes → RoundTypes → RoundTypes
-  | .done, q => q
-  | .round Commitment Challenge rest, q => .round Commitment Challenge (rest.append q)
+@[reducible] def RoundTypes.append (p q : RoundTypes) : RoundTypes :=
+  match p with
+  | .done => q
+  | .round Commitment Challenge rest => .round Commitment Challenge (rest.append q)
 
 /-- A transcript of `p.append q`, cut into its part for `p` and its part for `q`. -/
-def RoundTypes.Transcript.split : {p q : RoundTypes} → {Last : Type} →
-    (p.append q).Transcript Last → p.Transcript Unit × q.Transcript Last
-  | .done, _, _, tr => ((), tr)
-  | .round _ _ _, _, _, (a, c, rest) => ((a, c, (split rest).1), (split rest).2)
+def RoundTypes.Transcript.split {p q : RoundTypes} (tr : (p.append q).Transcript) :
+    p.Transcript × q.Transcript :=
+  match p with
+  -- No rounds of `p`: all of `tr` is for `q`.
+  | .done => ((), tr)
+  -- One round of `p`: keep `a` and `c` for `p`, then split the rest.
+  | .round _ _ _ =>
+      let (a, c, trRest) := tr
+      let (trP, trQ) := split trRest
+      ((a, c, trP), trQ)
 
 /-- Run `red`, then run `S` on the new statement. The result is a proof system for `In`. -/
 def Reduction.comp {In Out : Relation} (red : Reduction In Out) (S : ProofSystem Out) :
     ProofSystem In where
   roundTypes := red.roundTypes.append S.roundTypes
   ResponseType := S.ResponseType
-  Verify x tr := S.Verify (red.reduce x tr.split.1) tr.split.2
+  Verify x tr z := S.Verify (red.reduce x tr.split.1) tr.split.2 z
 
 /-- The prover sends the witness in the clear, and the verifier checks `Rel`. It has no rounds.
 It is the last part of a chain of reductions that made the witness small. -/
 def ProofSystem.sendWitness (R : Relation) : ProofSystem R where
   roundTypes := .done
   ResponseType := R.WitnessType
-  Verify := R.Rel
+  Verify x _ w := R.Rel x w
 
 /-! ## The honest prover of a reduction -/
 
@@ -94,9 +108,10 @@ structure Reduction.HonestProver {In Out : Relation} (red : Reduction In Out) wh
 and every tuple of challenges, the new witness is a witness for the new statement. -/
 def Reduction.Complete {In Out : Relation} (red : Reduction In Out) (P : red.HonestProver) :
     Prop :=
-  ∀ x w, In.Rel x w → ∀ coins cs,
-    let tr := red.roundTypes.run (P.prove x w coins) cs
-    Out.Rel (red.reduce x tr.messages) tr.last
+  ∀ (x : In.StatementType) (w : In.WitnessType), In.Rel x w →
+    ∀ (coins : P.CoinsType) (cs : red.roundTypes.Challenges),
+      let (tr, w') := red.roundTypes.run (P.prove x w coins) cs
+      Out.Rel (red.reduce x tr) w'
 
 namespace SchnorrExample
 
@@ -134,19 +149,18 @@ variable (F) in
 def batchRules : (batchRounds F).ForkRules := (⟨2, (· ≠ ·)⟩, ())
 
 /-- The extractor: `w₂ = (z₀ - z₁) / (c₀ - c₁)` and `w₁ = z₀ - c₀ w₂`. -/
-def batchExtract (_ : E × E × E) (t : (batchRounds F).Tree (batchRules F) F) : F × F :=
-  let ((), ⟨c, _⟩, z) := t
+def batchExtract (_ : E × E × E) (t : (batch F E).ForkTree (batchRules F)) : F × F :=
+  let c := t.challenges.val
+  let z := t.children
   let w₂ := (z 0 - z 1) / (c 0 - c 1)
   (z 0 - c 0 * w₂, w₂)
 
 /-- The reduction is special sound with 2 challenges. -/
 theorem batch_sound : (batch F E).SpecialSound (batchRules F) batchExtract := by
   rintro ⟨G, X₁, X₂⟩ ⟨⟨⟩, ⟨c, hc⟩, z⟩ hacc
-  -- The tree has 2 transcripts. At each leaf, `z i` is a witness for `(G, X₁ + c i • X₂)`.
-  have ht : ∀ i, ((), c i, z i) ∈ [((), c 0, z 0), ((), c 1, z 1)] := by
-    intro i; fin_cases i <;> simp
-  have h0 : z 0 • G = X₁ + c 0 • X₂ := hacc _ (ht 0)
-  have h1 : z 1 • G = X₁ + c 1 • X₂ := hacc _ (ht 1)
+  -- The tree has 2 paths. At each leaf, `z i` is a witness for `(G, X₁ + c i • X₂)`.
+  have h0 : z 0 • G = X₁ + c 0 • X₂ := hacc (0 : Fin 2)
+  have h1 : z 1 • G = X₁ + c 1 • X₂ := hacc (1 : Fin 2)
   have hne : c 0 - c 1 ≠ 0 := sub_ne_zero.2 (hc 0 1 (by decide : (0 : Fin 2) ≠ 1))
   -- Subtract the two equations to get `w₂`. Then `w₁` follows from the first equation.
   have key : (z 0 - z 1) • G = (c 0 - c 1) • X₂ := by
