@@ -228,9 +228,15 @@ structure Fork {m k : ℕ} (x : Instance F E m k) extends ForkHead F E where
   /-- The verifier accepts each response. -/
   hAccepted : ∀ i, (roundProtocol m k).verify x (X, R) (γ i) (w i) = true
 
-/-- `o` is a link between the generators of `x`: a nonzero opening of the zero point. -/
+/-- `o` is a link between the generators `g`, `H` and `G`: a nonzero opening of the zero
+point. -/
+def IsGeneratorLink {m k : ℕ} (g : E) (H : Fin m → E) (G : Fin k → E) (o : Opening F m k) :
+    Prop :=
+  o ≠ 0 ∧ o.σ • g + msm o.ℓ H + msm o.n G = 0
+
+/-- `o` is a link between the generators of `x`. -/
 def Instance.IsGeneratorLink {m k : ℕ} (x : Instance F E m k) (o : Opening F m k) : Prop :=
-  o ≠ 0 ∧ x.point o = 0
+  NLA.IsGeneratorLink x.g x.H x.G o
 
 /-- The candidate link from the 4 responses: `roundLink`, the curve through 3 openings at `γ 3`,
 minus the 4th opening. Its formula is in `Audit/NLA/Extract.lean`. -/

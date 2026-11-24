@@ -1,41 +1,55 @@
-import Audit.«04-NLAFull»
+import Audit.NLAFull.Extract
 
 /-!
 # Proofs for the full NLA
 
-This file proves `NLACompleteness` and `NLASoundness` from `Audit/04-NLAFull.lean`.
-
-Why it exists:
-- The statements stay in `Audit/04-NLAFull.lean`, so that file has no long proofs.
+This file proves `NLASoundness`, `NLACompleteness` and `NLATreesExist` from
+`Audit/04-NLAFull.lean`. You do not need to review it.
 
 How it works:
-1. `nla_complete`: induction on the challenges, with `rel_fold` in each round.
-2. `evenNorms_of_two_pow_dvd`: if `2^r` divides `k`, with `r` rounds, then `EvenNorms m k`.
-3. `treeExtractGeneratorLink_spec`: induction on the tree. A nonzero link of a child lifts to
-   a link. Else each child gives a witness for its folded instance, and `extract_core` combines
-   them.
-4. `nla_sound` follows: the link is 0 and the witness is valid, or the link is a link.
+1. `roundReduction_sound`: one round is special sound with 4 challenges. If a child gives a
+   link, its lift is a link. Else each child gives a witness, and `extract_core` combines them.
+2. `base_sound`: the base case is special sound. The leaf is the witness.
+3. `nla_sound`: induction on the rounds. `Reduction.comp_specialSound` joins one round with the
+   rest.
+4. `nla_complete`: induction on the rounds, with `rel_fold` in each round.
+5. `nla_trees_exist`: a tree with the same 4 challenges at each node.
+6. `evenNorms_of_two_pow_dvd`: if `2^r` divides `k`, with `r` rounds, then `EvenNorms m k`.
 
 Assumptions:
-- The round facts are in `Audit/NLAFull/Lemmas.lean`.
+- The round facts are in `Audit/NLA/Extract.lean` and `Audit/NLAFull/Lemmas.lean`.
 -/
 
 namespace Audit.NLA
 
+open Audit.TreeSoundness
+
 variable {F E : Type} [Field F] [AddCommGroup E] [Module F E]
 
-/-- The honest prover always convinces the verifier. -/
-theorem nla_complete : NLACompleteness F E := by
-  intro m k x w h γs
-  induction m, k using numRounds.induct generalizing γs with
-  | case1 m k hb =>
-    rw [honestTranscript]
-    simp only [hb, ↓reduceDIte]
-    exact h
-  | case2 m k hb ih =>
-    rw [honestTranscript]
-    simp only [hb, ↓reduceDIte]
-    exact ih _ _ (rel_fold x w h (γs 0)) _
+/-! ## The number of rounds -/
+
+/-- With 0 rounds, `(m, k)` is the base case. -/
+theorem isBase_of_numRounds_eq_zero {m k : ℕ} (h : numRounds m k = 0) : IsBase m k := by
+  by_contra hb
+  rw [numRounds] at h
+  simp only [hb, ↓reduceIte] at h
+  omega
+
+/-- With 1 round or more, `(m, k)` is not the base case. -/
+theorem not_isBase_of_numRounds_eq_succ {m k n : ℕ} (h : numRounds m k = n + 1) :
+    ¬ IsBase m k := by
+  intro hb
+  rw [numRounds] at h
+  simp only [hb, ↓reduceIte] at h
+  omega
+
+/-- After one round, one round fewer is left. -/
+theorem numRounds_half_of_eq_succ {m k n : ℕ} (h : numRounds m k = n + 1) :
+    numRounds (half m) (half k) = n := by
+  have hb := not_isBase_of_numRounds_eq_succ h
+  rw [numRounds] at h
+  simp only [hb, ↓reduceIte] at h
+  omega
 
 /-- If `2^r` divides `k`, with `r = numRounds m k`, then the norm length is even in every
 round. -/
@@ -55,65 +69,95 @@ section Soundness
 
 variable [DecidableEq F]
 
-/-- The link opens 0. If it is 0, the witness opens `C`. -/
-theorem treeExtractGeneratorLink_spec {m k : ℕ} (x : Instance F E m k) (t : ForkTree F E m k)
-    (hk : EvenNorms m k) (hacc : ∀ p ∈ t.transcripts, verify x p) :
-    x.point (treeExtractGeneratorLink x t) = 0 ∧
-      (treeExtractGeneratorLink x t = 0 → Rel x (treeExtractWitness x t)) := by
-  induction t with
-  | leaf w hBase =>
-    refine ⟨?_, fun _ => ?_⟩
-    · change (0 : F) • x.g + msm 0 x.H + msm 0 x.G = 0
-      simp [msm]
-    exact hacc (.done w) (by simp [ForkTree.transcripts])
-  | @node m k head child hNotBase ih =>
-    obtain ⟨X, R, γ, hDistinct⟩ := head
-    obtain ⟨hk2, hk'⟩ : k % 2 = 0 ∧ EvenNorms (half m) (half k) := by
-      rw [EvenNorms] at hk
-      simpa only [hNotBase, ↓reduceIte] using hk
-    -- Apply the induction hypothesis to each child.
-    have hchild (i : Fin 4) := ih i (foldInst x X R (γ i)) hk' fun q hq => by
-      exact hacc (.round X R (γ i) q) (by
-        simp only [ForkTree.transcripts, List.mem_flatMap, List.mem_map]
-        exact ⟨i, List.mem_finRange i, q, hq, rfl⟩)
-    simp only [treeExtractGeneratorLink, treeExtractWitness]
-    split
-    · -- A child has a nonzero link. Its lift is the link.
-      rename_i i hf
-      refine ⟨?_, fun h0 => ?_⟩
-      · rw [point_liftLink x X R]
-        exact (hchild i).1
-      · have := List.find?_some hf
-        simp [h0] at this
-    · -- No child has a nonzero link. So each child gives a witness.
-      rename_i hf
-      have hz (i : Fin 4) := by
-        simpa using List.find?_eq_none.mp hf i (List.mem_finRange i)
-      have hrel (i : Fin 4) := (hchild i).2 (eq_zero_of_liftLink_eq_zero x.hρ _ _ (hz i))
-      have hγ : Function.Injective γ := fun i j h => by_contra fun hij => hDistinct i j hij h
-      obtain ⟨hp, himp⟩ := extract_core x.g x.c x.H x.G x.ρ x.hρ hk2 x.C X R γ hγ _ _ hrel
-      refine ⟨hp, fun h0 => himp ?_⟩
+/-- One round is special sound with 4 distinct challenges, when the norm length is even. -/
+theorem roundReduction_sound {m k : ℕ} (hk : k % 2 = 0) :
+    (roundReduction F E m k).SpecialSound (roundRules F E m k) roundExtract := by
+  rintro x ⟨⟨X, R⟩, ⟨γ, hγ⟩, ws⟩ hacc
+  -- Each child has a relaxed witness for its folded instance.
+  have hchild (i : Fin 4) :
+      (nlaRelation F E (half m) (half k)).RelaxedRel (foldInst x X R (γ i)) (ws i) :=
+    hacc i
+  simp only [roundExtract]
+  rcases hf : (List.finRange 4).findSome?
+      (fun i => (linkPart? (ws i)).map (liftLink x.ρ (γ i))) with _ | l
+  · -- No child gives a link. So each child gives a witness.
+    have hrel (i : Fin 4) : Rel (foldInst x X R (γ i)) (witnessPart (ws i)) := by
+      have hi := List.findSome?_eq_none_iff.1 hf i (List.mem_finRange i)
+      have := hchild i
+      rcases hw : ws i with w | o
+      · rw [hw] at this; exact this
+      · simp [hw, linkPart?] at hi
+    have hγ' : Function.Injective γ := fun i j h => by_contra fun hij => hγ i j hij h
+    obtain ⟨hp, himp⟩ := extract_core x.g x.c x.H x.G x.ρ x.hρ hk x.C X R γ hγ' _ _ hrel
+    split_ifs with h0
+    · apply himp
       simp only [extractGeneratorLink, Opening.ext_iff] at h0
       exact Prod.ext h0.1 (Prod.ext h0.2.1 h0.2.2)
+    · exact ⟨h0, hp⟩
+  · -- A child gives a link. Its lift is a link of `x`.
+    obtain ⟨i, -, hi⟩ := List.exists_of_findSome?_eq_some hf
+    have := hchild i
+    rcases hw : ws i with w | o
+    · simp [hw, linkPart?] at hi
+    · simp only [hw, linkPart?, Option.map_some, Option.some.injEq] at hi
+      subst hi
+      rw [hw] at this
+      obtain ⟨hne, hp⟩ := this
+      refine ⟨fun h0 => hne (eq_zero_of_liftLink_eq_zero x.hρ _ _ h0), ?_⟩
+      have h := point_liftLink x X R (γ i) o
+      simp only [Instance.point] at h hp
+      rw [h, hp]
 
+omit [DecidableEq F] in
+/-- The base case is special sound: the leaf is the witness. -/
+theorem base_sound {m k : ℕ} :
+    (baseSystem F E m k).SpecialSound () (fun _ w => .inl w) :=
+  fun _ _ hacc => hacc
 
-/-- The soundness of the full NLA. -/
-theorem nla_sound : NLASoundness F E := by
-  intro m k x t hk hacc
-  obtain ⟨hp, himp⟩ := treeExtractGeneratorLink_spec x t hk hacc
-  by_cases h : treeExtractGeneratorLink x t = 0
-  · exact Or.inl (himp h)
-  · exact Or.inr ⟨h, hp⟩
+/-- `n` rounds and the base case are special sound, when `n = numRounds m k`. -/
+theorem nla_sound_n : ∀ (n : ℕ) {m k : ℕ}, numRounds m k = n → EvenNorms m k →
+    (nlaSystem F E n m k).SpecialSound (nlaForkRules F E n m k) (nlaExtractN n)
+  | 0, _, _, _, _ => base_sound
+  | n + 1, m, k, h, hk => by
+    have hb := not_isBase_of_numRounds_eq_succ h
+    obtain ⟨hk2, hk'⟩ : k % 2 = 0 ∧ EvenNorms (half m) (half k) := by
+      rw [EvenNorms] at hk
+      simpa only [hb, ↓reduceIte] using hk
+    exact Reduction.comp_specialSound (roundReduction F E m k)
+      (nlaSystem F E n (half m) (half k)) (fs := roundRules F E m k) (roundReduction_sound hk2)
+      (nla_sound_n n (numRounds_half_of_eq_succ h) hk')
 
 end Soundness
 
-/-- On independent generators, an accepted `ForkTree` gives a witness. `Bridge.lean` uses it. -/
-theorem nla_sound_of_independent {m k : ℕ} (x : Instance F E m k) (t : ForkTree F E m k)
-    (hind : x.Independent) (hk : EvenNorms m k) (hacc : ∀ p ∈ t.transcripts, verify x p) :
-    ∃ w, Rel x w := by
-  classical
-  rcases nla_sound x t hk hacc with h | ⟨hne, hp⟩
-  · exact ⟨_, h⟩
-  · exact absurd (hind _ hp) hne
+/-- The soundness of the full NLA, with the extractor `nlaExtract`. -/
+theorem nla_sound : NLASoundness (fun x t => nlaExtract x t) :=
+  fun _ _ _ _ _ _ _ _ hk => nla_sound_n _ rfl hk
+
+/-! ## Completeness -/
+
+/-- The honest strategy convinces the verifier for every number of rounds. -/
+theorem honest_accepted : ∀ (n : ℕ) {m k : ℕ} (x : Instance F E m k) (w : Witness F m k),
+    Rel x w → ∀ cs,
+      let (tr, z) := (nlaSystem F E n m k).roundTypes.run (honestStrategy n x w) cs
+      (nlaSystem F E n m k).Verify x tr z
+  | 0, _, _, _, _, h, () => h
+  | n + 1, _, _, x, w, h, (γ, cs) => honest_accepted n _ _ (rel_fold x w h γ) cs
+
+/-- The completeness of the full NLA. -/
+theorem nla_complete : NLACompleteness F E := by
+  intro m k x w hw _ cs
+  rcases w with w | o
+  · exact honest_accepted _ x w hw cs
+  · exact hw.elim
+
+/-- Fork trees exist: use the same 4 distinct challenges at each node. -/
+theorem nla_trees_exist : NLATreesExist F E := by
+  intro γ hγ n
+  induction n with
+  | zero => intro m k; exact ⟨(⟨0, 0⟩ : Witness F m k)⟩
+  | succ n ih =>
+    intro m k
+    obtain ⟨t⟩ := ih (half m) (half k)
+    exact ⟨⟨(0, 0), ⟨γ, fun i j hij => hγ.ne hij⟩, fun _ => t⟩⟩
 
 end Audit.NLA

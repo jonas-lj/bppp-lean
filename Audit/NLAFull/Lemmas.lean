@@ -6,7 +6,8 @@ import Audit.NLA.Proofs
 This file proves the facts about one round that the full NLA chains together.
 
 Why it exists:
-- `nla_complete` and `nla_sound` in `Audit/NLAFull/Proofs.lean` use these lemmas.
+- The proofs in `Audit/NLAFull/Proofs.lean` and `Audit/NLAFull/LegacyProofs.lean` use these
+  lemmas.
 - Only proofs live here. The statements that we audit stay in `Audit/04-NLAFull.lean`.
 
 How it works:
@@ -57,5 +58,9 @@ theorem even_of_two_pow_dvd {k r : ℕ} (h : 2 ^ (r + 1) ∣ k) : k % 2 = 0 ∧ 
   unfold half
   rw [show 2 ^ (r + 1) * q = 2 * (2 ^ r * q) by ring]
   omega
+
+/-- Openings with scalars in `F` have decidable equality. -/
+instance Opening.decEq [DecidableEq F] {m k : ℕ} : DecidableEq (Opening F m k) := fun _ _ =>
+  decidable_of_iff _ Opening.ext_iff.symm
 
 end Audit.NLA

@@ -1,4 +1,5 @@
-import Audit.«04-NLAFull»
+import Audit.NLAFull.Legacy
+import Audit.NLAFull.Extract
 
 /-!
 # Tests of the NLA extractors
@@ -17,7 +18,9 @@ How it works:
    4th response, and the verifier still accepts it. `extractGeneratorLink` gives a nonzero
    opening of the zero point.
 3. Honest tree: 2 rounds. `treeExtractWitness` gives back the witness, and
-   `treeExtractGeneratorLink` gives 0.
+   `treeExtractGeneratorLink` gives 0. These are the old extractors of
+   `Audit/NLAFull/Legacy.lean`.
+4. The same honest tree as a fork tree of `nlaSystem`: `nlaExtract` gives back the witness.
 
 Assumptions:
 - Scalars and points are both `ℚ`. A real group is different, but the extractors do not read
@@ -133,5 +136,25 @@ def y₁ : Instance ℚ ℚ 4 4 := { y₀ with C := y₀.point (y₀.opening w�
 #guard List.ofFn (treeExtractWitness y₁ (honestTree y₁ w₂)).n == [5, 6, 7, 8]
 -- `treeExtractGeneratorLink` gives 0.
 #guard decide (treeExtractGeneratorLink y₁ (honestTree y₁ w₂) = 0)
+
+/-! ## The extractor of `nlaSystem` -/
+
+open Audit.TreeSoundness in
+/-- The honest tree of `nlaSystem`: each node forks at `γ₁`, and each leaf is the honest fold. -/
+def honestSystemTree : (n : ℕ) → {m k : ℕ} → Instance ℚ ℚ m k → Witness ℚ m k →
+    (nlaSystem ℚ ℚ n m k).roundTypes.ForkTree (nlaForkRules ℚ ℚ n m k)
+      (nlaSystem ℚ ℚ n m k).ResponseType
+  | 0, _, _, _, w => w
+  | n + 1, _, _, x, w => ⟨(msgX x w, msgR x w), ⟨γ₁, γ₁_distinct⟩,
+      fun i => honestSystemTree n (foldInst x (msgX x w) (msgR x w) (γ₁ i)) (foldWit x (γ₁ i) w)⟩
+
+/-- The witness that `nlaExtract` gives on the honest tree, as lists. A link gives `[]`. -/
+def extractedLists : List ℚ × List ℚ :=
+  match nlaExtract y₁ (honestSystemTree (numRounds 4 4) y₁ w₂) with
+  | .inl w => (List.ofFn w.ℓ, List.ofFn w.n)
+  | .inr _ => ([], [])
+
+-- `nlaExtract` gives back `w₂`.
+#guard extractedLists == ([1, 2, 3, 4], [5, 6, 7, 8])
 
 end Audit.NLA.Tests

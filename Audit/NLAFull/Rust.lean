@@ -8,8 +8,8 @@ import Bppp.Model.Crs
 This file connects `IsBase` and `numRounds` in `Audit/04-NLAFull.lean` to the Rust code in `Model/`.
 
 Why it exists:
-- The types `Transcript` and `ForkTree` stop at `IsBase`. This file proves that the Rust verifier
-  stops at the same place.
+- `nlaSystem` runs `numRounds m k` rounds, until `IsBase`. This file proves that the Rust
+  verifier stops at the same place.
 - `nla_sound` needs `EvenNorms m k`. This file proves it for every circuit size of the Rust code.
 
 How it works:
@@ -58,9 +58,9 @@ theorem numRounds_le (j : ℕ) (hj : 2 ≤ j) :
       rw [hk]
       omega
 
-/-- For every circuit size of the Rust code, all norm lengths are even until the base case. -/
-theorem evenNorms_nm (n_d : ℕ) : EvenNorms 8 (next_power_of_two (max n_d BASE)) := by
-  apply evenNorms_of_two_pow_dvd
+/-- For every circuit size of the Rust code, `2 ^ numRounds 8 nm` divides `nm`. -/
+theorem two_pow_numRounds_dvd_nm (n_d : ℕ) :
+    2 ^ numRounds 8 (next_power_of_two (max n_d BASE)) ∣ next_power_of_two (max n_d BASE) := by
   set c := Nat.clog 2 (max n_d BASE)
   have h16 : 16 ≤ 2 ^ c := le_trans (le_max_right n_d 16) (Nat.le_pow_clog one_lt_two _)
   have hc : 2 ≤ c := by
@@ -68,5 +68,9 @@ theorem evenNorms_nm (n_d : ℕ) : EvenNorms 8 (next_power_of_two (max n_d BASE)
     have : 2 ^ c ≤ 2 ^ 1 := Nat.pow_le_pow_right two_pos (by omega)
     omega
   exact pow_dvd_pow 2 (numRounds_le c hc 8 (by omega))
+
+/-- For every circuit size of the Rust code, all norm lengths are even until the base case. -/
+theorem evenNorms_nm (n_d : ℕ) : EvenNorms 8 (next_power_of_two (max n_d BASE)) :=
+  evenNorms_of_two_pow_dvd (two_pow_numRounds_dvd_nm n_d)
 
 end Audit.NLA

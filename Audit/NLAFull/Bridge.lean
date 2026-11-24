@@ -1,4 +1,5 @@
 import Audit.NLAFull.Rust
+import Audit.NLAFull.LegacyProofs
 import Bppp.Spec.NormLinearSoundness
 
 /-!

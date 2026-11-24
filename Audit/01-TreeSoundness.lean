@@ -232,9 +232,8 @@ same `R` and different `c` give `w = (z₀ - z₁) / (c₀ - c₁)`. -/
 
 namespace SchnorrExample
 
-variable {F E : Type} [Field F] [AddCommGroup E] [Module F E]
+variable (F E : Type) [Field F] [AddCommGroup E] [Module F E]
 
-variable (F E) in
 /-- The discrete logarithm: the statement is `(G, X)`, and the witness is `w` with `w • G = X`.
 `Rel` and `RelaxedRel` are the same. -/
 @[reducible] def dlog : Relation where
@@ -243,11 +242,9 @@ variable (F E) in
   Rel := fun (G, X) w => w • G = X
   RelaxedRel := fun (G, X) w => w • G = X
 
-variable (F E) in
 /-- One round: the commitment `R : E` and the challenge `c : F`. -/
 def schnorrRounds : RoundTypes := .round E F .done
 
-variable (F E) in
 /-- Schnorr as a proof system. The response is `z : F`. -/
 @[reducible] def schnorrSystem : ProofSystem (dlog F E) where
   roundTypes := schnorrRounds F E
@@ -256,9 +253,10 @@ variable (F E) in
 
 /-! #### Soundness -/
 
-variable (F E) in
 /-- The fork rule: 2 distinct challenges. -/
 def schnorrRules : (schnorrRounds F E).ForkRules := (⟨2, (· ≠ ·)⟩, ())
+
+variable {F E}
 
 /-- The extractor: `w = (z₀ - z₁) / (c₀ - c₁)`. -/
 def extract (_ : E × E) (t : (schnorrSystem F E).ForkTree (schnorrRules F E)) : F :=

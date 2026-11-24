@@ -115,7 +115,7 @@ def Reduction.Complete {In Out : Relation} (red : Reduction In Out) (P : red.Hon
 
 namespace SchnorrExample
 
-variable {F E : Type} [Field F] [AddCommGroup E] [Module F E]
+variable (F E : Type) [Field F] [AddCommGroup E] [Module F E]
 
 /-! ### Example: two discrete logarithms, by a reduction to one
 
@@ -125,7 +125,6 @@ new witnesses `z₀`, `z₁` for different `c` give `w₂ = (z₀ - z₁) / (c�
 `w₁ = z₀ - c₀ w₂`. Then Schnorr can prove the new statement: `Audit/Reductions/Compose.lean`
 shows that the composition is special sound. -/
 
-variable (F E) in
 /-- Two discrete logarithms with the same base: the statement is `(G, X₁, X₂)`, and the witness
 is `(w₁, w₂)` with `w₁ • G = X₁` and `w₂ • G = X₂`. -/
 @[reducible] def twoDlog : Relation where
@@ -134,19 +133,18 @@ is `(w₁, w₂)` with `w₁ • G = X₁` and `w₂ • G = X₂`. -/
   Rel := fun (G, X₁, X₂) (w₁, w₂) => w₁ • G = X₁ ∧ w₂ • G = X₂
   RelaxedRel := fun (G, X₁, X₂) (w₁, w₂) => w₁ • G = X₁ ∧ w₂ • G = X₂
 
-variable (F) in
 /-- One round: no commitment, then the challenge `c : F`. -/
 def batchRounds : RoundTypes := .round Unit F .done
 
-variable (F E) in
 /-- The reduction from `twoDlog` to `dlog`: the new statement is `(G, X₁ + c • X₂)`. -/
 @[reducible] def batch : Reduction (twoDlog F E) (dlog F E) where
   roundTypes := batchRounds F
   reduce := fun (G, X₁, X₂) ((), c, ()) => (G, X₁ + c • X₂)
 
-variable (F) in
 /-- The fork rule: 2 distinct challenges. -/
 def batchRules : (batchRounds F).ForkRules := (⟨2, (· ≠ ·)⟩, ())
+
+variable {F E}
 
 /-- The extractor: `w₂ = (z₀ - z₁) / (c₀ - c₁)` and `w₁ = z₀ - c₀ w₂`. -/
 def batchExtract (_ : E × E × E) (t : (batch F E).ForkTree (batchRules F)) : F × F :=

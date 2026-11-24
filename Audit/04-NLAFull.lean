@@ -1,10 +1,11 @@
-import Audit.NLAFull.Lemmas
+import Audit.«03-NLA»
+import Audit.«02-Reductions»
 
 /-!
-# Audit of the full norm-linear argument (NLA)
+# The full norm-linear argument (NLA)
 
-This file chains rounds of `roundProtocol` into the full NLA, then proves its completeness and
-its tree special soundness.
+This file states the full NLA as a chain of reductions, then states its soundness and its
+completeness.
 
 Why it exists:
 - The range proof uses the full NLA, not one round.
@@ -12,35 +13,45 @@ Why it exists:
 
 How it works:
 1. `IsBase m k` is the Rust base case. `numRounds m k` counts the rounds before it.
-2. A `Transcript` is one run: the rounds `(X, R, γ)` until the base case, then the final
-   witness in the clear. Its type allows no other number of rounds.
-3. `verify` folds the instance along the transcript and checks `Rel` at the end.
-4. `NLACompleteness`: the honest transcript is accepted for every sequence of challenges.
-5. `NLASoundness`: from a `ForkTree` of accepted transcripts, with 4 distinct challenges per
-   round, `treeExtractWitness` gives a witness, or `treeExtractGeneratorLink` gives a link
-   between the generators.
-- This file only states 4 and 5. `Audit/NLAFull/Proofs.lean` proves them as `nla_complete` and
-  `nla_sound`, and `Audit.lean` imports it, so the build checks the proofs.
+2. `nlaRelation m k`: the statement is an `Instance` with the lengths `(m, k)`. A relaxed
+   witness is a witness of `Rel`, or a link between the generators (`Sum`). The honest prover
+   always has a witness.
+3. `roundReduction m k`: one round. The prover sends `(X, R)`, the verifier sends `γ`, and the
+   new statement is `foldInst x X R γ`, with the lengths `(half m, half k)`.
+4. `baseSystem m k`: at the base case, the prover sends the witness in the clear, and the
+   verifier checks `Rel`.
+5. `nlaSystem n m k`: `n` rounds, then the base case. `fullSystem m k` runs `numRounds m k`
+   rounds, as Rust does. `fullForkRules m k` are its fork rules.
+6. `NLASoundness extract`: with 4 distinct challenges in each round, `extract` computes a
+   relaxed witness from every fork tree in which every path accepts. `NLATreesExist`: such
+   trees exist when the field has 4 distinct elements.
+7. `NLACompleteness`: the honest prover (`honestStrategy`) always convinces the verifier.
+- This file only states 6 and 7. `Audit/NLAFull/Proofs.lean` proves them, with the extractor
+  `nlaExtract` of `Audit/NLAFull/Extract.lean`.
 
 Assumptions:
-- The prover keeps each folded witness. It sends only the last one, so a transcript has one
-  witness, at its end.
 - Every round needs an even norm length, `EvenNorms`. The Rust parameters satisfy it, for
   example `(8, 16)` and `(8, 64)`.
 - The definitions of one round are in `Audit/03-NLA.lean`.
-- In a real group, links always exist. So "a link exists" has no content. The extractors work
-  for every `F` and `E` and are computable, so they cannot find a link by themselves. A link
-  that they output comes from the prover. It solves discrete log.
-- Lean does not check that the extractors are fast. They use the round extractors of
-  `Audit/03-NLA.lean` and `liftLink` (`Audit/NLAFull/Lemmas.lean`), so their time is polynomial.
-
-TODO (comparison): compare with `Tree`, `foldPath` and `extract` in
-`Bppp/Spec/NormLinearSoundness.lean`.
+- In a real group, links always exist. So "a link exists" has no content. The type
+  `NLAExtractor` makes the extractor work for every `F` and `E`, but it does not block choice.
+  So `NLASoundness` is meaningful only for a computable extractor without choice, such as
+  `nlaExtract`. Such an extractor cannot find a link by itself. A link that it outputs comes
+  from the prover, and it breaks the discrete-log relation assumption.
+- Lean does not check that the extractor is fast. `nlaExtract` uses the round extractors of
+  `Audit/03-NLA.lean` and `liftLink` (`Audit/NLAFull/Lemmas.lean`), so its time is polynomial in
+  the size of the tree.
+- Rust does not reject `ρ = 0`. `Instance.hρ` assumes `ρ ≠ 0`, so the caller must cover that
+  case.
 -/
 
 namespace Audit.NLA
 
-variable {F E : Type} [Field F] [AddCommGroup E] [Module F E]
+open Audit.TreeSoundness
+
+section Defs
+
+variable (F E : Type) [Field F] [AddCommGroup E] [Module F E]
 
 /-! ## The base case -/
 
@@ -74,99 +85,102 @@ example : EvenNorms 8 16 := by simp [EvenNorms, IsBase, half]
 example : EvenNorms 8 64 := by simp [EvenNorms, IsBase, half]
 example : ¬ EvenNorms 8 1 := by simp [EvenNorms, IsBase, half]
 
-/-! ## The protocol -/
+/-! ## The relation -/
 
-variable (F E) in
-/-- One run of the NLA: rounds `(X, R, γ)` until the base case, then the final witness in the
-clear. In Rust terms: `enum Transcript { Done(Witness), Round(X, R, γ, Box<Transcript>) }`.
-The type also tracks the lengths `(m, k)`, which halve in each round. -/
-inductive Transcript : ℕ → ℕ → Type
-  /-- At the base case, the prover sends the final witness. -/
-  | done {m k : ℕ} (w : Witness F m k) (hBase : IsBase m k := by assumption) : Transcript m k
-  /-- Before the base case, one round: the prover sends `X` and `R`, and the verifier sends
-  `γ`. -/
-  | round {m k : ℕ} (X R : E) (γ : F) (rest : Transcript (half m) (half k))
-      (hNotBase : ¬ IsBase m k := by assumption) : Transcript m k
+/-- The NLA relation for the lengths `(m, k)`. A relaxed witness is a witness of `Rel`, or a link
+between the generators. The honest relation `Rel` rejects a link. -/
+@[reducible] def nlaRelation (m k : ℕ) : Relation where
+  StatementType := Instance F E m k
+  WitnessType := Witness F m k ⊕ Opening F m k
+  Rel x
+    | .inl w => Rel x w
+    | .inr _ => False
+  RelaxedRel x
+    | .inl w => Rel x w
+    | .inr o => x.IsGeneratorLink o
 
-/-- The NLA verifier: fold `x` along the transcript, then check `Rel` on the final witness. -/
-def verify {m k : ℕ} : Instance F E m k → Transcript F E m k → Prop
-  | x, .done w _ => Rel x w
-  | x, .round X R γ rest _ => verify (foldInst x X R γ) rest
+/-! ## One round, and the base case -/
+
+/-- One round as a reduction: the prover sends `(X, R)`, and the verifier sends `γ`. The new
+statement is the fold. -/
+@[reducible] def roundReduction (m k : ℕ) :
+    Reduction (nlaRelation F E m k) (nlaRelation F E (half m) (half k)) where
+  roundTypes := .round (E × E) F .done
+  reduce x := fun ((X, R), γ, ()) => foldInst x X R γ
+
+/-- The base case: the prover sends the witness in the clear, and the verifier checks `Rel`. -/
+@[reducible] def baseSystem (m k : ℕ) : ProofSystem (nlaRelation F E m k) where
+  roundTypes := .done
+  ResponseType := Witness F m k
+  Verify x _ w := Rel x w
+
+/-! ## The full NLA -/
+
+/-- `n` rounds, then the base case. Each round halves the lengths. -/
+@[reducible] def nlaSystem : (n m k : ℕ) → ProofSystem (nlaRelation F E m k)
+  | 0, m, k => baseSystem F E m k
+  | n + 1, m, k => (roundReduction F E m k).comp (nlaSystem n (half m) (half k))
+
+/-- The fork rules: 4 distinct challenges `γ` in each round. -/
+def nlaForkRules : (n m k : ℕ) → (nlaSystem F E n m k).roundTypes.ForkRules
+  | 0, _, _ => ()
+  | n + 1, _, _ => (⟨4, (· ≠ ·)⟩, nlaForkRules n _ _)
+
+/-- The full NLA, as Rust runs it: `numRounds m k` rounds, then the base case. -/
+abbrev fullSystem (m k : ℕ) : ProofSystem (nlaRelation F E m k) :=
+  nlaSystem F E (numRounds m k) m k
+
+/-- The fork rules of `fullSystem`. -/
+abbrev fullForkRules (m k : ℕ) : (fullSystem F E m k).roundTypes.ForkRules :=
+  nlaForkRules F E (numRounds m k) m k
 
 /-! ## Completeness -/
 
-/-- The honest run. Round `i` uses the challenge `γs i`. -/
-def honestTranscript {m k : ℕ} (x : Instance F E m k) (w : Witness F m k) (γs : ℕ → F) :
-    Transcript F E m k :=
-  if hBase : IsBase m k then
-    .done w
-  else
-    let X := msgX x w
-    let R := msgR x w
-    let γ := γs 0
-    let rest := honestTranscript (foldInst x X R γ) (foldWit x γ w) (fun i => γs (i + 1))
-    .round X R γ rest
--- Lean must see that the recursion stops: `m + k` gets smaller in each round.
-termination_by m + k
-decreasing_by simp only [IsBase, half] at *; omega
+variable {F E} in
+/-- The honest strategy: in each round, send `msgX` and `msgR`, then continue with the folded
+instance and witness. At the end, send the witness. -/
+def honestStrategy : (n : ℕ) → {m k : ℕ} → Instance F E m k → Witness F m k →
+    (nlaSystem F E n m k).roundTypes.Strategy (nlaSystem F E n m k).ResponseType
+  | 0, _, _, _, w => w
+  | n + 1, _, _, x, w =>
+      ((msgX x w, msgR x w), fun γ => honestStrategy n (foldInst x (msgX x w) (msgR x w) γ)
+        (foldWit x γ w))
 
-variable (F E) in
-/-- Completeness: the honest prover always convinces the verifier, for every sequence of
-challenges. `nla_complete` in `Audit/NLAFull/Proofs.lean` proves it. -/
+/-- The honest prover. It has no coins. The prover never sends a link, because `baseSystem`
+sends only a `Witness`. With a link in place of a witness, it sends 0s. This case never occurs,
+because `Rel` rejects a link. -/
+def honest (n m k : ℕ) : (nlaSystem F E n m k).HonestProver where
+  CoinsType := Unit
+  prove x w _ := honestStrategy n x (w.elim id fun _ => ⟨0, 0⟩)
+
+/-- Completeness: the honest prover always convinces the verifier. -/
 def NLACompleteness : Prop :=
-  ∀ {m k : ℕ} (x : Instance F E m k) (w : Witness F m k), Rel x w →
-    ∀ γs : ℕ → F, verify x (honestTranscript x w γs)
+  ∀ m k, (fullSystem F E m k).Complete (honest F E (numRounds m k) m k)
+
+/-- Fork trees exist: with 4 distinct field elements, every NLA system has a fork tree. With
+completeness, accepted fork trees exist too. -/
+def NLATreesExist : Prop :=
+  ∀ γ : Fin 4 → F, Function.Injective γ → ∀ n m k,
+    Nonempty ((nlaSystem F E n m k).ForkTree (nlaForkRules F E n m k))
+
+end Defs
 
 /-! ## Soundness -/
 
-variable (F E) in
-/-- A tree of forks: each round forks into 4 challenges, as in a `Fork`. In Rust terms:
-`enum ForkTree { Leaf(Witness), Node(ForkHead, [Box<ForkTree>; 4]) }`. The type also
-tracks the lengths `(m, k)`, which halve in each round. -/
-inductive ForkTree : ℕ → ℕ → Type
-  /-- At the base case, the final witness of one branch. -/
-  | leaf {m k : ℕ} (w : Witness F m k) (hBase : IsBase m k := by assumption) : ForkTree m k
-  /-- Before the base case, one round: a fork head, and one subtree for each challenge. -/
-  | node {m k : ℕ} (head : ForkHead F E) (child : Fin 4 → ForkTree (half m) (half k))
-      (hNotBase : ¬ IsBase m k := by assumption) : ForkTree m k
+/-- An NLA extractor: from an instance and a fork tree of `fullSystem`, a relaxed witness. It must
+work for every field `F` with decidable equality and every group `E`. The type does not block
+choice, so a reviewer must check that the extractor is computable and has no choice. -/
+abbrev NLAExtractor : Type 1 :=
+  ∀ {F E : Type} [Field F] [AddCommGroup E] [Module F E] [DecidableEq F] {m k : ℕ},
+    Instance F E m k → (fullSystem F E m k).ForkTree (fullForkRules F E m k) →
+    Witness F m k ⊕ Opening F m k
 
-/-- The transcripts of the tree: one for each branch from the root to a leaf. -/
-def ForkTree.transcripts {m k : ℕ} : ForkTree F E m k → List (Transcript F E m k)
-  | .leaf w _ => [.done w]
-  | .node head child _ =>
-      (List.finRange 4).flatMap fun i =>
-        (child i).transcripts.map fun t => .round head.X head.R (head.γ i) t
-
-/-- The extractor: `extractWitness` at each round, from the leaves up. -/
-def treeExtractWitness {m k : ℕ} : Instance F E m k → ForkTree F E m k → Witness F m k
-  | _, .leaf w _ => w
-  | x, .node head child _ =>
-      extractWitness x head.γ fun i =>
-        treeExtractWitness (foldInst x head.X head.R (head.γ i)) (child i)
-
-/-- Openings with scalars in `F` have decidable equality. -/
-instance Opening.decEq [DecidableEq F] {m k : ℕ} : DecidableEq (Opening F m k) := fun _ _ =>
-  decidable_of_iff _ Opening.ext_iff.symm
-
-/-- The candidate link: the first nonzero link of a child, lifted by `liftLink`. If all are 0,
-then `extractGeneratorLink` at this node. -/
-def treeExtractGeneratorLink [DecidableEq F] {m k : ℕ} :
-    Instance F E m k → ForkTree F E m k → Opening F m k
-  | _, .leaf _ _ => 0
-  | x, .node head child _ =>
-      let xᵢ := fun i => foldInst x head.X head.R (head.γ i)
-      let l := fun i => liftLink x.ρ (head.γ i) (treeExtractGeneratorLink (xᵢ i) (child i))
-      match (List.finRange 4).find? (fun i => l i ≠ 0) with
-      | some i => l i
-      | none => extractGeneratorLink x head.γ fun i => treeExtractWitness (xᵢ i) (child i)
-
-variable (F E) in
-/-- Soundness: from a `ForkTree` of accepted transcripts, `treeExtractWitness` gives a witness,
-or `treeExtractGeneratorLink` gives a link. Every round needs an even norm length. `nla_sound`
-proves it. -/
-def NLASoundness [DecidableEq F] : Prop :=
-  ∀ {m k : ℕ} (x : Instance F E m k) (t : ForkTree F E m k),
-    EvenNorms m k → (∀ p ∈ t.transcripts, verify x p) →
-    Rel x (treeExtractWitness x t) ∨ x.IsGeneratorLink (treeExtractGeneratorLink x t)
+/-- Soundness: for all lengths `(m, k)` with an even norm length in every round, the NLA is
+special sound with 4 challenges in each round. From every fork tree in which every path
+accepts, `extract` gives a witness or a link. `nla_sound` proves it for `nlaExtract`. -/
+def NLASoundness (extract : NLAExtractor) : Prop :=
+  ∀ (F E : Type) [Field F] [AddCommGroup E] [Module F E] [DecidableEq F] (m k : ℕ),
+    EvenNorms m k →
+    (fullSystem F E m k).SpecialSound (fullForkRules F E m k) extract
 
 end Audit.NLA

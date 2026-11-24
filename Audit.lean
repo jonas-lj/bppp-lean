@@ -4,6 +4,8 @@ import Audit.NLA.BadChallenges
 import Audit.NLA.Counterexamples
 import Audit.«04-NLAFull»
 import Audit.NLAFull.Proofs
+import Audit.NLAFull.Legacy
+import Audit.NLAFull.LegacyProofs
 import Audit.NLAFull.Rust
 import Audit.NLAFull.Bridge
 import Audit.NLAFull.Tests
