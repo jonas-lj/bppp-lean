@@ -14,30 +14,39 @@ Why it exists:
 How it works:
 1. `RoundTypes` lists the rounds of a protocol, with the types of their messages. In each
    round, the prover sends a commitment, and the verifier answers with a random challenge. At
-   the end, the prover sends a response.
+   the end, the prover sends a response. The challenge type of a round is the set from which the
+   verifier samples. It excludes the challenges for which the verifier cannot compute.
 2. A `RoundTypes.Transcript` is one run: the commitments and the challenges in order, then the
    response.
 3. A `RoundTypes.Tree` is a fork tree. In each round, a node has one commitment and several
    children, each with its own challenge. So all transcripts below a node share the commitments
-   above it. A `ForkRule` gives the number of children in each round, and the rules for their
-   challenges.
+   above it. A `ForkRule` gives the number of children in each round, and a rule for the
+   challenges of two different children.
 4. A `ProofSystem` is a relation `Rel` between statements and witnesses, the round types of the
    protocol, and a verifier `Verify`. Sizes are fixed outside, so there is one system for each
    size.
 5. `ProofSystem.SpecialSound`: from every statement `x` and every fork tree in which the verifier
-   accepts every transcript, the extractor computes a witness `w` with `Rel x w`.
+   accepts every transcript, the extractor computes a witness `w` with `RelaxedRel x w`.
 6. The honest prover (`ProofSystem.HonestProver`) gives a strategy (`RoundTypes.Strategy`):
-   a commitment, then a strategy for the rest for each challenge. `ProofSystem.Complete`: the
-   verifier accepts each transcript of the honest prover. Soundness does not use the prover.
-- The examples at the end show the types for a Σ-protocol, and Schnorr with its extractor and
-  its honest prover.
+   a commitment, then a strategy for the rest for each challenge. `ProofSystem.Complete`: for a
+   witness `w` with `Rel x w`, the verifier accepts each transcript of the honest prover.
+   Soundness does not use the prover.
+
+The examples at the end show the types for a Σ-protocol, and Schnorr with its extractor and its
+honest prover.
 
 Assumptions:
 - This is the `(k₁, …, k_μ)`-special soundness of Attema, Cramer and Kohl, when each `ForkRule`
-  has `Good` always true and `Apart = (· ≠ ·)`. Other rules exclude a few bad challenges. A
-  forking lemma must count them.
+  has `Apart = (· ≠ ·)`. The challenge type of a round is its challenge set.
+- A challenge type can exclude a few bad values of a larger set, for example `0` of a field. A
+  forking lemma and a completeness error must count them.
 - Special soundness has no probabilities. So a protocol does not say how the verifier samples a
   challenge. Knowledge soundness also needs a forking lemma.
+- The definition cannot stop an extractor that uses choice, for example "a witness, if one
+  exists". Such an extractor makes the statement say only "a witness exists". So a statement must
+  name an extractor that is computable and works for every field and group.
+- If the fork rules allow no tree, then `SpecialSound` holds for every extractor. So each use
+  must check that a tree exists: enough allowed challenges in each round.
 - The extractor is a named function, not an `∃`. A statement that uses this definition must say
   which extractor it names.
 -/
@@ -60,21 +69,19 @@ inductive RoundTypes : Type 1
   | .done Response => Response
   | .round Commitment Challenge rest => Commitment × Challenge × rest.Transcript
 
-/-- The rules for one round of a fork tree: the number of challenges, a rule for each challenge,
-and a rule for each pair of different challenges. With `Good` always true and `Apart = (· ≠ ·)`
-in each round, this is the `(k₁, …, k_μ)`-special soundness of Attema, Cramer and Kohl. -/
+/-- The rules for one round of a fork tree: the number of children, and a rule for the
+challenges of each pair of different children. With `Apart = (· ≠ ·)` in each round, this is the
+`(k₁, …, k_μ)`-special soundness of Attema, Cramer and Kohl. -/
 structure ForkRule (Challenge : Type) where
-  /-- The number of challenges, so the number of children of each node in this round. -/
+  /-- The number of children of each node in this round, each with its own challenge. -/
   arity : ℕ
-  /-- A rule for each challenge. -/
-  Good : Challenge → Prop
-  /-- A rule for two different challenges. -/
+  /-- A rule for the challenges of two different children. -/
   Apart : Challenge → Challenge → Prop
 
 /-- The challenges `c` of the children of one node follow the rule `f`. -/
 def ForkRule.Allowed {Challenge : Type} (f : ForkRule Challenge) (c : Fin f.arity → Challenge) :
     Prop :=
-  (∀ i, f.Good (c i)) ∧ ∀ i j, i ≠ j → f.Apart (c i) (c j)
+  ∀ i j, i ≠ j → f.Apart (c i) (c j)
 
 /-- One `ForkRule` for each round of a protocol, for the challenge type of that round. -/
 @[reducible] def RoundTypes.ForkRules : RoundTypes → Type
@@ -105,18 +112,21 @@ structure ProofSystem where
   StatementType : Type
   /-- The secret input of the prover. -/
   WitnessType : Type
-  /-- The relation that the extractor must meet: `w` is a witness for `x`. -/
+  /-- The relation of the honest prover: `w` is a witness for `x`. Completeness uses it. -/
   Rel : StatementType → WitnessType → Prop
+  /-- The relation that the extractor must meet. It is `Rel`, or a break of a hardness
+  assumption, for example a link between generators. Soundness uses it. -/
+  RelaxedRel : StatementType → WitnessType → Prop
   /-- The rounds of the protocol. -/
   roundTypes : RoundTypes
   /-- The verifier: it accepts or rejects one transcript for the statement `x`. -/
   Verify : StatementType → roundTypes.Transcript → Prop
 
 /-- Tree special soundness with the fork rules `fs`: from every statement `x` and every fork tree
-in which `verify` accepts every transcript, `extract` computes a witness for `x`. -/
+in which `Verify` accepts every transcript, `extract` computes a witness for `x`. -/
 def ProofSystem.SpecialSound (S : ProofSystem) (fs : S.roundTypes.ForkRules)
     (extract : S.StatementType → S.roundTypes.Tree fs → S.WitnessType) : Prop :=
-  ∀ x t, (∀ tr ∈ t.transcripts, S.Verify x tr) → S.Rel x (extract x t)
+  ∀ x t, (∀ tr ∈ t.transcripts, S.Verify x tr) → S.RelaxedRel x (extract x t)
 
 /-! ## The honest prover
 
@@ -128,7 +138,7 @@ the response. -/
   | .done Response => Response
   | .round Commitment Challenge rest => Commitment × (Challenge → rest.Strategy)
 
-/-- One challenge for each round. -/
+/-- One challenge for each round, as a tuple. -/
 @[reducible] def RoundTypes.Challenges : RoundTypes → Type
   | .done _ => Unit
   | .round _ Challenge rest => Challenge × rest.Challenges
@@ -145,12 +155,10 @@ structure ProofSystem.HonestProver (S : ProofSystem) where
   /-- The strategy of the prover. -/
   prove : S.StatementType → S.WitnessType → CoinsType → S.roundTypes.Strategy
 
-/-- Completeness: for every witness `w` with `R x w`, every choice of coins and every list of
-challenges, the verifier accepts the transcript of the honest prover. `R` can be stronger than
-`Rel`: the honest prover knows a real witness, not a break of a hardness assumption. -/
-def ProofSystem.Complete (S : ProofSystem) (P : S.HonestProver)
-    (R : S.StatementType → S.WitnessType → Prop) : Prop :=
-  ∀ x w, R x w → ∀ coins cs, S.Verify x (S.roundTypes.run (P.prove x w coins) cs)
+/-- Completeness: for every witness `w` with `Rel x w`, every choice of coins and every tuple of
+challenges, the verifier accepts the transcript of the honest prover. -/
+def ProofSystem.Complete (S : ProofSystem) (P : S.HonestProver) : Prop :=
+  ∀ x w, S.Rel x w → ∀ coins cs, S.Verify x (S.roundTypes.run (P.prove x w coins) cs)
 
 /-! ### Example: a Σ-protocol with 3 challenges
 
@@ -166,7 +174,7 @@ def sigma : RoundTypes := .round ℕ ℕ (.done ℕ)
 example : sigma.Transcript = (ℕ × ℕ × ℕ) := rfl
 
 /-- One rule: 3 distinct challenges. -/
-def rules : sigma.ForkRules := (⟨3, fun _ => True, (· ≠ ·)⟩, ())
+def rules : sigma.ForkRules := (⟨3, (· ≠ ·)⟩, ())
 
 /-- A tree is one commitment, then the 3 distinct challenges, then the 3 responses. -/
 example : sigma.Tree rules =
@@ -174,7 +182,7 @@ example : sigma.Tree rules =
 
 /-- The tree with the commitment 7, the challenges 10, 11, 12 and the responses 100, 101, 102. -/
 def tree : sigma.Tree rules :=
-  (7, ⟨fun i => 10 + (i : ℕ), fun _ => trivial, by decide⟩, fun i => 100 + (i : ℕ))
+  (7, ⟨fun i => 10 + (i : ℕ), by unfold ForkRule.Allowed; decide⟩, fun i => 100 + (i : ℕ))
 
 /-- It has 3 transcripts, which share the commitment 7. -/
 example : tree.transcripts = [(7, 10, 100), (7, 11, 101), (7, 12, 102)] := rfl
@@ -183,9 +191,9 @@ end SigmaExample
 
 /-! ### Example: Schnorr as a proof system
 
-Schnorr proves knowledge of `x` with `X = x • G`. The prover sends `R`, the verifier sends `c`,
+Schnorr proves knowledge of `w` with `X = w • G`. The prover sends `R`, the verifier sends `c`,
 and the prover sends `z`. The verifier checks `z • G = R + c • X`. Two accepted transcripts with
-the same `R` and different `c` give `x = (z₀ - z₁) / (c₀ - c₁)`. -/
+the same `R` and different `c` give `w = (z₀ - z₁) / (c₀ - c₁)`. Both relations are the same. -/
 
 namespace SchnorrExample
 
@@ -196,19 +204,22 @@ variable (F E) in
 def schnorr : RoundTypes := .round E F (.done F)
 
 variable (F E) in
-/-- Schnorr as a proof system. The statement is `(G, X)`, and the witness is `x`. -/
-def schnorrSystem : ProofSystem where
+/-- Schnorr as a proof system. The statement is `(G, X)`, and the witness is `w`. -/
+@[reducible] def schnorrSystem : ProofSystem where
   StatementType := E × E
   WitnessType := F
-  Rel := fun (G, X) x => X = x • G
+  Rel := fun (G, X) w => X = w • G
+  RelaxedRel := fun (G, X) w => X = w • G
   roundTypes := schnorr F E
   Verify := fun (G, X) (R, c, z) => z • G = R + c • X
 
+/-! #### Soundness -/
+
 variable (F E) in
 /-- The fork rule: 2 distinct challenges. -/
-def rules : (schnorr F E).ForkRules := (⟨2, fun _ => True, (· ≠ ·)⟩, ())
+def rules : (schnorr F E).ForkRules := (⟨2, (· ≠ ·)⟩, ())
 
-/-- The extractor: `x = (z₀ - z₁) / (c₀ - c₁)`. -/
+/-- The extractor: `w = (z₀ - z₁) / (c₀ - c₁)`. -/
 def extract (_ : E × E) (t : (schnorr F E).Tree (rules F E)) : F :=
   let (_, ⟨c, _⟩, z) := t
   (z 0 - z 1) / (c 0 - c 1)
@@ -216,25 +227,29 @@ def extract (_ : E × E) (t : (schnorr F E).Tree (rules F E)) : F :=
 /-- Schnorr is special sound with 2 challenges. -/
 theorem schnorr_sound : (schnorrSystem F E).SpecialSound (rules F E) extract := by
   rintro ⟨G, X⟩ ⟨R, ⟨c, hc⟩, z⟩ hacc
-  -- The tree has these 2 transcripts, one for each challenge.
+  -- The tree has 2 transcripts, and the verifier accepts both.
   have ht : ∀ i, (R, c i, z i) ∈ [(R, c 0, z 0), (R, c 1, z 1)] := by
     intro i; fin_cases i <;> simp
-  have h0 : z 0 • G = R + c 0 • X := hacc (R, c 0, z 0) (ht 0)
-  have h1 : z 1 • G = R + c 1 • X := hacc (R, c 1, z 1) (ht 1)
-  have hne : c 0 - c 1 ≠ 0 := sub_ne_zero.2 (hc.2 0 1 (by decide : (0 : Fin 2) ≠ 1))
-  change X = ((z 0 - z 1) / (c 0 - c 1)) • G
-  rw [div_eq_inv_mul, mul_smul, sub_smul, h0, h1, add_sub_add_left_eq_sub, ← sub_smul,
-    smul_smul, inv_mul_cancel₀ hne, one_smul]
+  have h0 : z 0 • G = R + c 0 • X := hacc _ (ht 0)
+  have h1 : z 1 • G = R + c 1 • X := hacc _ (ht 1)
+  -- Subtract the two checks.
+  have key : (z 0 - z 1) • G = (c 0 - c 1) • X := by
+    rw [sub_smul, sub_smul, h0, h1]; abel
+  have hne : c 0 - c 1 ≠ 0 := sub_ne_zero.2 (hc 0 1 (by decide : (0 : Fin 2) ≠ 1))
+  show X = ((z 0 - z 1) / (c 0 - c 1)) • G
+  rw [div_eq_inv_mul, mul_smul, key, smul_smul, inv_mul_cancel₀ hne, one_smul]
 
-/-- The honest prover: with the coin `r`, send `R = r • G`. Then answer `c` with `z = r + c x`. -/
-def honest : (schnorrSystem F E).HonestProver where
+/-! #### Completeness -/
+
+/-- The honest prover: with the coin `r`, send `R = r • G`. Then answer `c` with `z = r + c w`. -/
+@[reducible] def honest : (schnorrSystem F E).HonestProver where
   CoinsType := F
-  prove := fun (G, _) (x : F) r => (r • G, fun c => r + c * x)
+  prove := fun (G, _) w r => (r • G, fun c => r + c * w)
 
-/-- Schnorr is complete: `(r + c x) • G = r • G + c • X` when `X = x • G`. -/
-theorem schnorr_complete : (schnorrSystem F E).Complete honest (schnorrSystem F E).Rel := by
-  rintro ⟨G, X⟩ (x : F) (hX : X = x • G) (r : F) ⟨c, ⟨⟩⟩
-  change (r + c * x) • G = r • G + c • X
+/-- Schnorr is complete: `(r + c w) • G = r • G + c • X` when `X = w • G`. -/
+theorem schnorr_complete : (schnorrSystem F E).Complete honest := by
+  rintro ⟨G, X⟩ w (hX : X = w • G) r ⟨c, ⟨⟩⟩
+  show (r + c * w) • G = r • G + c • X
   rw [hX, add_smul, mul_smul]
 
 end SchnorrExample
