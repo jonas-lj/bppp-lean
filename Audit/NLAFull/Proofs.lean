@@ -1,12 +1,12 @@
-import Audit.NLAFull
+import Audit.«04-NLAFull»
 
 /-!
 # Proofs for the full NLA
 
-This file proves `NLACompleteness` and `NLASoundness` from `Audit/NLAFull.lean`.
+This file proves `NLACompleteness` and `NLASoundness` from `Audit/04-NLAFull.lean`.
 
 Why it exists:
-- The statements stay in `Audit/NLAFull.lean`, so that file has no long proofs.
+- The statements stay in `Audit/04-NLAFull.lean`, so that file has no long proofs.
 
 How it works:
 1. `nla_complete`: induction on the challenges, with `rel_fold` in each round.

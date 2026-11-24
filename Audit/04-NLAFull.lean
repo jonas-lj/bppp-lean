@@ -27,12 +27,12 @@ Assumptions:
   witness, at its end.
 - Every round needs an even norm length, `EvenNorms`. The Rust parameters satisfy it, for
   example `(8, 16)` and `(8, 64)`.
-- The definitions of one round are in `Audit/NLA.lean`.
+- The definitions of one round are in `Audit/03-NLA.lean`.
 - In a real group, links always exist. So "a link exists" has no content. The extractors work
   for every `F` and `E` and are computable, so they cannot find a link by themselves. A link
   that they output comes from the prover. It solves discrete log.
 - Lean does not check that the extractors are fast. They use the round extractors of
-  `Audit/NLA.lean` and `liftLink` (`Audit/NLAFull/Lemmas.lean`), so their time is polynomial.
+  `Audit/03-NLA.lean` and `liftLink` (`Audit/NLAFull/Lemmas.lean`), so their time is polynomial.
 
 TODO (comparison): compare with `Tree`, `foldPath` and `extract` in
 `Bppp/Spec/NormLinearSoundness.lean`.

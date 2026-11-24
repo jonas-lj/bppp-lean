@@ -1,12 +1,12 @@
-import Audit.NLA
+import Audit.«03-NLA»
 
 /-!
 # Proofs for one NLA round
 
-This file proves `RoundCompleteness` and `RoundSoundness` from `Audit/NLA.lean`.
+This file proves `RoundCompleteness` and `RoundSoundness` from `Audit/03-NLA.lean`.
 
 Why it exists:
-- The statements stay in `Audit/NLA.lean`, so that file has no long proofs.
+- The statements stay in `Audit/03-NLA.lean`, so that file has no long proofs.
 
 How it works:
 1. `rel_fold`: the honest fold keeps `Rel`. It uses the fold lemmas in

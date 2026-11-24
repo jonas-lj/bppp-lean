@@ -1,4 +1,4 @@
-import Audit.Reductions
+import Audit.«02-Reductions»
 
 /-!
 # The composition of special soundness
@@ -24,7 +24,7 @@ How it works:
    implies `RelaxedRel`.
 
 Assumptions:
-- None beyond those of `Audit/TreeSoundness.lean` and `Audit/Reductions.lean`. The theorem is
+- None beyond those of `Audit/01-TreeSoundness.lean` and `Audit/02-Reductions.lean`. The theorem is
   true for every reduction and every proof system.
 -/
 

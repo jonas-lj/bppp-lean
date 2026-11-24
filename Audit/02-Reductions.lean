@@ -1,4 +1,4 @@
-import Audit.TreeSoundness
+import Audit.«01-TreeSoundness»
 
 /-!
 # Reductions
@@ -12,7 +12,7 @@ Why it exists:
   have its own small statement.
 
 How it works:
-1. A `Reduction` from `In` to `Out` has round types (`Audit/TreeSoundness.lean`), and a function
+1. A `Reduction` from `In` to `Out` has round types (`Audit/01-TreeSoundness.lean`), and a function
    `reduce` that computes the new statement from the old statement and the transcript.
 2. `Reduction.SpecialSound`: take a statement `x` and a fork tree. At each leaf, take a relaxed
    witness for the new statement of its path. From these, the extractor computes a relaxed
@@ -32,7 +32,7 @@ Assumptions:
 - The verifier of a reduction rejects nothing. It only computes the new statement.
 - Each round ends with a challenge. A last message of the prover with no challenge after it can
   use a round with the challenge type `Unit` and one child.
-- The assumptions of `Audit/TreeSoundness.lean` also hold here.
+- The assumptions of `Audit/01-TreeSoundness.lean` also hold here.
 -/
 
 namespace Audit.TreeSoundness

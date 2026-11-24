@@ -1,14 +1,15 @@
 import Mathlib
 
 /-!
-# Vectors for the NLA audit
+# Utilities for the audit
 
-This file defines the vector operations that `Audit/NLA.lean` uses.
+This file defines the helpers that the other specification files use. Now these are the vector
+operations of `Audit/03-NLA.lean`.
 
 Why it exists:
 - `Rel`, `msgX`, `msgR` and the fold use these operations, so they are part of the
-  specification. Review this file with `Audit/NLA.lean`.
-- A separate file keeps `Audit/NLA.lean` short.
+  specification. Review this file first.
+- A separate file keeps the other specification files short.
 
 Assumptions:
 - A vector of length `m` is a function `Fin m → F`.

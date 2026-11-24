@@ -8,9 +8,9 @@ zero point. If the link is 0, they also give a witness.
 
 Why it exists:
 - `round_sound` in `Audit/NLA/Proofs.lean` applies `extract_core`.
-- `extractVec` is the extractor's formula. `extractWitness` in `Audit/NLA.lean` uses it. It needs
+- `extractVec` is the extractor's formula. `extractWitness` in `Audit/03-NLA.lean` uses it. It needs
   `expand` and the weights `cWeight`. Reviewers check only that it is efficient.
-- Otherwise, only proofs live here. The statements that we audit stay in `Audit/NLA.lean`.
+- Otherwise, only proofs live here. The statements that we audit stay in `Audit/03-NLA.lean`.
 
 How it works:
 1. Each accepted response gives an opening of `C + γX + (γ² - 1)R` (`msm_expand`).

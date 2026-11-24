@@ -7,7 +7,7 @@ This file proves the facts about one round that the full NLA chains together.
 
 Why it exists:
 - `nla_complete` and `nla_sound` in `Audit/NLAFull/Proofs.lean` use these lemmas.
-- Only proofs live here. The statements that we audit stay in `Audit/NLAFull.lean`.
+- Only proofs live here. The statements that we audit stay in `Audit/04-NLAFull.lean`.
 
 How it works:
 1. `point_liftLink` and `eq_zero_of_liftLink_eq_zero`: a link on the folded generators lifts to

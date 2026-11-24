@@ -1,12 +1,12 @@
-import Audit.NLA
+import Audit.«03-NLA»
 import Audit.NLA.Proofs
 import Audit.NLA.BadChallenges
 import Audit.NLA.Counterexamples
-import Audit.NLAFull
+import Audit.«04-NLAFull»
 import Audit.NLAFull.Proofs
 import Audit.NLAFull.Rust
 import Audit.NLAFull.Bridge
 import Audit.NLAFull.Tests
-import Audit.TreeSoundness
-import Audit.Reductions
+import Audit.«01-TreeSoundness»
+import Audit.«02-Reductions»
 import Audit.Reductions.Compose

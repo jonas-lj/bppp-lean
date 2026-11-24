@@ -24,8 +24,8 @@ How it works:
 5. `Audit/NLA/BadChallenges.lean` derives a corollary: each commitment has no more than 3 bad
    challenges.
 6. Each section names the Spec file to compare with.
-- The vector operations are in `Audit/Vectors.lean`.
-- `Audit/NLA.lean` and `Audit/Vectors.lean` hold everything to review. The folder `Audit/NLA/`
+- The vector operations are in `Audit/00-Utils.lean`.
+- `Audit/03-NLA.lean` and `Audit/00-Utils.lean` hold everything to review. The folder `Audit/NLA/`
   holds only proofs, the extractor's formula, and corollaries.
 
 Assumptions:
