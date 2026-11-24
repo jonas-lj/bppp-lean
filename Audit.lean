@@ -8,3 +8,5 @@ import Audit.NLAFull.Rust
 import Audit.NLAFull.Bridge
 import Audit.NLAFull.Tests
 import Audit.TreeSoundness
+import Audit.Reductions
+import Audit.Reductions.Compose
