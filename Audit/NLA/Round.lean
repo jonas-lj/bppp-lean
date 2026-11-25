@@ -24,9 +24,9 @@ How it works:
 5. `Audit/NLA/BadChallenges.lean` derives a corollary: each commitment has no more than 3 bad
    challenges.
 6. Each section names the Spec file to compare with.
-- The vector operations are in `Audit/00-Utils.lean`.
-- `Audit/03-NLA.lean` and `Audit/00-Utils.lean` hold everything to review. The folder `Audit/NLA/`
-  holds only proofs, the extractor's formula, and corollaries.
+- The vector operations are in `Audit/NLA/Utils.lean`.
+- The spec `Audit/02-RangeProof.lean` does not use this file or the folder `Audit/NLA/`. Only
+  the proof of `range_sound` uses them. You do not need to review them.
 
 Assumptions:
 - Scalars are a field `F`. Points are a module `E` over `F`, as in `bppp-lean`.

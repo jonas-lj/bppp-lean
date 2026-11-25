@@ -10,6 +10,11 @@ namespace Bppp
 
 variable {F E : Type}
 
+/-- Whether a transcript entry is a query for a challenge. -/
+def Entry.isChallenge : Entry F E → Bool
+  | .challenge _ => true
+  | _ => false
+
 namespace BpppTranscript
 
 /-- The transcript `t` with `es` appended to its log. -/

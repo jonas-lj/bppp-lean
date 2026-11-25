@@ -26,6 +26,10 @@ How it works:
 
 The example at the end is a reduction from two discrete logarithms to one.
 
+- The spec `Audit/02-RangeProof.lean` does not use this file. The full NLA
+  (`Audit/NLAFull/Full.lean`) uses it, and only the proof of `range_sound` uses the full NLA.
+  You do not need to review it.
+
 Assumptions:
 - A reduction is a "reduction of knowledge" in the sense of Kothapalli and Parno, with special
   soundness in place of knowledge soundness.

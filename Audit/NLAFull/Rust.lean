@@ -5,7 +5,8 @@ import Bppp.Model.Crs
 /-!
 # The full NLA and the Rust round count
 
-This file connects `IsBase` and `numRounds` in `Audit/04-NLAFull.lean` to the Rust code in `Model/`.
+This file connects `IsBase` and `numRounds` in `Audit/NLAFull/Full.lean` to the Rust code in
+`Model/`.
 
 Why it exists:
 - `nlaSystem` runs `numRounds m k` rounds, until `IsBase`. This file proves that the Rust

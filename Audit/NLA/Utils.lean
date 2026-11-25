@@ -3,13 +3,13 @@ import Mathlib
 /-!
 # Utilities for the audit
 
-This file defines the helpers that the other specification files use. Now these are the vector
-operations of `Audit/03-NLA.lean`.
+This file defines the vector operations of `Audit/NLA/Round.lean`.
 
 Why it exists:
-- `Rel`, `msgX`, `msgR` and the fold use these operations, so they are part of the
-  specification. Review this file first.
-- A separate file keeps the other specification files short.
+- `Rel`, `msgX`, `msgR` and the fold use these operations.
+- A separate file keeps `Audit/NLA/Round.lean` short.
+- The spec `Audit/02-RangeProof.lean` does not use this file. Only the proof of `range_sound`
+  uses it. You do not need to review it.
 
 Assumptions:
 - A vector of length `m` is a function `Fin m → F`.

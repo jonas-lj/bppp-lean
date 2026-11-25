@@ -9,9 +9,9 @@ a specific protocol.
 Why it exists:
 - A soundness statement must say what "sound" means. This file gives the textbook meaning, so
   that a reader can check it once.
-- `Audit/02-Reductions.lean` builds on it: a reduction is a step that turns a statement into a
+- `Audit/Reductions/Defs.lean` builds on it: a reduction is a step that turns a statement into a
   smaller statement.
-- `Audit/05-RangeProof.lean` uses it for the Bulletproofs++ range proof.
+- `Audit/02-RangeProof.lean` uses it for the Bulletproofs++ range proof.
 
 How it works:
 1. `Relation`: statements, witnesses, the relation `Rel` for completeness, and the relaxed

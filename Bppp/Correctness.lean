@@ -56,7 +56,8 @@ theorem completeness (oracle : List (Entry F E) → F) (generators : ℕ → Res
     rw [h16]; have := Nat.one_le_two_pow (n := range.bits); omega
   obtain ⟨proof, t', hprove, hverify⟩ := Circuit.completeness params hv rng values blindings G H
     gens (transcript oracle dst range.bits values.length) hh hg hgH hhG hpm.symm
-    (by rw [hb, hpm]) (by rw [hpr]; exact hrange) hd (fun log j hj => horacle log j hj)
+    (by rw [hb, hpm]) (by rw [hpr]; exact hrange) hd (fun l _ j hj => horacle _ j hj)
+    (fun l _ h => horacle _ 0 (by norm_num) (by rw [Nat.cast_zero, add_zero]; exact h))
   refine ⟨⟨proof⟩, ?_, ?_⟩
   · have hc : ¬(values = [] ∨ values.length ≠ blindings.length ∨
         values.any (fun v => !range.is_in_range v)) := by

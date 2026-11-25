@@ -4,7 +4,8 @@ import Audit.NLAFull.Extract
 /-!
 # Tests of the NLA extractors
 
-This file runs the extractors of `Audit/03-NLA.lean` and `Audit/04-NLAFull.lean` on small examples.
+This file runs the extractors of `Audit/NLA/Round.lean` and `Audit/NLAFull/Full.lean` on small
+examples.
 
 Why it exists:
 - A `#guard` runs compiled code. So a passing test shows that Lean has code for the extractors.

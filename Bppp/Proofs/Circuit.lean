@@ -190,7 +190,10 @@ lemma completeness (Gp Hp : E) (gens : Generators E) (t : BpppTranscript F E)
     (hgH : gens.g = Hp) (hhG : gens.h_vec.getD 0 0 = Gp)
     (hlen : values.length = params.m) (hb : blindings.length = params.m)
     (hrange : ∀ v ∈ values, params.range.is_in_range v) (hd : ∀ v ∈ values, v < 16 ^ params.d)
-    (horacle : ∀ log, ∀ j : ℕ, j < 16 → t.oracle log + j ≠ 0) :
+    (hαOk : ∀ l : List (Entry F E), l.countP Entry.isChallenge = 1 →
+      ∀ j : ℕ, j < 16 → t.oracle (t.log ++ l) + j ≠ 0)
+    (hNonzero : ∀ l : List (Entry F E), l.countP Entry.isChallenge ∈ [2, 4, 5, 6] →
+      t.oracle (t.log ++ l) ≠ 0) :
     ∃ proof t', (prove Gp Hp gens params rng values blindings).run t =
         .ok ((proof, (List.zip (to_scalars values : List F) blindings).map fun (v, s) =>
           PedersenCommitment.new Gp Hp v s), t') ∧
@@ -221,7 +224,8 @@ lemma completeness (Gp Hp : E) (gens : Generators E) (t : BpppTranscript F E)
   generalize hα : t.oracle (t.log ++ [Entry.message "dom-sep" (List.map Char.toNat "bppp_circuit".toList)] ++
     List.map (fun c => Entry.point "V" c.point) vcs ++ [Entry.point "C_L" c_l] ++
     [Entry.point "C_O" c_o] ++ [Entry.challenge "alpha"]) = alpha
-  have halpha : ∀ j : ℕ, j < 16 → alpha + j ≠ 0 := fun j hj => hα ▸ horacle _ j hj
+  have halpha : ∀ j : ℕ, j < 16 → alpha + j ≠ 0 := fun j hj => by
+    rw [← hα]; simpa only [List.append_assoc] using hαOk _ (by simp [Entry.isChallenge]) j hj
   obtain ⟨n_r, hnr_eq, hnr_len, hnr⟩ := reciprocals_eq params hv rng values blindings hlen alpha
     halpha 0 0 0 0 0
   rw [← hW] at hnr_eq
@@ -238,11 +242,16 @@ lemma completeness (Gp Hp : E) (gens : Generators E) (t : BpppTranscript F E)
     [Entry.challenge "lambda"] ++ [Entry.challenge "beta"]) = beta
   generalize hdelta : t.oracle (t.log ++ L1 ++ [Entry.point "C_R" c_r] ++ [Entry.challenge "rho"] ++
     [Entry.challenge "lambda"] ++ [Entry.challenge "beta"] ++ [Entry.challenge "delta"]) = delta
-  have hne : ∀ (l : List (Entry F E)) (x : F), t.oracle l = x → x ≠ 0 := fun l x h => by
-    have := horacle l 0 (by norm_num); rw [h] at this; simpa using this
-  have hrho0 : rho ≠ 0 := hne _ _ hrho
-  have hbeta0 : beta ≠ 0 := hne _ _ hbeta
-  have hdelta0 : delta ≠ 0 := hne _ _ hdelta
+  have hne : ∀ (l : List (Entry F E)) (x : F), l.countP Entry.isChallenge ∈ [2, 4, 5, 6] →
+      t.oracle (t.log ++ l) = x → x ≠ 0 := fun l x hl h => h ▸ hNonzero l hl
+  have hrho0 : rho ≠ 0 := hne (L1 ++ [Entry.point "C_R" c_r] ++ [Entry.challenge "rho"]) _
+    (by simp [hL1, Entry.isChallenge, Function.comp_def, List.countP_cons]) (by rw [← hrho]; simp only [List.append_assoc])
+  have hbeta0 : beta ≠ 0 := hne (L1 ++ [Entry.point "C_R" c_r] ++ [Entry.challenge "rho"] ++
+      [Entry.challenge "lambda"] ++ [Entry.challenge "beta"]) _
+    (by simp [hL1, Entry.isChallenge, Function.comp_def, List.countP_cons]) (by rw [← hbeta]; simp only [List.append_assoc])
+  have hdelta0 : delta ≠ 0 := hne (L1 ++ [Entry.point "C_R" c_r] ++ [Entry.challenge "rho"] ++
+      [Entry.challenge "lambda"] ++ [Entry.challenge "beta"] ++ [Entry.challenge "delta"]) _
+    (by simp [hL1, Entry.isChallenge, Function.comp_def, List.countP_cons]) (by rw [← hdelta]; simp only [List.append_assoc])
   have hdinv : inverse delta = .ok delta⁻¹ := by simp [inverse, hdelta0]
   obtain ⟨C, hCnew, hC⟩ := Constraints.new_correct params alpha (rho * rho) lambda hv
     (mul_ne_zero hrho0 hrho0) halpha
@@ -270,7 +279,8 @@ lemma completeness (Gp Hp : E) (gens : Generators E) (t : BpppTranscript F E)
     with hL2
   generalize htau : t.oracle (t.log ++ L1 ++ L2 ++ [Entry.point "C_S" c_s] ++
     [Entry.challenge "tau"]) = tau
-  have htau0 : tau ≠ 0 := hne _ _ htau
+  have htau0 : tau ≠ 0 := hne (L1 ++ L2 ++ [Entry.point "C_S" c_s] ++ [Entry.challenge "tau"]) _
+    (by simp [hL1, hL2, Entry.isChallenge, Function.comp_def, List.countP_cons]) (by rw [← htau]; simp only [List.append_assoc])
   set τu : Fˣ := Units.mk0 tau htau0
   set T : BpppTranscript F E := ((t.extend L1).extend L2).extend
     ([Entry.point "C_S" c_s] ++ [Entry.challenge "tau"]) with hT

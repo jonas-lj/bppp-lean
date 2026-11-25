@@ -1,8 +1,8 @@
-import Audit.«03-NLA»
+import Audit.NLA.Round
 import Audit.NLA.Proofs
 import Audit.NLA.BadChallenges
 import Audit.NLA.Counterexamples
-import Audit.«04-NLAFull»
+import Audit.NLAFull.Full
 import Audit.NLAFull.Proofs
 import Audit.NLAFull.Legacy
 import Audit.NLAFull.LegacyProofs
@@ -10,5 +10,13 @@ import Audit.NLAFull.Rust
 import Audit.NLAFull.Bridge
 import Audit.NLAFull.Tests
 import Audit.«01-TreeSoundness»
-import Audit.«02-Reductions»
+import Audit.Reductions.Defs
 import Audit.Reductions.Compose
+import Audit.«02-RangeProof»
+import Audit.RangeProof.Statement
+import Audit.RangeProof.NestedTree
+import Audit.RangeProof.Proofs
+import Audit.RangeProof.Complete
+import Audit.RangeProof.Sound.Proofs
+import Audit.RangeProof.Paper.Protocol
+import Audit.RangeProof.Paper.Prover

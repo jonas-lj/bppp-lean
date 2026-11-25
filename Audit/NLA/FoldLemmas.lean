@@ -1,4 +1,4 @@
-import Audit.«00-Utils»
+import Audit.NLA.Utils
 
 /-!
 # Fold lemmas for the NLA audit
@@ -8,7 +8,7 @@ This file proves how each term of `Rel` changes under one fold.
 Why it exists:
 - The proof of `roundProtocol_complete` in `Audit/NLA/Proofs.lean` uses these lemmas.
 - Only proofs and the helper `pad` live here. The statements that we audit stay in
-  `Audit/03-NLA.lean`.
+  `Audit/NLA/Round.lean`.
 
 How it works:
 1. `sum_split` writes a sum over length `2m` as even and odd slots over length `m`.

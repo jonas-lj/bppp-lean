@@ -4,7 +4,7 @@ import Audit.NLAFull.Extract
 # Proofs for the full NLA
 
 This file proves `NLASoundness`, `NLACompleteness` and `NLATreesExist` from
-`Audit/04-NLAFull.lean`. You do not need to review it.
+`Audit/NLAFull/Full.lean`. You do not need to review it.
 
 How it works:
 1. `roundReduction_sound`: one round is special sound with 4 challenges. If a child gives a

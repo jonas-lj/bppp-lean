@@ -1,4 +1,4 @@
-import Audit.«04-NLAFull»
+import Audit.NLAFull.Full
 import Audit.NLAFull.Lemmas
 
 /-!
@@ -10,7 +10,7 @@ extractors. You do not need to review it.
 Why it exists:
 - The old range route (`Audit/RangeProof/NestedTree.lean`, `Audit/RangeProof/Proofs.lean`,
   `Audit/RangeProof/Paper/`) and `Audit/NLAFull/Bridge.lean` still use these types.
-- `Audit/04-NLAFull.lean` now states the NLA with the reductions of `Audit/02-Reductions.lean`.
+- `Audit/NLAFull/Full.lean` now states the NLA with the reductions of `Audit/Reductions/Defs.lean`.
   When the new range proof replaces the old route, this file goes away.
 
 How it works:

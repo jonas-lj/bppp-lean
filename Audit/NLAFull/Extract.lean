@@ -1,4 +1,4 @@
-import Audit.«04-NLAFull»
+import Audit.NLAFull.Full
 import Audit.NLAFull.Lemmas
 import Audit.Reductions.Compose
 

@@ -1,5 +1,5 @@
-import Audit.«03-NLA»
-import Audit.«02-Reductions»
+import Audit.NLA.Round
+import Audit.Reductions.Defs
 
 /-!
 # The full norm-linear argument (NLA)
@@ -26,20 +26,22 @@ How it works:
    relaxed witness from every fork tree in which every path accepts. `NLATreesExist`: such
    trees exist when the field has 4 distinct elements.
 7. `NLACompleteness`: the honest prover (`honestStrategy`) always convinces the verifier.
+- The spec `Audit/02-RangeProof.lean` does not use this file. Only the proof of `range_sound`
+  uses it. You do not need to review it.
 - This file only states 6 and 7. `Audit/NLAFull/Proofs.lean` proves them, with the extractor
   `nlaExtract` of `Audit/NLAFull/Extract.lean`.
 
 Assumptions:
 - Every round needs an even norm length, `EvenNorms`. The Rust parameters satisfy it, for
   example `(8, 16)` and `(8, 64)`.
-- The definitions of one round are in `Audit/03-NLA.lean`.
+- The definitions of one round are in `Audit/NLA/Round.lean`.
 - In a real group, links always exist. So "a link exists" has no content. The type
   `NLAExtractor` makes the extractor work for every `F` and `E`, but it does not block choice.
   So `NLASoundness` is meaningful only for a computable extractor without choice, such as
   `nlaExtract`. Such an extractor cannot find a link by itself. A link that it outputs comes
   from the prover, and it breaks the discrete-log relation assumption.
 - Lean does not check that the extractor is fast. `nlaExtract` uses the round extractors of
-  `Audit/03-NLA.lean` and `liftLink` (`Audit/NLAFull/Lemmas.lean`), so its time is polynomial in
+  `Audit/NLA/Round.lean` and `liftLink` (`Audit/NLAFull/Lemmas.lean`), so its time is polynomial in
   the size of the tree.
 - Rust does not reject `ρ = 0`. `Instance.hρ` assumes `ρ ≠ 0`, so the caller must cover that
   case.
